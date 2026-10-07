@@ -1,0 +1,2300 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rechnio – E-Rechnungen</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    color: #17202a;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* LOGIN */
+
+.login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+}
+
+.login-box {
+    width: 100%;
+    max-width: 420px;
+    background: white;
+    padding: 35px;
+    border-radius: 22px;
+    box-shadow: 0 15px 45px rgba(0,0,0,0.08);
+}
+
+.logo-big {
+    text-align: center;
+    font-size: 30px;
+    font-weight: 800;
+    margin-bottom: 8px;
+}
+
+.logo-big span {
+    color: #4f46e5;
+}
+
+.login-subtitle {
+    text-align: center;
+    color: #6b7280;
+    margin-bottom: 28px;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 700;
+    margin-bottom: 7px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d8dee8;
+    border-radius: 10px;
+    background: white;
+    outline: none;
+}
+
+input:focus,
+select:focus {
+    border-color: #4f46e5;
+}
+
+.primary-button {
+    width: 100%;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    background: #4f46e5;
+    color: white;
+    font-weight: 700;
+}
+
+.primary-button:hover {
+    background: #4338ca;
+}
+
+.login-error {
+    margin-top: 14px;
+    color: #dc2626;
+    font-weight: 700;
+    text-align: center;
+}
+
+/* APP */
+
+.app {
+    min-height: 100vh;
+}
+
+header {
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px 25px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+}
+
+.logo {
+    font-size: 24px;
+    font-weight: 800;
+}
+
+.logo span {
+    color: #4f46e5;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.header-email {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.logout-button {
+    border: none;
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 9px 13px;
+    border-radius: 9px;
+    font-weight: 700;
+}
+
+.container {
+    max-width: 1250px;
+    margin: auto;
+    padding: 28px 20px 50px;
+}
+
+.page-title {
+    margin-bottom: 6px;
+}
+
+.page-subtitle {
+    color: #6b7280;
+    margin-top: 0;
+}
+
+/* OVERDUE */
+
+.overdue-box {
+    background: #fff1f2;
+    border: 1px solid #fecdd3;
+    color: #be123c;
+    padding: 16px;
+    border-radius: 14px;
+    margin: 22px 0;
+}
+
+.overdue-box strong {
+    font-size: 17px;
+}
+
+.overdue-list {
+    margin-top: 10px;
+}
+
+.overdue-item {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    padding: 8px 0;
+    border-top: 1px solid #fecdd3;
+}
+
+/* CARDS */
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    border: 1px solid #e5e7eb;
+}
+
+.stat-label {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: 800;
+    margin-top: 8px;
+}
+
+/* LAYOUT */
+
+.grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 20px;
+}
+
+.card h2 {
+    margin-top: 0;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+/* BUTTONS */
+
+.button-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.secondary-button {
+    border: none;
+    background: #eef2ff;
+    color: #4338ca;
+    padding: 10px 14px;
+    border-radius: 9px;
+    font-weight: 700;
+}
+
+.danger-button {
+    border: none;
+    background: #fee2e2;
+    color: #b91c1c;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.success-button {
+    border: none;
+    background: #dcfce7;
+    color: #15803d;
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+/* FORM */
+
+.form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.form-grid .full {
+    grid-column: 1 / -1;
+}
+
+.total-box {
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 15px;
+}
+
+.total-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+}
+
+.total-final {
+    font-size: 20px;
+    font-weight: 800;
+    border-top: 1px solid #dbe1e8;
+    margin-top: 8px;
+    padding-top: 12px;
+}
+
+/* LISTS */
+
+.search {
+    margin-bottom: 15px;
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.item {
+    border: 1px solid #e5e7eb;
+    padding: 15px;
+    border-radius: 12px;
+}
+
+.item-main {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: center;
+}
+
+.item-title {
+    font-weight: 800;
+}
+
+.item-info {
+    color: #6b7280;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.status {
+    display: inline-block;
+    padding: 5px 9px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.status.offen {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status.bezahlt {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.status.ueberfaellig {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* EMPTY */
+
+.empty {
+    color: #6b7280;
+    text-align: center;
+    padding: 20px;
+}
+
+/* RESPONSIVE */
+
+@media (max-width: 900px) {
+    .stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .grid {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: auto;
+    }
+}
+
+@media (max-width: 600px) {
+    header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .header-right {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .stats {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .form-grid .full {
+        grid-column: auto;
+    }
+
+    .item-main {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen" class="login-screen">
+
+    <div class="login-box">
+
+        <div class="logo-big">
+            Rechn<span>io</span>
+        </div>
+
+        <div class="login-subtitle">
+            E-Rechnungen einfach verwalten
+        </div>
+
+        <form id="loginForm">
+
+            <div class="form-group">
+                <label for="loginEmail">E-Mail</label>
+                <input
+                    id="loginEmail"
+                    type="email"
+                    placeholder="E-Mail eingeben"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="loginPassword">Passwort</label>
+                <input
+                    id="loginPassword"
+                    type="password"
+                    placeholder="Passwort eingeben"
+                    required
+                >
+            </div>
+
+            <button class="primary-button" type="submit">
+                Einloggen
+            </button>
+
+            <div id="loginError" class="login-error"></div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- APP -->
+<div id="app" class="app hidden">
+
+<header>
+
+    <div class="logo">
+        Rechn<span>io</span>
+    </div>
+
+    <div class="header-right">
+        <div id="headerEmail" class="header-email"></div>
+        <button id="logoutButton" class="logout-button">
+            Ausloggen
+        </button>
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <h1 class="page-title">Übersicht</h1>
+
+    <p class="page-subtitle">
+        Heute ist <strong id="todayText"></strong>
+    </p>
+
+
+    <!-- ÜBERFÄLLIG -->
+    <div id="overdueBox" class="overdue-box hidden">
+
+        <strong id="overdueTitle"></strong>
+
+        <div id="overdueList" class="overdue-list"></div>
+
+    </div>
+
+
+    <!-- STATS -->
+    <section class="stats">
+
+        <div class="stat-card">
+            <div class="stat-label">Offener Betrag</div>
+            <div id="openAmount" class="stat-value">0,00 €</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Bezahlt</div>
+            <div id="paidAmount" class="stat-value">0,00 €</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Rechnungen</div>
+            <div id="invoiceCount" class="stat-value">0</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-label">Kunden</div>
+            <div id="customerCount" class="stat-value">0</div>
+        </div>
+
+    </section>
+
+
+    <div class="grid">
+
+
+        <!-- RECHNUNG -->
+        <section class="card">
+
+            <h2 id="invoiceFormTitle">Rechnung erstellen</h2>
+
+            <form id="invoiceForm">
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+                        <label>Kunde</label>
+                        <select id="customerId" required>
+                            <option value="">Kunde auswählen</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rechnungsnummer</label>
+                        <input
+                            id="invoiceNumber"
+                            type="text"
+                            placeholder="RE-1001"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group full">
+                        <label>Leistung / Produkt</label>
+                        <input
+                            id="service"
+                            type="text"
+                            placeholder="z. B. Webdesign"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Menge</label>
+                        <input
+                            id="quantity"
+                            type="number"
+                            min="1"
+                            value="1"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>Preis pro Stück (€)</label>
+                        <input
+                            id="price"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="100"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label>MwSt. (%)</label>
+                        <select id="vat">
+                            <option value="19">19 %</option>
+                            <option value="7">7 %</option>
+                            <option value="0">0 %</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Status</label>
+                        <select id="status">
+                            <option value="offen">Offen</option>
+                            <option value="bezahlt">Bezahlt</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rechnungsdatum</label>
+                        <input id="invoiceDate" type="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fälligkeitsdatum</label>
+                        <input id="dueDate" type="date" required>
+                    </div>
+
+                </div>
+
+
+                <div class="total-box">
+
+                    <div class="total-line">
+                        <span>Netto</span>
+                        <strong id="netTotal">0,00 €</strong>
+                    </div>
+
+                    <div class="total-line">
+                        <span>MwSt.</span>
+                        <strong id="vatTotal">0,00 €</strong>
+                    </div>
+
+                    <div class="total-line total-final">
+                        <span>Brutto</span>
+                        <strong id="grossTotal">0,00 €</strong>
+                    </div>
+
+                </div>
+
+
+                <div class="button-row" style="margin-top:15px;">
+
+                    <button class="primary-button" type="submit">
+                        <span id="saveInvoiceText">Rechnung speichern</span>
+                    </button>
+
+                    <button
+                        id="cancelEditButton"
+                        class="secondary-button hidden"
+                        type="button"
+                    >
+                        Bearbeiten abbrechen
+                    </button>
+
+                </div>
+
+            </form>
+
+        </section>
+
+
+        <!-- KUNDEN -->
+        <section class="card">
+
+            <h2>Kunden</h2>
+
+            <form id="customerForm">
+
+                <div class="form-group">
+                    <label>Name</label>
+                    <input
+                        id="customerName"
+                        type="text"
+                        placeholder="Max Mustermann"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>E-Mail</label>
+                    <input
+                        id="customerEmail"
+                        type="email"
+                        placeholder="max@example.de"
+                        required
+                    >
+                </div>
+
+                <button class="primary-button" type="submit">
+                    <span id="saveCustomerText">Kunde speichern</span>
+                </button>
+
+            </form>
+
+            <div
+                id="customerList"
+                class="list"
+                style="margin-top:20px;"
+            ></div>
+
+        </section>
+
+
+        <!-- RECHNUNGEN -->
+        <section class="card full-width">
+
+            <h2>Rechnungen</h2>
+
+            <input
+                id="invoiceSearch"
+                class="search"
+                type="text"
+                placeholder="Rechnungen suchen..."
+            >
+
+            <div id="invoiceList" class="list"></div>
+
+        </section>
+
+    </div>
+
+</main>
+
+</div>
+
+
+<script>
+
+/* =========================
+   DATEN
+========================= */
+
+const STORAGE_KEY = "rechnio_v2";
+
+let state = {
+    users: [
+        {
+            id: "user1",
+            email: "test@test.de",
+            password: "1234"
+        }
+    ],
+    currentUserId: null,
+    customers: [],
+    invoices: []
+};
+
+let editingCustomerId = null;
+let editingInvoiceId = null;
+
+
+/* =========================
+   ELEMENTE
+========================= */
+
+function $(id) {
+    return document.getElementById(id);
+}
+
+
+/* =========================
+   DATEN LADEN
+========================= */
+
+function loadState() {
+
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (!saved) {
+        return;
+    }
+
+    try {
+
+        const loaded = JSON.parse(saved);
+
+        state = {
+            users: Array.isArray(loaded.users)
+                ? loaded.users
+                : state.users,
+
+            currentUserId: loaded.currentUserId || null,
+
+            customers: Array.isArray(loaded.customers)
+                ? loaded.customers
+                : [],
+
+            invoices: Array.isArray(loaded.invoices)
+                ? loaded.invoices
+                : []
+        };
+
+    } catch (error) {
+
+        console.error("Daten konnten nicht geladen werden.");
+
+    }
+}
+
+
+function saveState() {
+
+    localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify(state)
+    );
+}
+
+
+/* =========================
+   DATUM
+========================= */
+
+function heute() {
+
+    const datum = new Date();
+
+    const jahr = datum.getFullYear();
+
+    const monat = String(
+        datum.getMonth() + 1
+    ).padStart(2, "0");
+
+    const tag = String(
+        datum.getDate()
+    ).padStart(2, "0");
+
+    return `${jahr}-${monat}-${tag}`;
+}
+
+
+function datumAnzeigen(datum) {
+
+    if (!datum) {
+        return "-";
+    }
+
+    const teile = datum.split("-");
+
+    if (teile.length !== 3) {
+        return datum;
+    }
+
+    return `${teile[2]}.${teile[1]}.${teile[0]}`;
+}
+
+
+function datumMitText(datum) {
+
+    return datumAnzeigen(datum);
+}
+
+
+/* =========================
+   GELD
+========================= */
+
+function geld(wert) {
+
+    return Number(wert || 0).toLocaleString(
+        "de-DE",
+        {
+            style: "currency",
+            currency: "EUR"
+        }
+    );
+}
+
+
+/* =========================
+   ID
+========================= */
+
+function neueId(prefix) {
+
+    return prefix + "_" +
+        Date.now() + "_" +
+        Math.random()
+            .toString(36)
+            .substring(2, 8);
+}
+
+
+/* =========================
+   LOGIN
+========================= */
+
+function loginAnzeigen() {
+
+    $("loginScreen").classList.remove("hidden");
+    $("app").classList.add("hidden");
+
+}
+
+
+function appAnzeigen() {
+
+    $("loginScreen").classList.add("hidden");
+    $("app").classList.remove("hidden");
+
+    const user = state.users.find(
+        function(item) {
+            return item.id === state.currentUserId;
+        }
+    );
+
+    $("headerEmail").textContent =
+        user ? user.email : "";
+
+    allesAktualisieren();
+
+}
+
+
+$("loginForm").addEventListener(
+    "submit",
+    function(event) {
+
+        event.preventDefault();
+
+        const email =
+            $("loginEmail").value.trim().toLowerCase();
+
+        const password =
+            $("loginPassword").value;
+
+        const user = state.users.find(
+            function(item) {
+                return (
+                    item.email.toLowerCase() === email &&
+                    item.password === password
+                );
+            }
+        );
+
+        if (!user) {
+
+            $("loginError").textContent =
+                "Falsche E-Mail oder falsches Passwort.";
+
+            return;
+        }
+
+        state.currentUserId = user.id;
+
+        saveState();
+
+        $("loginError").textContent = "";
+
+        $("loginForm").reset();
+
+        appAnzeigen();
+
+    }
+);
+
+
+/* =========================
+   LOGOUT
+========================= */
+
+$("logoutButton").addEventListener(
+    "click",
+    function() {
+
+        state.currentUserId = null;
+
+        saveState();
+
+        loginAnzeigen();
+
+    }
+);
+
+
+/* =========================
+   RECHNUNGSSTATUS
+========================= */
+
+function statusErmitteln(rechnung) {
+
+    if (rechnung.status === "bezahlt") {
+        return "bezahlt";
+    }
+
+    if (
+        rechnung.faelligkeit &&
+        rechnung.faelligkeit < heute()
+    ) {
+        return "ueberfaellig";
+    }
+
+    return "offen";
+}
+
+
+/* =========================
+   BERECHNUNG
+========================= */
+
+function berechnen() {
+
+    const menge =
+        Math.max(
+            0,
+            Number($("quantity").value) || 0
+        );
+
+    const preis =
+        Math.max(
+            0,
+            Number($("price").value) || 0
+        );
+
+    const mwst =
+        Math.max(
+            0,
+            Number($("vat").value) || 0
+        );
+
+    const netto =
+        menge * preis;
+
+    const mwstBetrag =
+        netto * mwst / 100;
+
+    const brutto =
+        netto + mwstBetrag;
+
+    return {
+        menge,
+        preis,
+        mwst,
+        netto,
+        mwstBetrag,
+        brutto
+    };
+}
+
+
+function berechnungAnzeigen() {
+
+    const ergebnis = berechnen();
+
+    $("netTotal").textContent =
+        geld(ergebnis.netto);
+
+    $("vatTotal").textContent =
+        geld(ergebnis.mwstBetrag);
+
+    $("grossTotal").textContent =
+        geld(ergebnis.brutto);
+}
+
+
+$("quantity").addEventListener(
+    "input",
+    berechnungAnzeigen
+);
+
+$("price").addEventListener(
+    "input",
+    berechnungAnzeigen
+);
+
+$("vat").addEventListener(
+    "change",
+    berechnungAnzeigen
+);
+
+
+/* =========================
+   KUNDEN AUSWÄHLEN
+========================= */
+
+function kundenAuswahlAktualisieren() {
+
+    const aktuelleAuswahl =
+        $("customerId").value;
+
+    $("customerId").innerHTML =
+        '<option value="">Kunde auswählen</option>';
+
+    state.customers.forEach(
+        function(kunde) {
+
+            const option =
+                document.createElement("option");
+
+            option.value = kunde.id;
+
+            option.textContent =
+                kunde.name;
+
+            $("customerId").appendChild(option);
+
+        }
+    );
+
+    const existiert =
+        state.customers.some(
+            function(kunde) {
+                return kunde.id === aktuelleAuswahl;
+            }
+        );
+
+    if (existiert) {
+        $("customerId").value =
+            aktuelleAuswahl;
+    }
+}
+
+
+/* =========================
+   KUNDEN SPEICHERN / BEARBEITEN
+========================= */
+
+$("customerForm").addEventListener(
+    "submit",
+    function(event) {
+
+        event.preventDefault();
+
+        const name =
+            $("customerName").value.trim();
+
+        const email =
+            $("customerEmail").value.trim();
+
+        if (!name || !email) {
+
+            alert(
+                "Bitte Name und E-Mail eingeben."
+            );
+
+            return;
+        }
+
+
+        if (editingCustomerId) {
+
+            const kunde =
+                state.customers.find(
+                    function(item) {
+                        return (
+                            item.id ===
+                            editingCustomerId
+                        );
+                    }
+                );
+
+            if (kunde) {
+
+                kunde.name = name;
+                kunde.email = email;
+
+            }
+
+            editingCustomerId = null;
+
+            $("saveCustomerText").textContent =
+                "Kunde speichern";
+
+        } else {
+
+            state.customers.push({
+
+                id: neueId("kunde"),
+
+                name: name,
+
+                email: email
+
+            });
+
+        }
+
+
+        $("customerForm").reset();
+
+        saveState();
+
+        kundenAnzeigen();
+
+        kundenAuswahlAktualisieren();
+
+        dashboardAktualisieren();
+
+    }
+);
+
+
+function kundeBearbeiten(id) {
+
+    const kunde =
+        state.customers.find(
+            function(item) {
+                return item.id === id;
+            }
+        );
+
+    if (!kunde) {
+        return;
+    }
+
+    editingCustomerId = id;
+
+    $("customerName").value =
+        kunde.name;
+
+    $("customerEmail").value =
+        kunde.email;
+
+    $("saveCustomerText").textContent =
+        "Kunde aktualisieren";
+
+    $("customerName").focus();
+
+}
+
+
+function kundeLoeschen(id) {
+
+    const hatRechnungen =
+        state.invoices.some(
+            function(rechnung) {
+                return rechnung.kundeId === id;
+            }
+        );
+
+    if (hatRechnungen) {
+
+        alert(
+            "Dieser Kunde kann nicht gelöscht werden, solange Rechnungen mit ihm verbunden sind."
+        );
+
+        return;
+    }
+
+
+    const bestaetigt =
+        confirm(
+            "Diesen Kunden wirklich löschen?"
+        );
+
+    if (!bestaetigt) {
+        return;
+    }
+
+    state.customers =
+        state.customers.filter(
+            function(kunde) {
+                return kunde.id !== id;
+            }
+        );
+
+    saveState();
+
+    kundenAnzeigen();
+
+    kundenAuswahlAktualisieren();
+
+    dashboardAktualisieren();
+
+}
+
+
+function kundenAnzeigen() {
+
+    const liste =
+        $("customerList");
+
+    liste.innerHTML = "";
+
+    if (state.customers.length === 0) {
+
+        liste.innerHTML =
+            '<div class="empty">Noch keine Kunden.</div>';
+
+        return;
+    }
+
+
+    state.customers.forEach(
+        function(kunde) {
+
+            const item =
+                document.createElement("div");
+
+            item.className = "item";
+
+            item.innerHTML = `
+
+                <div class="item-title">
+                    ${escapeHtml(kunde.name)}
+                </div>
+
+                <div class="item-info">
+                    ${escapeHtml(kunde.email)}
+                </div>
+
+                <div class="item-actions">
+
+                    <button
+                        class="secondary-button"
+                        type="button"
+                        onclick="kundeBearbeiten('${kunde.id}')"
+                    >
+                        Bearbeiten
+                    </button>
+
+                    <button
+                        class="danger-button"
+                        type="button"
+                        onclick="kundeLoeschen('${kunde.id}')"
+                    >
+                        Löschen
+                    </button>
+
+                </div>
+
+            `;
+
+            liste.appendChild(item);
+
+        }
+    );
+}
+
+
+/* =========================
+   RECHNUNG ERSTELLEN / BEARBEITEN
+========================= */
+
+$("invoiceForm").addEventListener(
+    "submit",
+    function(event) {
+
+        event.preventDefault();
+
+        const kundeId =
+            $("customerId").value;
+
+        if (!kundeId) {
+
+            alert(
+                "Bitte zuerst einen Kunden auswählen."
+            );
+
+            return;
+        }
+
+
+        const nummer =
+            $("invoiceNumber").value.trim();
+
+        if (!nummer) {
+
+            alert(
+                "Bitte eine Rechnungsnummer eingeben."
+            );
+
+            return;
+        }
+
+
+        const doppelteNummer =
+            state.invoices.some(
+                function(rechnung) {
+
+                    return (
+                        rechnung.nummer.toLowerCase() ===
+                        nummer.toLowerCase() &&
+                        rechnung.id !== editingInvoiceId
+                    );
+
+                }
+            );
+
+
+        if (doppelteNummer) {
+
+            alert(
+                "Diese Rechnungsnummer existiert bereits. Bitte eine andere Nummer verwenden."
+            );
+
+            return;
+        }
+
+
+        const service =
+            $("service").value.trim();
+
+        if (!service) {
+
+            alert(
+                "Bitte Leistung oder Produkt eingeben."
+            );
+
+            return;
+        }
+
+
+        const rechnungsdatum =
+            $("invoiceDate").value;
+
+        const faelligkeit =
+            $("dueDate").value;
+
+        if (!rechnungsdatum || !faelligkeit) {
+
+            alert(
+                "Bitte beide Datumsfelder ausfüllen."
+            );
+
+            return;
+        }
+
+
+        const berechnung =
+            berechnen();
+
+        const status =
+            $("status").value;
+
+
+        if (editingInvoiceId) {
+
+            const rechnung =
+                state.invoices.find(
+                    function(item) {
+                        return (
+                            item.id ===
+                            editingInvoiceId
+                        );
+                    }
+                );
+
+
+            if (rechnung) {
+
+                rechnung.kundeId =
+                    kundeId;
+
+                rechnung.nummer =
+                    nummer;
+
+                rechnung.leistung =
+                    service;
+
+                rechnung.menge =
+                    berechnung.menge;
+
+                rechnung.preis =
+                    berechnung.preis;
+
+                rechnung.mwst =
+                    berechnung.mwst;
+
+                rechnung.netto =
+                    berechnung.netto;
+
+                rechnung.mwstBetrag =
+                    berechnung.mwstBetrag;
+
+                rechnung.brutto =
+                    berechnung.brutto;
+
+                rechnung.rechnungsdatum =
+                    rechnungsdatum;
+
+                rechnung.faelligkeit =
+                    faelligkeit;
+
+                rechnung.status =
+                    status;
+
+                if (status === "bezahlt") {
+
+                    if (!rechnung.bezahltAm) {
+                        rechnung.bezahltAm =
+                            heute();
+                    }
+
+                } else {
+
+                    rechnung.bezahltAm =
+                        null;
+
+                }
+
+            }
+
+        } else {
+
+            state.invoices.push({
+
+                id: neueId("rechnung"),
+
+                kundeId,
+
+                nummer,
+
+                leistung: service,
+
+                menge:
+                    berechnung.menge,
+
+                preis:
+                    berechnung.preis,
+
+                mwst:
+                    berechnung.mwst,
+
+                netto:
+                    berechnung.netto,
+
+                mwstBetrag:
+                    berechnung.mwstBetrag,
+
+                brutto:
+                    berechnung.brutto,
+
+                rechnungsdatum,
+
+                faelligkeit,
+
+                status,
+
+                erstelltAm:
+                    new Date().toISOString(),
+
+                bezahltAm:
+                    status === "bezahlt"
+                        ? heute()
+                        : null
+
+            });
+
+        }
+
+
+        saveState();
+
+        rechnungFormZuruecksetzen();
+
+        allesAktualisieren();
+
+        alert(
+            editingInvoiceId
+                ? "Rechnung wurde aktualisiert."
+                : "Rechnung wurde gespeichert."
+        );
+
+    }
+);
+
+
+/* =========================
+   RECHNUNG BEARBEITEN
+========================= */
+
+async function rechnungSenden(id) {
+    const rechnung = state.invoices.find(function(item) {
+        return item.id === id;
+    });
+
+    if (!rechnung) {
+        return;
+    }
+
+    const kunde = state.customers.find(function(item) {
+        return item.id === rechnung.kundeId;
+    });
+
+    if (!kunde) {
+        alert("Kunde wurde nicht gefunden.");
+        return;
+    }
+
+    const email = kunde.email.trim();
+
+    const emailGueltig =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!emailGueltig) {
+        alert("Sorry, diese E-Mail-Adresse ist ungültig.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/send-invoice", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                customerName: kunde.name,
+                customerEmail: email,
+                invoiceNumber: rechnung.nummer,
+                service: rechnung.leistung,
+                quantity: rechnung.menge,
+                unitPrice: rechnung.preis,
+                taxRate: rechnung.mwst,
+                netAmount: rechnung.netto,
+                taxAmount: rechnung.mwstBetrag,
+                grossAmount: rechnung.brutto,
+                invoiceDate: rechnung.rechnungsdatum,
+                dueDate: rechnung.faelligkeit
+            })
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "Der E-Mail-Versand ist fehlgeschlagen."
+            );
+        }
+
+        alert(result.message);
+    } catch (error) {
+        alert(
+            "Rechnung konnte nicht gesendet werden: " +
+            error.message
+        );
+    }
+}
+
+function rechnungBearbeiten(id) {
+    const rechnung = state.invoices.find(function(item) {
+        return item.id === id;
+    });
+
+    if (!rechnung) {
+        return;
+    }
+
+    editingInvoiceId = id;
+
+    $("invoiceFormTitle").textContent =
+        "Rechnung bearbeiten";
+
+    $("saveInvoiceText").textContent =
+        "Rechnung aktualisieren";
+
+    $("cancelEditButton")
+        .classList.remove("hidden");
+
+    kundenAuswahlAktualisieren();
+
+    $("customerId").value =
+        rechnung.kundeId;
+
+    $("invoiceNumber").value =
+        rechnung.nummer;
+
+    $("service").value =
+        rechnung.leistung;
+
+    $("quantity").value =
+        rechnung.menge;
+
+    $("price").value =
+        rechnung.preis;
+
+    $("vat").value =
+        rechnung.mwst;
+
+    $("status").value =
+        rechnung.status;
+
+    $("invoiceDate").value =
+        rechnung.rechnungsdatum;
+
+    $("dueDate").value =
+        rechnung.faelligkeit;
+
+    berechnungAnzeigen();
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+
+/* =========================
+   RECHNUNG LÖSCHEN
+========================= */
+
+function rechnungLoeschen(id) {
+
+    const bestaetigt =
+        confirm(
+            "Diese Rechnung wirklich löschen?"
+        );
+
+    if (!bestaetigt) {
+        return;
+    }
+
+
+    state.invoices =
+        state.invoices.filter(
+            function(rechnung) {
+                return rechnung.id !== id;
+            }
+        );
+
+
+    saveState();
+
+    allesAktualisieren();
+
+}
+
+
+/* =========================
+   BEZAHLT MARKIEREN
+========================= */
+
+function rechnungAlsBezahlt(id) {
+
+    const rechnung =
+        state.invoices.find(
+            function(item) {
+                return item.id === id;
+            }
+        );
+
+    if (!rechnung) {
+        return;
+    }
+
+    rechnung.status =
+        "bezahlt";
+
+    rechnung.bezahltAm =
+        heute();
+
+    saveState();
+
+    allesAktualisieren();
+
+}
+
+
+/* =========================
+   RECHNUNGSFORMULAR RESET
+========================= */
+
+function rechnungFormZuruecksetzen() {
+
+    editingInvoiceId = null;
+
+    $("invoiceForm").reset();
+
+    $("invoiceDate").value =
+        heute();
+
+    $("dueDate").value =
+        heute();
+
+    $("quantity").value = 1;
+
+    $("vat").value = 19;
+
+    $("invoiceFormTitle").textContent =
+        "Rechnung erstellen";
+
+    $("saveInvoiceText").textContent =
+        "Rechnung speichern";
+
+    $("cancelEditButton")
+        .classList.add("hidden");
+
+    berechnungAnzeigen();
+
+}
+
+
+$("cancelEditButton").addEventListener(
+    "click",
+    function() {
+
+        rechnungFormZuruecksetzen();
+
+    }
+);
+
+
+/* =========================
+   RECHNUNGEN ANZEIGEN
+========================= */
+
+function rechnungenAnzeigen() {
+
+    const liste =
+        $("invoiceList");
+
+    liste.innerHTML = "";
+
+    const suche =
+        $("invoiceSearch")
+            .value
+            .trim()
+            .toLowerCase();
+
+
+    let rechnungen =
+        [...state.invoices];
+
+
+    if (suche) {
+
+        rechnungen =
+            rechnungen.filter(
+                function(rechnung) {
+
+                    const kunde =
+                        state.customers.find(
+                            function(item) {
+                                return (
+                                    item.id ===
+                                    rechnung.kundeId
+                                );
+                            }
+                        );
+
+                    const kundenName =
+                        kunde
+                            ? kunde.name
+                            : "";
+
+                    return (
+                        rechnung.nummer
+                            .toLowerCase()
+                            .includes(suche)
+                        ||
+                        kundenName
+                            .toLowerCase()
+                            .includes(suche)
+                        ||
+                        rechnung.leistung
+                            .toLowerCase()
+                            .includes(suche)
+                    );
+
+                }
+            );
+
+    }
+
+
+    rechnungen.sort(
+        function(a, b) {
+
+            return (
+                b.rechnungsdatum.localeCompare(
+                    a.rechnungsdatum
+                )
+            );
+
+        }
+    );
+
+
+    if (rechnungen.length === 0) {
+
+        liste.innerHTML =
+            '<div class="empty">Keine Rechnungen gefunden.</div>';
+
+        return;
+    }
+
+
+    rechnungen.forEach(
+        function(rechnung) {
+
+            const kunde =
+                state.customers.find(
+                    function(item) {
+                        return (
+                            item.id ===
+                            rechnung.kundeId
+                        );
+                    }
+                );
+
+
+            const kundenName =
+                kunde
+                    ? kunde.name
+                    : "Unbekannter Kunde";
+
+
+            const status =
+                statusErmitteln(rechnung);
+
+
+            const item =
+                document.createElement("div");
+
+            item.className = "item";
+
+
+            let statusText =
+                "Offen";
+
+            if (status === "bezahlt") {
+                statusText = "Bezahlt";
+            }
+
+            if (status === "ueberfaellig") {
+                statusText =
+                    "Überfällig";
+            }
+
+
+            const ueberfaelligText =
+                status === "ueberfaellig"
+                    ? `<div class="item-info">
+                        Überfällig seit:
+                        <strong>
+                            ${datumAnzeigen(rechnung.faelligkeit)}
+                        </strong>
+                       </div>`
+                    : "";
+
+
+            item.innerHTML = `
+
+                <div class="item-main">
+
+                    <div>
+
+                        <div class="item-title">
+                            ${escapeHtml(rechnung.nummer)}
+                        </div>
+
+                        <div class="item-info">
+                            ${escapeHtml(kundenName)}
+                            ·
+                            ${escapeHtml(rechnung.leistung)}
+                        </div>
+
+                        <div class="item-info">
+                            Rechnung:
+                            ${datumAnzeigen(rechnung.rechnungsdatum)}
+                            ·
+                            Fällig:
+                            ${datumAnzeigen(rechnung.faelligkeit)}
+                        </div>
+
+                    </div>
+
+                    <div style="text-align:right;">
+
+                        <div class="item-title">
+                            ${geld(rechnung.brutto)}
+                        </div>
+
+                        <span class="status ${status}">
+                            ${statusText}
+                        </span>
+
+                    </div>
+
+                </div>
+
+                ${ueberfaelligText}
+
+                <div class="item-actions">
+
+                    ${
+                        status !== "bezahlt"
+                        ?
+                        `
+                        <button
+                            class="success-button"
+                            type="button"
+                            onclick="rechnungAlsBezahlt('${rechnung.id}')"
+                        >
+                            Als bezahlt markieren
+                        </button>
+                        `
+                        :
+                        ""
+                    }
+
+                    <button
+                        class="secondary-button"
+                        type="button"
+                        onclick="rechnungBearbeiten('${rechnung.id}')"
+                    >
+                        Bearbeiten
+                    </button>
+                    <button
+                       class="secondary-button"
+                       type="button"
+                      onclick="rechnungSenden('${rechnung.id}')"
+                    >
+                        📧 Rechnung senden
+                      </button>
+
+                    <button
+                        class="danger-button"
+                        type="button"
+                        onclick="rechnungLoeschen('${rechnung.id}')"
+                    >
+                        Löschen
+                    </button>
+
+                </div>
+
+            `;
+
+
+            liste.appendChild(item);
+
+        }
+    );
+
+}
+
+
+$("invoiceSearch").addEventListener(
+    "input",
+    rechnungenAnzeigen
+);
+
+
+/* =========================
+   ÜBERFÄLLIGE RECHNUNGEN
+========================= */
+
+function ueberfaelligeAnzeigen() {
+
+    const ueberfaellige =
+        state.invoices.filter(
+            function(rechnung) {
+
+                return (
+                    statusErmitteln(rechnung) ===
+                    "ueberfaellig"
+                );
+
+            }
+        );
+
+
+    const box =
+        $("overdueBox");
+
+    if (ueberfaellige.length === 0) {
+
+        box.classList.add("hidden");
+
+        return;
+    }
+
+
+    box.classList.remove("hidden");
+
+
+    $("overdueTitle").textContent =
+        ueberfaellige.length === 1
+            ? "1 Rechnung ist überfällig."
+            : `${ueberfaellige.length} Rechnungen sind überfällig.`;
+
+
+    const liste =
+        $("overdueList");
+
+    liste.innerHTML = "";
+
+
+    ueberfaellige.forEach(
+        function(rechnung) {
+
+            const kunde =
+                state.customers.find(
+                    function(item) {
+                        return (
+                            item.id ===
+                            rechnung.kundeId
+                        );
+                    }
+                );
+
+
+            const kundenName =
+                kunde
+                    ? kunde.name
+                    : "Unbekannter Kunde";
+
+
+            const div =
+                document.createElement("div");
+
+            div.className =
+                "overdue-item";
+
+
+            div.innerHTML = `
+
+                <span>
+                    <strong>
+                        ${escapeHtml(rechnung.nummer)}
+                    </strong>
+                    –
+                    ${escapeHtml(kundenName)}
+                </span>
+
+                <strong>
+                    ${geld(rechnung.brutto)}
+                </strong>
+
+            `;
+
+
+            liste.appendChild(div);
+
+        }
+    );
+
+}
+
+
+/* =========================
+   DASHBOARD
+========================= */
+
+function dashboardAktualisieren() {
+
+    let offen = 0;
+
+    let bezahlt = 0;
+
+
+    state.invoices.forEach(
+        function(rechnung) {
+
+            const status =
+                statusErmitteln(rechnung);
+
+
+            if (status === "bezahlt") {
+
+                bezahlt +=
+                    Number(rechnung.brutto) || 0;
+
+            } else {
+
+                offen +=
+                    Number(rechnung.brutto) || 0;
+
+            }
+
+        }
+    );
+
+
+    $("openAmount").textContent =
+        geld(offen);
+
+    $("paidAmount").textContent =
+        geld(bezahlt);
+
+    $("invoiceCount").textContent =
+        state.invoices.length;
+
+    $("customerCount").textContent =
+        state.customers.length;
+
+}
+
+
+/* =========================
+   HTML SICHER MACHEN
+========================= */
+
+function escapeHtml(text) {
+
+    return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+/* =========================
+   ALLES AKTUALISIEREN
+========================= */
+
+function allesAktualisieren() {
+
+    const heuteDatum =
+        heute();
+
+    $("todayText").textContent =
+        datumMitText(heuteDatum);
+
+    kundenAnzeigen();
+
+    kundenAuswahlAktualisieren();
+
+    rechnungenAnzeigen();
+
+    ueberfaelligeAnzeigen();
+
+    dashboardAktualisieren();
+
+    berechnungAnzeigen();
+
+}
+
+
+/* =========================
+   START
+========================= */
+
+loadState();
+
+
+$("invoiceDate").value =
+    heute();
+
+$("dueDate").value =
+    heute();
+
+
+if (state.currentUserId) {
+
+    const userExistiert =
+        state.users.some(
+            function(user) {
+                return (
+                    user.id ===
+                    state.currentUserId
+                );
+            }
+        );
+
+
+    if (userExistiert) {
+
+        appAnzeigen();
+
+    } else {
+
+        state.currentUserId = null;
+
+        saveState();
+
+        loginAnzeigen();
+
+    }
+
+} else {
+
+    loginAnzeigen();
+
+}
+
+</script>
+
+</body>
+</html>
