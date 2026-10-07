@@ -196,6 +196,7 @@ async function sendInvoice(request, response) {
 }
 
 const server = http.createServer(async function(request, response) {
+ console.log("REQUEST:", request.method, request.url);
     if (request.method === "GET" && request.url === "/") {
         fs.readFile(indexPath, function(error, contents) {
             if (error) {
