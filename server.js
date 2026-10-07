@@ -197,7 +197,7 @@ async function sendInvoice(request, response) {
 
 const server = http.createServer(async function(request, response) {
  console.log("REQUEST:", request.method, request.url);
-    if (request.method === "GET" && request.url === "/") {
+    if (request.method === "GET" && request.url.split("?")[0] === "/") {
         fs.readFile(indexPath, function(error, contents) {
             if (error) {
                 console.error("index.html konnte nicht gelesen werden:", error);
