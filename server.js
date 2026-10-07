@@ -2,7 +2,7 @@ const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const host = "127.0.0.1";
+const host = "0.0.0.0";
 const port = Number(process.env.PORT || 3000);
 const indexPath = path.join(__dirname, "index.html");
 const maxRequestBytes = 16 * 1024;
