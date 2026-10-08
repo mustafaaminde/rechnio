@@ -719,9 +719,64 @@ header {
                 </button>
 
             </form>
+           <input
+    id="customerSearch"
+    class="search"
+    type="text"
+    placeholder="🔎 Kunde suchen..."
+>
 
+<div
+    id="customerList"
+    class="list"
+    style="margin-top:20px;"
+></div>
+
+        </section>
+
+
+        <!-- RECHNUNGEN -->
+             <div
+                id="customerList"
+          
+>
+                class="list"
+                style="margin-top:20px;"
+            ></div>
+
+        </section>
+
+
+        <!-- RECHNUNGEN -->
+        <section class="card full-width">
+
+            <h2>Rechnungen</h2>
+
+            <input
+                id="invoiceSearch"
+ <div
+                id="customerList"
+                
+>
+                class="list"
+                style="margin-top:20px;"
+            ></div>
+
+        </section>
+
+
+        <!-- RECHNUNGEN -->
+        <section class="card full-width">
+
+            <h2>Rechnungen</h2>
+
+            <input
+                id="invoiceSearch"
             <div
                 id="customerList"
+                
+    
+>
                 class="list"
                 style="margin-top:20px;"
             ></div>
@@ -1295,21 +1350,32 @@ function kundeLoeschen(id) {
 
 function kundenAnzeigen() {
 
-    const liste =
-        $("customerList");
+    const liste = $("customerList");
+    const suche = $("customerSearch").value.trim().toLowerCase();
 
     liste.innerHTML = "";
 
-    if (state.customers.length === 0) {
+    const gefilterteKunden =
+        state.customers.filter(
+            function(kunde) {
+
+                return (
+                    kunde.name.toLowerCase().includes(suche) ||
+                    kunde.email.toLowerCase().includes(suche)
+                );
+
+            }
+        );
+
+    if (gefilterteKunden.length === 0) {
 
         liste.innerHTML =
-            '<div class="empty">Noch keine Kunden.</div>';
+            '<div class="empty">Keine Kunden gefunden.</div>';
 
         return;
     }
 
-
-    state.customers.forEach(
+    gefilterteKunden.forEach(
         function(kunde) {
 
             const item =
@@ -1354,7 +1420,6 @@ function kundenAnzeigen() {
         }
     );
 }
-
 
 /* =========================
    RECHNUNG ERSTELLEN / BEARBEITEN
@@ -1582,7 +1647,10 @@ $("invoiceForm").addEventListener(
 
     }
 );
-
+$("customerSearch").addEventListener(
+    "input",
+    kundenAnzeigen
+);
 
 /* =========================
    RECHNUNG BEARBEITEN
