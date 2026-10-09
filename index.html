@@ -568,6 +568,12 @@ header {
 
                     <div class="form-group">
                         <label>Kunde</label>
+                        <input
+                     id="invoiceCustomerSearch"
+                     class="search"
+                      type="text"
+                     placeholder="🔎 Kunden suchen..."
+                  >
                         <select id="customerId" required>
                             <option value="">Kunde auswählen</option>
                         </select>
@@ -1109,51 +1115,63 @@ $("vat").addEventListener(
 );
 
 
-/* =========================
+/========================
    KUNDEN AUSWÄHLEN
 ========================= */
+* =
 
 function kundenAuswahlAktualisieren() {
 
     const aktuelleAuswahl =
         $("customerId").value;
 
+    const suchfeld =
+        $("invoiceCustomerSearch");
+
+    const suchtext =
+        suchfeld
+            ? suchfeld.value.trim().toLowerCase()
+            : "";
+
     $("customerId").innerHTML =
         '<option value="">Kunde auswählen</option>';
 
-    state.customers.forEach(
-        function(kunde) {
+    const gefilterteKunden =
+        state.customers.filter(function(kunde) {
+            return kunde.name
+                .toLowerCase()
+                .includes(suchtext);
+        });
 
-            const option =
-                document.createElement("option");
+    gefilterteKunden.forEach(function(kunde) {
 
-            option.value = kunde.id;
+        const option =
+            document.createElement("option");
 
-            option.textContent =
-                kunde.name;
+        option.value = kunde.id;
+        option.textContent = kunde.name;
 
-            $("customerId").appendChild(option);
-
-        }
-    );
+        $("customerId").appendChild(option);
+    });
 
     const existiert =
-        state.customers.some(
-            function(kunde) {
-                return kunde.id === aktuelleAuswahl;
-            }
-        );
+        gefilterteKunden.some(function(kunde) {
+            return kunde.id === aktuelleAuswahl;
+        });
 
     if (existiert) {
-        $("customerId").value =
-            aktuelleAuswahl;
+        $("customerId").value = aktuelleAuswahl;
     }
 }
-
-
 /* =========================
    KUNDEN SPEICHERN / BEARBEITEN
 ========================= */
+
+
+$("invoiceCustomerSearch").addEventListener(
+    "input",
+    kundenAuswahlAktualisieren
+);
 
 $("customerForm").addEventListener(
     "submit",
