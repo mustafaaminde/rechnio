@@ -566,18 +566,28 @@ header {
 
                 <div class="form-grid">
 
-                    <div class="form-group">
-                        <label>Kunde</label>
-                        <input
-                     id="invoiceCustomerSearch"
-                     class="search"
-                      type="text"
-                     placeholder="🔎 Kunden suchen..."
-                  >
-                        <select id="customerId" required>
-                            <option value="">Kunde auswählen</option>
-                        </select>
-                    </div>
+                  
+<div class="form-group">
+    <label for="invoiceCustomerSearch">Kunde</label>
+
+    <input
+        id="invoiceCustomerSearch"
+        class="search"
+        type="text"
+        list="invoiceCustomerOptions"
+        placeholder="Kundennamen eingeben..."
+        autocomplete="off"
+        required
+    >
+
+    <datalist id="invoiceCustomerOptions"></datalist>
+
+    <input
+        id="customerId"
+        type="hidden"
+        required
+    >
+</div>
 
                     <div class="form-group">
                         <label>Rechnungsnummer</label>
@@ -1120,47 +1130,37 @@ $("vat").addEventListener(
 ========================= */
 * =
 
+
 function kundenAuswahlAktualisieren() {
+    const suchfeld = $("invoiceCustomerSearch");
+    const kundenListe = $("invoiceCustomerOptions");
+    const kundenIdFeld = $("customerId");
 
-    const aktuelleAuswahl =
-        $("customerId").value;
+    if (!suchfeld || !kundenListe || !kundenIdFeld) {
+        return;
+    }
 
-    const suchfeld =
-        $("invoiceCustomerSearch");
+    kundenListe.innerHTML = "";
+    kundenIdFeld.value = "";
 
-    const suchtext =
-        suchfeld
-            ? suchfeld.value.trim().toLowerCase()
-            : "";
+    const suchtext = suchfeld.value.trim().toLowerCase();
 
-    $("customerId").innerHTML =
-        '<option value="">Kunde auswählen</option>';
-
-    const gefilterteKunden =
-        state.customers.filter(function(kunde) {
-            return kunde.name
-                .toLowerCase()
-                .includes(suchtext);
+    state.customers
+        .filter(function(kunde) {
+            return kunde.name.toLowerCase().includes(suchtext);
+        })
+        .forEach(function(kunde) {
+            const option = document.createElement("option");
+            option.value = kunde.name;
+            kundenListe.appendChild(option);
         });
 
-    gefilterteKunden.forEach(function(kunde) {
-
-        const option =
-            document.createElement("option");
-
-        option.value = kunde.id;
-        option.textContent = kunde.name;
-
-        $("customerId").appendChild(option);
+    const ausgewaehlterKunde = state.customers.find(function(kunde) {
+        return kunde.name.toLowerCase() === suchtext;
     });
 
-    const existiert =
-        gefilterteKunden.some(function(kunde) {
-            return kunde.id === aktuelleAuswahl;
-        });
-
-    if (existiert) {
-        $("customerId").value = aktuelleAuswahl;
+    if (ausgewaehlterKunde) {
+        kundenIdFeld.value = ausgewaehlterKunde.id;
     }
 }
 /* =========================
@@ -1820,20 +1820,22 @@ function rechnungAlsBezahlt(id) {
    RECHNUNGSFORMULAR RESET
 ========================= */
 
+
 function rechnungFormZuruecksetzen() {
 
     editingInvoiceId = null;
 
     $("invoiceForm").reset();
 
-    $("invoiceDate").value =
-        heute();
+    $("invoiceCustomerSearch").value = "";
+    $("customerId").value = "";
 
-    $("dueDate").value =
-        heute();
+    kundenAuswahlAktualisieren();
+
+    $("invoiceDate").value = heute();
+    $("dueDate").value = heute();
 
     $("quantity").value = 1;
-
     $("vat").value = 19;
 
     $("invoiceFormTitle").textContent =
@@ -1845,17 +1847,14 @@ function rechnungFormZuruecksetzen() {
     $("cancelEditButton")
         .classList.add("hidden");
 
+
     berechnungAnzeigen();
-
 }
-
 
 $("cancelEditButton").addEventListener(
     "click",
     function() {
-
         rechnungFormZuruecksetzen();
-
     }
 );
 
