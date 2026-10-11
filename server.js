@@ -178,18 +178,28 @@ async function sendInvoice(request, response) {
         return;
     }
 
-    if (!providerResponse.ok) {
-        const details = await providerResponse.text();
-        console.error(
-            `Resend meldete HTTP ${providerResponse.status}:`,
-            details
-        );
-        sendJson(response, 502, {
-            error: "Der E-Mail-Service konnte die Rechnung nicht versenden."
-        });
-        return;
+   if (!providerResponse.ok) {
+    const details = await providerResponse.text();
+
+    console.error(
+        `Resend meldete HTTP ${providerResponse.status}:`,
+        details
+    );
+
+    let errorMessage =
+        "Der E-Mail-Service konnte die Rechnung nicht versenden.";
+
+    if (providerResponse.status === 403) {
+        errorMessage =
+            "Resend blockiert diese E-Mail. Im Testmodus sind " +
+            "nur zugelassene Empfänger erlaubt.";
     }
 
+    sendJson(response, 502, {
+        error: errorMessage
+    });
+    return;
+}
     sendJson(response, 200, {
         message: `Rechnung ${invoice.invoiceNumber} wurde an ${email} gesendet.`
     });
