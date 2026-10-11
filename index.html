@@ -1696,6 +1696,73 @@ async function rechnungSenden(id) {
     }
 }
 
+function rechnungPDFHerunterladen(id) {
+    const rechnung = state.invoices.find(function(item) {
+        return item.id === id;
+    });
+
+    if (!rechnung) {
+        alert("Rechnung wurde nicht gefunden.");
+        return;
+    }
+
+    const kunde = state.customers.find(function(item) {
+        return item.id === rechnung.kundeId;
+    });
+
+    if (!kunde) {
+        alert("Kunde wurde nicht gefunden.");
+        return;
+    }
+
+    const fenster = window.open("", "_blank");
+
+    if (!fenster) {
+        alert("Bitte erlaube Pop-ups für Rechnio.");
+        return;
+    }
+
+    fenster.document.write(`
+        <!DOCTYPE html>
+        <html lang="de">
+        <head>
+            <meta charset="UTF-8">
+            <title>Rechnung</title>
+        </head>
+        <body>
+            <h1>Rechnio – Rechnung ${sicherPDF(rechnung.nummer)}</h1>
+            <h2>Kunde</h2>
+            <p>${sicherPDF(kunde.name)}</p>
+            <p>${sicherPDF(kunde.email || "")}</p>
+            <h2>Rechnungsdetails</h2>
+            <p>Leistung: ${sicherPDF(rechnung.leistung)}</p>
+            <p>Menge: ${sicherPDF(rechnung.menge)}</p>
+            <p>Rechnungsdatum: ${sicherPDF(rechnung.rechnungsdatum)}</p>
+            <p>Fällig am: ${sicherPDF(rechnung.faelligkeit)}</p>
+            <hr>
+            <p>Netto: ${sicherPDF(geld(rechnung.netto))}</p>
+            <p>MwSt. (${sicherPDF(rechnung.mwst)} %): ${sicherPDF(geld(rechnung.mwstBetrag))}</p>
+            <h2>Gesamt: ${sicherPDF(geld(rechnung.brutto))}</h2>
+            <button onclick="window.print()">Als PDF speichern</button>
+        </body>
+        </html>
+    `);
+
+    fenster.document.close();
+}
+
+function sicherPDF(wert) {
+    return String(wert ?? "").replace(/[&<>"']/g, function(zeichen) {
+        return {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        }[zeichen];
+    });
+}
+
 function rechnungBearbeiten(id) {
     const rechnung = state.invoices.find(function(item) {
         return item.id === id;
@@ -2069,34 +2136,31 @@ function rechnungenAnzeigen() {
                        type="button"
                       onclick="rechnungSenden('${rechnung.id}')"
                     >
-                        📧 Rechnung senden
-                      </button>
+                       
 
-                    <button
-                        class="danger-button"
-                        type="button"
-                        onclick="rechnungLoeschen('${rechnung.id}')"
-                    >
-                        Löschen
-                    </button>
+<button
+    class="secondary-button"
+    type="button"
+    onclick="rechnungBearbeiten('${rechnung.id}')"
+>
+    Bearbeiten
+</button>
 
-                </div>
+<button
+    class="secondary-button"
+    type="button"
+    onclick="rechnungPDFHerunterladen('${rechnung.id}')"
+>
+    📄 PDF herunterladen
+</button>
 
-            `;
-
-
-            liste.appendChild(item);
-
-        }
-    );
-
-}
-
-
-$("invoiceSearch").addEventListener(
-    "input",
-    rechnungenAnzeigen
-);
+<button
+    class="danger-button"
+    type="button"
+    onclick="rechnungLoeschen('${rechnung.id}')"
+>
+    Löschen
+</button>
 
 
 /* =========================
