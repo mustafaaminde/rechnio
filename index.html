@@ -1590,9 +1590,12 @@ function todayISO(){
 function parseDate(value){
   if(!value)return null;
   const p=String(value).split("-").map(Number);
-  if(p.length!==3||p.some(Number.isNaN))return null;
+  if(p.length!==3||p.some(Number.isNaN)||p[0]<1000||p[1]<1||p[1]>12||p[2]<1||p[2]>31)return null;
   const d=new Date(p[0],p[1]-1,p[2]);
-  return Number.isNaN(d.getTime())?null:d;
+  // JavaScript silently rolls invalid dates (e.g. 31 February) into the next month.
+  // Reject those values so due-date calculations and overdue badges stay correct.
+  if(Number.isNaN(d.getTime())||d.getFullYear()!==p[0]||d.getMonth()!==p[1]-1||d.getDate()!==p[2])return null;
+  return d;
 }
 function formatDate(value){
   const d=value instanceof Date?value:parseDate(value);
@@ -1701,7 +1704,14 @@ STARTUP, AUTHENTICATION AND NAVIGATION
 function boot(){
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
-  const remembered=localStorage.getItem(SESSION_KEY)==="yes"||sessionStorage.getItem(SESSION_KEY)==="yes";
+  // Storage may be disabled in private/restricted browser contexts. Never let that
+  // prevent the login screen from appearing or make the whole app fail at startup.
+  let remembered=false;
+  try{
+    remembered=localStorage.getItem(SESSION_KEY)==="yes"||sessionStorage.getItem(SESSION_KEY)==="yes";
+  }catch(error){
+    console.warn("Rechnio could not read the demo login session; showing login instead.",error);
+  }
   remembered?showApp():showLogin();
 }
 function showLogin(){
@@ -1730,8 +1740,12 @@ toast("Willkommen bei Rechnio","Du bist in der Demo angemeldet.");
 return true;
 }
 function logout(){
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
+  try{
+    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
+  }catch(error){
+    console.warn("Rechnio could not clear the demo login session.",error);
+  }
   closeSidebar();
   showLogin();
 }
