@@ -2228,53 +2228,192 @@ function invoicePrintHtml(i){
 }
 `:""}</div></div>`;
 }
-
-function printInvoice(id) {
-  const i = invoiceById(id);
-
-  if (!i) {
-    toast(
-      "Rechnung nicht gefunden",
-      "Die Rechnung existiert nicht mehr.",
-      "error"
-    );
-    return;
-  }
-
-  const root = document.querySelector("#printRoot");
-
-  if (!root) {
-    toast(
-      "Drucken nicht möglich",
-      "Der Druckbereich wurde nicht gefunden.",
-      "error"
-    );
-    return;
-  }
-
-  root.innerHTML = invoicePrintHtml(i);
+function printInvoice(id){
+  const i=invoiceById(id);
+  if(!i)return;
+  const root=$("#printRoot");
+  root.innerHTML=invoicePrintHtml(i);
   root.classList.remove("hidden");
-
-  const cleanup = () => {
-    root.classList.add("hidden");
-    root.innerHTML = "";
-    window.removeEventListener("afterprint", cleanup);
+  window.print();
+  setTimeout(()=>{
+    root.classList.add("hidden");root.innerHTML="";
+  },500);
+}
+function emailInvoice(id){
+  const i=invoiceById(id),c=i?customerById(i.customerId):null;
+  if(!i)return;
+  if(!c?.email){
+    toast("Keine E-Mail hinterlegt","Ergänze zuerst die E-Mail-Adresse des Kunden.","warning");
+    return;
+  }
+const subject=encodeURIComponent(`Rechnung ${i.number} – ${state.company.name||"Rechnio"}`);
+const body=encodeURIComponent(`Guten Tag${c.contact?` ${
+    c.contact
+  }
+`:""},\n\nanbei die Informationen zu Ihrer Rechnung ${i.number}.\nBetrag: ${money(amounts(i).gross)}\nFällig am: ${formatDate(i.dueDate)}\n\nBitte füge die über Drucken/PDF gespeicherte PDF-Datei selbst an.\n\n${state.company.name||"Rechnio"}`);
+window.location.href=`mailto:${encodeURIComponent(c.email)}?subject=${subject}&body=${body}`;
+saveState();
+toast("E-Mail vorbereitet","Dein E-Mail-Programm sollte sich öffnen. Hänge die Rechnung als PDF an und sende sie dort ab. Der Status wird nicht automatisch geändert.");
+}
+function markPaid(id){
+  const i=invoiceById(id);
+  if(!i)return;
+  i.status="paid";
+  i.paidAt=todayISO();
+  addActivity("paid","Rechnung bezahlt",i.number,amounts(i).gross);
+  saveState();
+  closeModal();
+  renderApp();
+  toast("Als bezahlt markiert",`${i.number} wurde aktualisiert.`);
+}
+/* ================================================================
+DELETE CONFIRMATION AND OVERDUE FILTER
+================================================================ */
+function requestDelete(kind,id){
+  const c=kind==="customer"?customerById(id):null,i=kind==="invoice"?invoiceById(id):null;
+  if(!c&&!i)return;
+  if(c&&state.invoices.some(x=>x.customerId===id)){
+    toast("Kunde hat Rechnungen","Lösche oder ordne zuerst zugehörige Rechnungen anders zu.","warning");
+    return;
+  }
+if(!state.preferences.confirmDelete){
+  pendingDelete={
+    kind,id
   };
-
-  window.addEventListener("afterprint", cleanup);
-
-  try {
-    window.print();
-  } catch (error) {
-    cleanup();
-    toast(
-      "Druckfehler",
-      "Bitte versuche es erneut.",
-      "error"
-    );
+confirmDelete();
+return;
+}
+pendingDelete={
+  kind,id
+};
+const title=c?.name||i?.number;
+openModal({
+  title:`${kind==="customer"?"Kunden":"Rechnung"} löschen?`,subtitle:"Diese Aktion kann nicht automatisch rückgängig gemacht werden.",size:"small",body:`<div class="confirm-icon">${icon("trash","icon icon-lg")}</div><p class="confirm-copy">Möchtest du <strong>${esc(title)}</strong> wirklich löschen? Der Eintrag wird aus dem lokalen Browser-Speicher entfernt.</p>`,footer:`<button class="btn secondary" data-action="close-modal">Abbrechen</button><button class="btn danger" data-action="confirm-delete">${icon("trash","icon icon-sm")} Endgültig löschen</button>`
+});
+}
+function confirmDelete(){
+  if(!pendingDelete)return;
+  const {
+    kind,id
+  }
+=pendingDelete;
+if(kind==="customer"){
+  const c=customerById(id);
+  if(c){
+    state.customers=state.customers.filter(x=>x.id!==id);
+    addActivity("delete","Kunde gelöscht",c.name);
   }
 }
-
+else{
+  const i=invoiceById(id);
+  if(i){
+    state.invoices=state.invoices.filter(x=>x.id!==id);
+    addActivity("delete","Rechnung gelöscht",i.number,amounts(i).gross);
+  }
+}
+pendingDelete=null;
+saveState();
+closeModal();
+renderApp();
+toast("Eintrag gelöscht","Die Änderung wurde gespeichert.");
+}
+function showOverdue(){
+  state.ui.invoiceStatus="overdue";
+  state.ui.invoiceSearch="";
+  navigate("invoices");
+  const count=state.invoices.filter(i=>statusOf(i)==="overdue").length;
+  toast(count?`${count} überfällige Rechnung(en)`:"Keine überfälligen Rechnungen",count?"Prüfe die Fälligkeiten und kontaktiere deine Kunden bei Bedarf.":"Aktuell ist keine Rechnung überfällig.",count?"warning":"success");
+}
+/* ================================================================
+REPORTS AND SETTINGS
+================================================================ */
+function renderReports(){
+  const all=state.invoices.map(i=>({
+    ...i,...amounts(i),computedStatus:statusOf(i)
+  }));
+const paid=sum(all.filter(i=>i.computedStatus==="paid").map(i=>i.gross));
+const open=sum(all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).map(i=>i.gross));
+const overdue=sum(all.filter(i=>i.computedStatus==="overdue").map(i=>i.gross));
+const average=all.length?sum(all.map(i=>i.gross))/all.length:0;
+const openInvoices=all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
+return `${heading("Auswertungen","Ein einfacher Überblick über Rechnungsbeträge und Zahlungsstatus.",`<button class="btn secondary" data-action="export-data">${
+    icon("download","icon icon-sm")
+  }
+Daten exportieren</button>`)}${demoBanner()}<div class="report-grid"><div class="card report-stat"><span>Bezahlt</span><strong style="color:var(--green)">${money(paid)}</strong><small>Rechnungen mit Status „Bezahlt“</small></div><div class="card report-stat"><span>Offen / ausstehend</span><strong>${money(open)}</strong><small>Ohne Entwürfe</small></div><div class="card report-stat"><span>Überfällig</span><strong style="color:var(--red)">${money(overdue)}</strong><small>Fälligkeit liegt in der Vergangenheit</small></div></div><div class="dashboard"><section class="card"><div class="card-head"><div><h2 class="card-title">Monatlicher Überblick</h2><div class="card-subtitle">Erstellte Rechnungen nach Monat</div></div></div><div id="reportChart" class="chart-area"></div></section><section class="card"><div class="card-head"><div><h2 class="card-title">Zusammenfassung</h2><div class="card-subtitle">Kennzahlen zu allen Rechnungen</div></div></div><div class="card-body stack">${reportLine("Anzahl Rechnungen",String(all.length))}${reportLine("Anzahl Kunden",String(state.customers.length))}${reportLine("Rechnungsvolumen gesamt",money(sum(all.map(i=>i.gross))))}${reportLine("Durchschnitt je Rechnung",money(average))}${reportLine("Bezahlte Rechnungen",String(all.filter(i=>i.computedStatus==="paid").length))}${reportLine("Offene Rechnungen",String(all.filter(i=>["open","sent"].includes(i.computedStatus)).length))}${reportLine("Überfällige Rechnungen",String(all.filter(i=>i.computedStatus==="overdue").length))}</div></section></div><section class="card table-card" style="margin-top:18px"><div class="card-head"><div><h2 class="card-title">Offene Rechnungen im Detail</h2><div class="card-subtitle">Beträge, die noch nicht als bezahlt markiert sind</div></div></div>${openInvoices.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
+  openInvoices.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.dueDate)}</td><td>${badge(i.computedStatus)}</td><td class="right strong">${money(i.gross)}</td></tr>`).join("")
+}
+</tbody></table></div>`:emptyState("check","Alles erledigt","Es gibt derzeit keine offenen Rechnungen.")}</section>`;
+}
+function reportLine(label,value){
+  return `<div class="between"><span class="muted small">${esc(label)}</span><strong class="small mono">${esc(value)}</strong></div>`;
+}
+function renderSettings(){
+  const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Demo"]];
+  return `${heading("Einstellungen","Unternehmensangaben und Standardwerte für deine Demo.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${state.ui.settingsTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${
+      icon(ic,"icon icon-sm")
+    }
+  ${
+    label
+  }
+</button>`).join("")}</nav><div id="settingsContent" class="card settings-content">${settingsTab(state.ui.settingsTab||"company")}</div></div>`;
+}
+function settingsTab(tab){
+  const c=state.company;
+  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht und im PDF. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
+  if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Die Demo berechnet nur den ausgewählten Prozentsatz und prüft keine gesetzlichen Rechnungsanforderungen. Sie ersetzt keine Buchhaltungs- oder Steuerberatung.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
+  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><label class="checkbox"><input id="prefDemo" type="checkbox" ${state.preferences.showDemoData?"checked":""}> Hinweis zum Demo-Modus anzeigen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
+  return `<h2>Daten & Demo</h2><p>Verwalte die lokalen Daten dieser Testversion. Es gibt keine Cloud-Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Lokale Speicherung:</strong> Kunden, Rechnungen und Einstellungen bleiben im Browser. Browserdaten löschen oder ein anderes Gerät verwenden kann dazu führen, dass die Daten nicht verfügbar sind.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div><div class="divider"></div><div class="settings-danger"><h3>Demo-Daten zurücksetzen</h3><p>Ersetzt aktuelle Demo-Daten durch die ursprünglichen Beispieldaten. Exportiere zuerst, wenn du Änderungen behalten möchtest.</p><button class="btn danger btn-sm" data-action="reset-demo">${icon("refresh","icon icon-sm")} Demo zurücksetzen</button></div></div>`;
+}
+function bindSettingsForms(){
+  $("#companySettingsForm")?.addEventListener("submit",e=>{
+    e.preventDefault();const email=$("#setEmail").value.trim();if(email&&!validEmail(email))return toast("E-Mail prüfen","Bitte gib eine gültige E-Mail-Adresse ein.","error");Object.assign(state.company,{
+      name:$("#setCompanyName").value.trim(),owner:$("#setOwner").value.trim(),email,phone:$("#setPhone").value.trim(),street:$("#setStreet").value.trim(),postalCode:$("#setPostal").value.trim(),city:$("#setCity").value.trim(),taxId:$("#setTax").value.trim(),vatNumber:$("#setVatNumber").value.trim(),footer:$("#setFooter").value.trim()
+    });saveState();renderApp();toast("Unternehmensangaben gespeichert","Änderungen werden bei Rechnungen verwendet.");
+});
+$("#invoiceSettingsForm")?.addEventListener("submit",e=>{
+  e.preventDefault();const prefix=$("#setPrefix").value.trim(),next=Number($("#setNext").value),days=Number($("#setDays").value);if(!prefix||!Number.isInteger(next)||next<1||!Number.isInteger(days)||days<0||days>365)return toast("Eingaben prüfen","Präfix, Nummer oder Zahlungsziel sind ungültig.","error");Object.assign(state.company,{
+    invoicePrefix:prefix,nextInvoiceNumber:next,defaultVat:Number($("#setVat").value),paymentDays:days,currency:$("#setCurrency").value
+  });saveState();renderApp();toast("Rechnungseinstellungen gespeichert","Neue Rechnungen verwenden die neuen Standardwerte.");
+});
+$("#preferencesForm")?.addEventListener("submit",e=>{
+  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=$("#prefDemo").checked;saveState();renderApp();toast("Einstellungen gespeichert","Deine Einstellungen wurden aktualisiert.");
+});
+$("#importFile")?.addEventListener("change",e=>{
+  importData(e.target.files?.[0]);e.target.value="";
+});
+}
+/* ================================================================
+MODAL MANAGEMENT, TOASTS AND ACCESSIBILITY
+================================================================ */
+function openModal({
+  title,subtitle="",body="",footer="",size="",onOpen=null
+}){
+closeModal(false);
+modalReturnFocus=document.activeElement;
+currentModal={
+  title,subtitle,body,footer,size
+};
+$("#modalRoot").innerHTML=`<div class="modal-backdrop"><section class="modal ${size==="wide"?"wide":size==="small"?"small":""}" role="dialog" aria-modal="true" aria-label="${escAttr(title)}"><header class="modal-head"><div><h2>${esc(title)}</h2>${subtitle?`<p>${
+    esc(subtitle)
+  }
+</p>`:""}</div><button class="modal-close" data-action="close-modal" aria-label="Dialog schließen">${icon("x")}</button></header><div class="modal-body">${body}</div>${footer?`<footer class="modal-foot">${
+  footer
+}
+</footer>`:""}</section></div>`;
+$("#modalRoot .modal-backdrop").addEventListener("click",e=>{
+  if(e.target===e.currentTarget)closeModal();
+});
+$("#modalRoot").addEventListener("keydown",trapFocus);
+if(typeof onOpen==="function")onOpen();
+setTimeout(()=>$$('button:not([disabled]),input:not([type=hidden]),select,textarea',$("#modalRoot"))[0]?.focus(),20);
+}
+function closeModal(restore=true){
+  $("#modalRoot").innerHTML="";
+  currentModal=null;
+  if(restore&&modalReturnFocus&&typeof modalReturnFocus.focus==="function")modalReturnFocus.focus();
+  modalReturnFocus=null;
+}
+function trapFocus(e){
   if(e.key!=="Tab")return;
   const modal=$("#modalRoot .modal");
   if(!modal)return;
@@ -2429,9 +2568,26 @@ function changePage(type,delta){
   renderPage();
 }
 function bindEvents(){
-  $("#loginForm").addEventListener("submit",e=>{
-    e.preventDefault();login($("#loginEmail").value.trim(),$("#loginPassword").value,$("#rememberLogin").checked);
-  });
+  const loginForm = $("#loginForm");
+  if (loginForm && !loginForm.dataset.rechnioLoginBound) {
+    loginForm.dataset.rechnioLoginBound = "true";
+    loginForm.addEventListener("submit", e => {
+      // Always prevent a native form submission, even if login code throws.
+      e.preventDefault();
+      const errorBox = $("#loginError");
+      if (errorBox) errorBox.classList.add("hidden");
+      try {
+        const success = login($("#loginEmail").value.trim(), $("#loginPassword").value, $("#rememberLogin").checked);
+        if (success === false && errorBox) errorBox.classList.remove("hidden");
+      } catch (error) {
+        console.error("Rechnio login failed unexpectedly:", error);
+        if (errorBox) {
+          errorBox.textContent = "Die Anmeldung konnte nicht abgeschlossen werden. Bitte lade die Seite neu. Details stehen in der Browser-Konsole.";
+          errorBox.classList.remove("hidden");
+        }
+      }
+    });
+  }
 document.addEventListener("click",e=>{
   const page=e.target.closest("[data-page]");if(page){
     e.preventDefault();navigate(page.dataset.page);return;
@@ -2484,8 +2640,30 @@ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){
 });
 }
 /* Start only after all functions and event handlers are available. */
-validateState();
-boot();
+try {
+  validateState();
+  boot();
+} catch (error) {
+  // If startup fails, keep the login form from doing a native page reload.
+  console.error("Rechnio could not finish starting:", error);
+  const loginForm = document.querySelector("#loginForm");
+  const errorBox = document.querySelector("#loginError");
+  if (loginForm && !loginForm.dataset.rechnioFallbackBound) {
+    loginForm.dataset.rechnioFallbackBound = "true";
+    loginForm.addEventListener("submit", event => {
+      event.preventDefault();
+      if (errorBox) {
+        errorBox.textContent = "Rechnio konnte nicht vollständig starten. Bitte öffne F12 → Console und prüfe die rote Fehlermeldung.";
+        errorBox.classList.remove("hidden");
+      }
+    });
+  }
+  if (errorBox) {
+    errorBox.textContent = "Rechnio konnte nicht vollständig starten. Bitte öffne F12 → Console und prüfe die rote Fehlermeldung.";
+    errorBox.classList.remove("hidden");
+  }
+}
 </script>
 </body>
 </html>
+
