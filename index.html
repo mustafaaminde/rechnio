@@ -2249,10 +2249,32 @@ function printInvoice(id) {
       "Der Druckbereich wurde nicht gefunden.",
       "error"
     );
- ctypeof modalReturnFocus.focus==="function")modalReturnFocus.focus();
-  modalReturnFocus=null;
+    return;
+  }
+
+  root.innerHTML = invoicePrintHtml(i);
+  root.classList.remove("hidden");
+
+  const cleanup = () => {
+    root.classList.add("hidden");
+    root.innerHTML = "";
+    window.removeEventListener("afterprint", cleanup);
+  };
+
+  window.addEventListener("afterprint", cleanup);
+
+  try {
+    window.print();
+  } catch (error) {
+    cleanup();
+    toast(
+      "Druckfehler",
+      "Bitte versuche es erneut.",
+      "error"
+    );
+  }
 }
-function trapFocus(e){
+
   if(e.key!=="Tab")return;
   const modal=$("#modalRoot .modal");
   if(!modal)return;
