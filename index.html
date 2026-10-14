@@ -2238,23 +2238,67 @@ function printInvoice(id){
   setTimeout(()=>{
     root.classList.add("hidden");root.innerHTML="";
   },500);
-}
-function emailInvoice(id){
-  const i=invoiceById(id),c=i?customerById(i.customerId):null;
-  if(!i)return;
-  if(!c?.email){
-    toast("Keine E-Mail hinterlegt","Ergänze zuerst die E-Mail-Adresse des Kunden.","warning");
+
+async function emailInvoice(id) {
+  const i = invoiceById(id);
+  const c = i ? customerById(i.customerId) : null;
+
+  if (!i) return;
+
+  if (!c?.email) {
+    toast(
+      "Keine E-Mail hinterlegt",
+      "Ergänze zuerst die E-Mail-Adresse des Kunden.",
+      "warning"
+    );
     return;
   }
-const subject=encodeURIComponent(`Rechnung ${i.number} – ${state.company.name||"Rechnio"}`);
-const body=encodeURIComponent(`Guten Tag${c.contact?` ${
-    c.contact
+
+  try {
+    const a = amounts(i);
+
+    const response = await fetch("/api/send-invoice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        customerName: c.name || c.contact || "Kunde",
+        customerEmail: c.email,
+        invoiceNumber: i.number,
+        service: i.description || i.service || "Rechnung",
+        invoiceDate: i.date || todayISO(),
+        dueDate: i.dueDate,
+        quantity: i.quantity || 1,
+        unitPrice: i.unitPrice ?? a.net,
+        taxRate: i.taxRate ?? 0,
+        netAmount: a.net,
+        taxAmount: a.tax,
+        grossAmount: a.gross
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || "E-Mail konnte nicht gesendet werden.");
+    }
+
+    saveState();
+
+    toast(
+      "E-Mail übergeben",
+      "Rechnio hat die E-Mail an den Versandserver übergeben."
+    );
+  } catch (error) {
+    toast(
+      "E-Mail-Versand fehlgeschlagen",
+      error.message || "Bitte versuche es erneut.",
+      "warning"
+    );
   }
-`:""},\n\nanbei die Informationen zu Ihrer Rechnung ${i.number}.\nBetrag: ${money(amounts(i).gross)}\nFällig am: ${formatDate(i.dueDate)}\n\nBitte füge die über Drucken/PDF gespeicherte PDF-Datei selbst an.\n\n${state.company.name||"Rechnio"}`);
-window.location.href=`mailto:${encodeURIComponent(c.email)}?subject=${subject}&body=${body}`;
-saveState();
-toast("E-Mail vorbereitet","Dein E-Mail-Programm sollte sich öffnen. Hänge die Rechnung als PDF an und sende sie dort ab. Der Status wird nicht automatisch geändert.");
 }
+
 function markPaid(id){
   const i=invoiceById(id);
   if(!i)return;
