@@ -2238,67 +2238,65 @@ function printInvoice(id){
   setTimeout(()=>{
     root.classList.add("hidden");root.innerHTML="";
   },500);
-
-async function emailInvoice(id) {
+}
+async function emailInvoice(id){
   const i = invoiceById(id);
   const c = i ? customerById(i.customerId) : null;
 
   if (!i) return;
 
   if (!c?.email) {
-    toast(
-      "Keine E-Mail hinterlegt",
-      "Ergänze zuerst die E-Mail-Adresse des Kunden.",
-      "warning"
-    );
+    toast("Keine E-Mail hinterlegt", "Ergänze zuerst die E-Mail-Adresse des Kunden.", "warning");
     return;
   }
 
   try {
     const a = amounts(i);
+    const totalQuantity = (i.items || []).reduce((total, item) => total + Number(item.quantity || 0), 0) || 1;
+    const serviceText = (i.title || (i.items || []).map(item => item.description).filter(Boolean).join(", ") || "Rechnungsleistung").slice(0, 1000);
+    const taxRate = a.net > 0 ? (a.vat / a.net) * 100 : 0;
 
     const response = await fetch("/api/send-invoice", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        customerName: c.name || c.contact || "Kunde",
-        customerEmail: c.email,
-        invoiceNumber: i.number,
-        service: i.description || i.service || "Rechnung",
-        invoiceDate: i.date || todayISO(),
-        dueDate: i.dueDate,
-        quantity: i.quantity || 1,
-        unitPrice: i.unitPrice ?? a.net,
-        taxRate: i.taxRate ?? 0,
+        customerName: String(c.name || c.contact || "Kunde"),
+        customerEmail: String(c.email).trim(),
+        invoiceNumber: String(i.number),
+        service: serviceText,
+        invoiceDate: String(i.issueDate || todayISO()),
+        dueDate: String(i.dueDate || i.issueDate || todayISO()),
+        quantity: totalQuantity,
+        unitPrice: a.net / totalQuantity,
+        taxRate,
         netAmount: a.net,
-        taxAmount: a.tax,
+        taxAmount: a.vat,
         grossAmount: a.gross
       })
     });
 
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.error || "E-Mail konnte nicht gesendet werden.");
+    let result = {};
+    try {
+      result = await response.json();
+    } catch (_) {
+      // The server did not return JSON; show the fallback error below.
     }
 
-    saveState();
+    if (!response.ok) {
+      throw new Error(result.error || "Die E-Mail konnte nicht gesendet werden.");
+    }
 
-    toast(
-      "E-Mail übergeben",
-      "Rechnio hat die E-Mail an den Versandserver übergeben."
-    );
+    i.status = "sent";
+    i.sentAt = todayISO();
+    addActivity("email", "Rechnung per E-Mail versendet", i.number, a.gross);
+    saveState();
+    closeModal();
+    renderApp();
+    toast("E-Mail an Brevo übergeben", result.message || "Der Versandserver hat die E-Mail angenommen. Prüfe zur Sicherheit auch den Posteingang.");
   } catch (error) {
-    toast(
-      "E-Mail-Versand fehlgeschlagen",
-      error.message || "Bitte versuche es erneut.",
-      "warning"
-    );
+    toast("E-Mail-Versand fehlgeschlagen", error.message || "Bitte prüfe den Server und versuche es erneut.", "error");
   }
 }
-
 function markPaid(id){
   const i=invoiceById(id);
   if(!i)return;
@@ -2710,4 +2708,3 @@ try {
 </script>
 </body>
 </html>
-
