@@ -1,3 +1,4 @@
+
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -81,6 +82,7 @@ async function readJsonBody(request) {
 
     for await (const chunk of request) {
         body += chunk;
+
         if (Buffer.byteLength(body, "utf8") > maxRequestBytes) {
             throw new Error("request-too-large");
         }
@@ -116,16 +118,20 @@ async function sendInvoice(request, response) {
     }
 
     const validationError = validateInvoice(invoice);
+
     if (validationError) {
         sendJson(response, 400, { error: validationError });
         return;
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = process.env.BREVO_API_KEY;
     const from = process.env.EMAIL_FROM;
 
     if (!apiKey || !from) {
-        console.error("RESEND_API_KEY oder EMAIL_FROM ist nicht konfiguriert.");
+        console.error(
+            "BREVO_API_KEY oder EMAIL_FROM ist nicht konfiguriert."
+        );
+
         sendJson(response, 500, {
             error: "Der E-Mail-Service ist auf dem Server nicht konfiguriert."
         });
@@ -138,6 +144,7 @@ async function sendInvoice(request, response) {
     const invoiceDate = escapeHtml(invoice.invoiceDate);
     const dueDate = escapeHtml(invoice.dueDate);
     const email = invoice.customerEmail.trim();
+
     const html = `
         <h1>Rechnung ${invoiceNumber}</h1>
         <p>Guten Tag ${customerName},</p>
@@ -152,68 +159,78 @@ async function sendInvoice(request, response) {
             <tr><th align="left">Rechnungsdatum</th><td>${invoiceDate}</td></tr>
             <tr><th align="left">Fällig am</th><td>${dueDate}</td></tr>
         </table>
+        <p>Vielen Dank.</p>
     `;
 
     let providerResponse;
+
     try {
-        providerResponse = await fetch("https://api.resend.com/emails", {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                from,
-                to: [email],
-                subject: `Rechnung ${invoiceNumber}`,
-                html
-            }),
-            signal: AbortSignal.timeout(15000)
-        });
+        providerResponse = await fetch(
+            "https://api.brevo.com/v3/smtp/email",
+            {
+                method: "POST",
+                headers: {
+                    "api-key": apiKey,
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify({
+                    sender: {
+                        email: from,
+                        name: "Rechnio"
+                    },
+                    to: [
+                        {
+                            email,
+                            name: invoice.customerName.trim()
+                        }
+                    ],
+                    subject: `Rechnung ${invoiceNumber}`,
+                    htmlContent: html
+                }),
+                signal: AbortSignal.timeout(15000)
+            }
+        );
     } catch (error) {
-        console.error("Resend-Anfrage fehlgeschlagen:", error.message);
+        console.error("Brevo-Anfrage fehlgeschlagen:", error.message);
+
         sendJson(response, 502, {
             error: "Der E-Mail-Service ist momentan nicht erreichbar."
         });
         return;
     }
 
-   if (!providerResponse.ok) {
-    const details = await providerResponse.text();
+    if (!providerResponse.ok) {
+        const details = await providerResponse.text();
 
-    console.error(
-        `Resend meldete HTTP ${providerResponse.status}:`,
-        details
-    );
+        console.error(
+            `Brevo meldete HTTP ${providerResponse.status}:`,
+            details
+        );
 
-    let errorMessage =
-        "Der E-Mail-Service konnte die Rechnung nicht versenden.";
-
-    if (providerResponse.status === 403) {
-        errorMessage =
-            "Resend blockiert diese E-Mail. Im Testmodus sind " +
-            "nur zugelassene Empfänger erlaubt.";
+        sendJson(response, 502, {
+            error: "Brevo konnte die E-Mail nicht versenden. Prüfe Server-Logs und Absenderadresse."
+        });
+        return;
     }
 
-    sendJson(response, 502, {
-        error: errorMessage
-    });
-    return;
-}
     sendJson(response, 200, {
-        message: `Rechnung ${invoice.invoiceNumber} wurde an ${email} gesendet.`
+        message: `Die E-Mail für Rechnung ${invoiceNumber} wurde an Brevo übergeben.`
     });
 }
 
 const server = http.createServer(async function(request, response) {
- console.log("REQUEST:", request.method, request.url);
-    if (request.method === "GET" && request.url.split("?")[0] === "/") {
+    const url = new URL(request.url, "http://localhost");
+
+    if (request.method === "GET" && url.pathname === "/") {
         fs.readFile(indexPath, function(error, contents) {
             if (error) {
                 console.error("index.html konnte nicht gelesen werden:", error);
+
                 response.writeHead(500, {
                     "Content-Type": "text/plain; charset=utf-8"
                 });
+
                 response.end("Die Anwendung konnte nicht geladen werden.");
                 return;
             }
@@ -222,17 +239,24 @@ const server = http.createServer(async function(request, response) {
                 "Content-Type": "text/html; charset=utf-8",
                 "Cache-Control": "no-store"
             });
+
             response.end(contents);
         });
+
         return;
     }
 
-    if (request.method === "POST" && request.url === "/api/send-invoice") {
+    if (
+        request.method === "POST" &&
+        url.pathname === "/api/send-invoice"
+    ) {
         await sendInvoice(request, response);
         return;
     }
 
-    sendJson(response, 404, { error: "Endpunkt nicht gefunden." });
+    sendJson(response, 404, {
+        error: "Endpunkt nicht gefunden."
+    });
 });
 
 server.listen(port, host, function() {
