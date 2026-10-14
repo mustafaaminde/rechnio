@@ -124,12 +124,12 @@ async function sendInvoice(request, response) {
         return;
     }
 
-    const apiKey = process.env.BREVO_API_KEY;
+    const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.EMAIL_FROM;
 
     if (!apiKey || !from) {
         console.error(
-            "BREVO_API_KEY oder EMAIL_FROM ist nicht konfiguriert."
+            "RESEND_API_KEY oder EMAIL_FROM ist nicht konfiguriert."
         );
 
         sendJson(response, 500, {
@@ -166,33 +166,24 @@ async function sendInvoice(request, response) {
 
     try {
         providerResponse = await fetch(
-            "https://api.brevo.com/v3/smtp/email",
+            "https://api.resend.com/emails",
             {
                 method: "POST",
                 headers: {
-                    "api-key": apiKey,
-                    "Content-Type": "application/json",
-                    "Accept": "application/json"
+                    "Authorization": `Bearer ${apiKey}`,
+                    "Content-Type": "application/json"
                 },
                 body: JSON.stringify({
-                    sender: {
-                        email: from,
-                        name: "Rechnio"
-                    },
-                    to: [
-                        {
-                            email,
-                            name: invoice.customerName.trim()
-                        }
-                    ],
+                    from: `Rechnio <${from}>`,
+                    to: [email],
                     subject: `Rechnung ${invoiceNumber}`,
-                    htmlContent: html
+                    html
                 }),
                 signal: AbortSignal.timeout(15000)
             }
         );
     } catch (error) {
-        console.error("Brevo-Anfrage fehlgeschlagen:", error.message);
+        console.error("Resend-Anfrage fehlgeschlagen:", error.message);
 
         sendJson(response, 502, {
             error: "Der E-Mail-Service ist momentan nicht erreichbar."
@@ -204,18 +195,18 @@ async function sendInvoice(request, response) {
         const details = await providerResponse.text();
 
         console.error(
-            `Brevo meldete HTTP ${providerResponse.status}:`,
+            `Resend meldete HTTP ${providerResponse.status}:`,
             details
         );
 
         sendJson(response, 502, {
-            error: "Brevo konnte die E-Mail nicht versenden. Prüfe Server-Logs und Absenderadresse."
+            error: "Resend konnte die E-Mail nicht versenden. Prüfe die Render-Logs und deine Absenderadresse."
         });
         return;
     }
 
     sendJson(response, 200, {
-        message: `Die E-Mail für Rechnung ${invoiceNumber} wurde an Brevo übergeben.`
+        message: `Die E-Mail für Rechnung ${invoiceNumber} wurde an Resend übergeben.`
     });
 }
 
