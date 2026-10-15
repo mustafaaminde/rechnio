@@ -1,247 +1,76 @@
 
+"use strict";
+
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const host = "0.0.0.0";
-const port = Number(process.env.PORT || 3000);
-const indexPath = path.join(__dirname, "index.html");
-const maxRequestBytes = 16 * 1024;
+const HOST = "0.0.0.0";
+const PORT = Number(process.env.PORT || 3000);
+const INDEX_PATH = path.join(__dirname, "index.html");
 
 function sendJson(response, statusCode, data) {
     response.writeHead(statusCode, {
         "Content-Type": "application/json; charset=utf-8",
-        "Cache-Control": "no-store"
+        "Cache-Control": "no-store",
+        "X-Content-Type-Options": "nosniff"
     });
+
     response.end(JSON.stringify(data));
 }
 
-function escapeHtml(value) {
-    return String(value)
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
-}
+function serveIndex(response) {
+    fs.readFile(INDEX_PATH, (error, contents) => {
+        if (error) {
+            console.error(
+                "index.html konnte nicht gelesen werden:",
+                error.message
+            );
 
-function isValidEmail(value) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function isFiniteNumber(value) {
-    return typeof value === "number" && Number.isFinite(value);
-}
-
-function validateInvoice(invoice) {
-    if (!invoice || typeof invoice !== "object" || Array.isArray(invoice)) {
-        return "Ungültige Rechnungsdaten.";
-    }
-
-    const requiredStrings = [
-        ["customerName", 200],
-        ["customerEmail", 320],
-        ["invoiceNumber", 100],
-        ["service", 1000],
-        ["invoiceDate", 30],
-        ["dueDate", 30]
-    ];
-
-    for (const [field, maxLength] of requiredStrings) {
-        if (
-            typeof invoice[field] !== "string" ||
-            invoice[field].trim().length === 0 ||
-            invoice[field].length > maxLength
-        ) {
-            return "Rechnungsdaten sind unvollständig oder ungültig.";
-        }
-    }
-
-    if (!isValidEmail(invoice.customerEmail.trim())) {
-        return "Die Kunden-E-Mail-Adresse ist ungültig.";
-    }
-
-    for (const field of [
-        "quantity",
-        "unitPrice",
-        "taxRate",
-        "netAmount",
-        "taxAmount",
-        "grossAmount"
-    ]) {
-        if (!isFiniteNumber(invoice[field]) || invoice[field] < 0) {
-            return "Rechnungsbeträge sind ungültig.";
-        }
-    }
-
-    return null;
-}
-
-async function readJsonBody(request) {
-    let body = "";
-
-    for await (const chunk of request) {
-        body += chunk;
-
-        if (Buffer.byteLength(body, "utf8") > maxRequestBytes) {
-            throw new Error("request-too-large");
-        }
-    }
-
-    return JSON.parse(body);
-}
-
-function formatCurrency(amount) {
-    return new Intl.NumberFormat("de-DE", {
-        style: "currency",
-        currency: "EUR"
-    }).format(amount);
-}
-
-async function sendInvoice(request, response) {
-    let invoice;
-
-    try {
-        invoice = await readJsonBody(request);
-    } catch (error) {
-        if (error.message === "request-too-large") {
-            sendJson(response, 413, {
-                error: "Die Anfrage ist zu groß."
+            sendJson(response, 500, {
+                error: "Rechnio konnte nicht geladen werden."
             });
+
             return;
         }
 
-        sendJson(response, 400, {
-            error: "Die Rechnungsdaten konnten nicht gelesen werden."
+        response.writeHead(200, {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff"
         });
-        return;
-    }
 
-    const validationError = validateInvoice(invoice);
-
-    if (validationError) {
-        sendJson(response, 400, { error: validationError });
-        return;
-    }
-
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.EMAIL_FROM;
-
-    if (!apiKey || !from) {
-        console.error(
-            "RESEND_API_KEY oder EMAIL_FROM ist nicht konfiguriert."
-        );
-
-        sendJson(response, 500, {
-            error: "Der E-Mail-Service ist auf dem Server nicht konfiguriert."
-        });
-        return;
-    }
-
-    const customerName = escapeHtml(invoice.customerName.trim());
-    const invoiceNumber = escapeHtml(invoice.invoiceNumber.trim());
-    const service = escapeHtml(invoice.service.trim());
-    const invoiceDate = escapeHtml(invoice.invoiceDate);
-    const dueDate = escapeHtml(invoice.dueDate);
-    const email = invoice.customerEmail.trim();
-
-    const html = `
-        <h1>Rechnung ${invoiceNumber}</h1>
-        <p>Guten Tag ${customerName},</p>
-        <p>hier sind die Details zu Ihrer Rechnung:</p>
-        <table>
-            <tr><th align="left">Leistung</th><td>${service}</td></tr>
-            <tr><th align="left">Menge</th><td>${invoice.quantity}</td></tr>
-            <tr><th align="left">Einzelpreis</th><td>${formatCurrency(invoice.unitPrice)}</td></tr>
-            <tr><th align="left">Netto</th><td>${formatCurrency(invoice.netAmount)}</td></tr>
-            <tr><th align="left">MwSt. (${invoice.taxRate} %)</th><td>${formatCurrency(invoice.taxAmount)}</td></tr>
-            <tr><th align="left">Gesamtbetrag</th><td>${formatCurrency(invoice.grossAmount)}</td></tr>
-            <tr><th align="left">Rechnungsdatum</th><td>${invoiceDate}</td></tr>
-            <tr><th align="left">Fällig am</th><td>${dueDate}</td></tr>
-        </table>
-        <p>Vielen Dank.</p>
-    `;
-
-    let providerResponse;
-
-    try {
-        providerResponse = await fetch(
-            "https://api.resend.com/emails",
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${apiKey}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    from: `Rechnio <${from}>`,
-                    to: [email],
-                    subject: `Rechnung ${invoiceNumber}`,
-                    html
-                }),
-                signal: AbortSignal.timeout(15000)
-            }
-        );
-    } catch (error) {
-        console.error("Resend-Anfrage fehlgeschlagen:", error.message);
-
-        sendJson(response, 502, {
-            error: "Der E-Mail-Service ist momentan nicht erreichbar."
-        });
-        return;
-    }
-
-    if (!providerResponse.ok) {
-        const details = await providerResponse.text();
-
-        console.error(
-            `Resend meldete HTTP ${providerResponse.status}:`,
-            details
-        );
-
-        sendJson(response, 502, {
-            error: "Resend konnte die E-Mail nicht versenden. Prüfe die Render-Logs und deine Absenderadresse."
-        });
-        return;
-    }
-
-    sendJson(response, 200, {
-        message: `Die E-Mail für Rechnung ${invoiceNumber} wurde an Resend übergeben.`
+        response.end(contents);
     });
 }
 
-const server = http.createServer(async function(request, response) {
-    const url = new URL(request.url, "http://localhost");
+const server = http.createServer((request, response) => {
+    let url;
 
-    if (request.method === "GET" && url.pathname === "/") {
-        fs.readFile(indexPath, function(error, contents) {
-            if (error) {
-                console.error("index.html konnte nicht gelesen werden:", error);
-
-                response.writeHead(500, {
-                    "Content-Type": "text/plain; charset=utf-8"
-                });
-
-                response.end("Die Anwendung konnte nicht geladen werden.");
-                return;
-            }
-
-            response.writeHead(200, {
-                "Content-Type": "text/html; charset=utf-8",
-                "Cache-Control": "no-store"
-            });
-
-            response.end(contents);
+    try {
+        url = new URL(
+            request.url || "/",
+            `http://${request.headers.host || "localhost"}`
+        );
+    } catch {
+        sendJson(response, 400, {
+            error: "Die Anfrageadresse ist ungültig."
         });
 
         return;
     }
 
-    if (
-        request.method === "POST" &&
-        url.pathname === "/api/send-invoice"
-    ) {
-        await sendInvoice(request, response);
+    if (request.method === "GET" && url.pathname === "/") {
+        serveIndex(response);
+        return;
+    }
+
+    // Der bisherige Rechnungs-E-Mail-Endpunkt ist deaktiviert.
+    if (url.pathname === "/api/send-invoice") {
+        sendJson(response, 404, {
+            error: "Der E-Mail-Versand ist deaktiviert."
+        });
+
         return;
     }
 
@@ -250,6 +79,11 @@ const server = http.createServer(async function(request, response) {
     });
 });
 
-server.listen(port, host, function() {
-    console.log(`Rechnio läuft auf http://${host}:${port}`);
+server.on("error", (error) => {
+    console.error("Serverfehler:", error.message);
+    process.exitCode = 1;
+});
+
+server.listen(PORT, HOST, () => {
+    console.log(`Rechnio läuft auf Port ${PORT}.`);
 });
