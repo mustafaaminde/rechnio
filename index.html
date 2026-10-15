@@ -1215,20 +1215,6 @@ to{
   scroll-behavior:auto!important; animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important
 }
 }
-@media print{
-  body{
-  background:#fff!important
-}
-body *{
-  visibility:hidden!important
-}
-#printRoot,#printRoot *{
-  visibility:visible!important
-}
-#printRoot{
-  display:block!important; position:absolute; inset:0; width:100%; padding:0; margin:0; border:0; box-shadow:none
-}
-}
 
 /* Rechnio UI refinement: more breathing room and clearer controls */
 body{font-size:15px;line-height:1.6}
@@ -1325,7 +1311,7 @@ body{font-size:15px;line-height:1.6}
     <div id="pageContent" class="content"></div>
   </main>
 </div>
-<div id="modalRoot"></div><div id="toastRegion" class="toast-region" aria-live="polite"></div><div id="printRoot" class="hidden"></div>
+<div id="modalRoot"></div><div id="toastRegion" class="toast-region" aria-live="polite"></div>
 
 <script>
 "use strict";
@@ -1975,7 +1961,7 @@ Neue Rechnung</button>`)}<section class="card table-card"><div class="table-tool
   l
 }
 </option>`).join("")}</select><span class="small faint nowrap">${list.length} Treffer</span></div></div>${visible.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Erstellt am</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th><th></th></tr></thead><tbody>${
-  visible.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button><div class="tiny faint">${esc(i.title||"Rechnung")}</div></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.issueDate)}</td><td>${formatDate(i.dueDate)}</td><td>${badge(statusOf(i))}</td><td class="right strong mono">${money(amounts(i).gross)}</td><td><div class="table-actions"><button class="btn btn-icon ghost" title="Ansehen" data-action="view-invoice" data-id="${escAttr(i.id)}">${icon("eye","icon icon-sm")}</button><button class="btn btn-icon ghost" title="Rechnung senden" aria-label="Rechnung senden" data-action="email-invoice" data-id="${escAttr(i.id)}">${icon("mail","icon icon-sm")}</button><button class="btn btn-icon ghost" title="Bearbeiten" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")}</button><button class="btn btn-icon ghost delete" title="Löschen" data-action="delete-invoice" data-id="${escAttr(i.id)}">${icon("trash","icon icon-sm")}</button></div></td></tr>`).join("")
+  visible.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button><div class="tiny faint">${esc(i.title||"Rechnung")}</div></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.issueDate)}</td><td>${formatDate(i.dueDate)}</td><td>${badge(statusOf(i))}</td><td class="right strong mono">${money(amounts(i).gross)}</td><td><div class="table-actions"><button class="btn btn-icon ghost" title="Ansehen" data-action="view-invoice" data-id="${escAttr(i.id)}">${icon("eye","icon icon-sm")}</button><button class="btn btn-icon ghost" title="Bearbeiten" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")}</button><button class="btn btn-icon ghost delete" title="Löschen" data-action="delete-invoice" data-id="${escAttr(i.id)}">${icon("trash","icon icon-sm")}</button></div></td></tr>`).join("")
 }
 </tbody></table></div>${
   pagination(list.length,state.ui.invoicePage,size,"invoice")
@@ -2175,14 +2161,14 @@ renderApp();
 toast(old?"Rechnung aktualisiert":"Rechnung erstellt",`${number} wurde gespeichert.`);
 }
 /* ================================================================
-INVOICE DETAILS, PRINT/PDF AND EMAIL DRAFT
+INVOICE DETAILS
 ================================================================ */
 function viewInvoice(id){
   const i=invoiceById(id);
   if(!i)return toast("Rechnung nicht gefunden","Der Eintrag existiert nicht mehr.","error");
   const c=customerById(i.customerId),a=amounts(i);
   openModal({
-    title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="print-invoice" data-id="${escAttr(i.id)}">${icon("printer","icon icon-sm")} Drucken / PDF</button><button class="btn secondary btn-sm" data-action="email-invoice" data-id="${escAttr(i.id)}">${icon("mail","icon icon-sm")} Rechnung senden</button><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div><div class="invoice-preview" id="invoicePreview"><div class="preview-head"><div><div class="preview-brand">${esc(state.company.name||"Rechnio")}</div><div class="tiny faint">${esc(state.company.street||"")}<br>${esc([state.company.postalCode,state.company.city].filter(Boolean).join(" "))}<br>${esc(state.company.email||"")}</div></div><div class="preview-number"><strong>RECHNUNG</strong>${esc(i.number)}<br><span class="faint">Datum: ${formatDate(i.issueDate)}</span><br><span class="faint">Fällig: ${formatDate(i.dueDate)}</span></div></div><div class="preview-parties"><div><h4>Rechnung an</h4><p><strong>${esc(c?.name||"Kunde nicht gefunden")}</strong></p><p>${esc(c?.contact||"")}</p><p>${esc(c?.street||"")}</p><p>${esc([c?.postalCode,c?.city].filter(Boolean).join(" "))}</p><p>${esc(c?.email||"")}</p></div><div><h4>Beschreibung</h4><p><strong>${esc(i.title||"Rechnungsleistung")}</strong></p><p class="muted">Status: ${statusText(statusOf(i))}</p></div></div><table class="detail-table"><thead><tr><th>Beschreibung</th><th class="right">Menge</th><th class="right">Netto / Einheit</th><th class="right">MwSt.</th><th class="right">Netto</th></tr></thead><tbody>${i.items.map(item=>`<tr><td>${
+    title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div><div class="invoice-preview" id="invoicePreview"><div class="preview-head"><div><div class="preview-brand">${esc(state.company.name||"Rechnio")}</div><div class="tiny faint">${esc(state.company.street||"")}<br>${esc([state.company.postalCode,state.company.city].filter(Boolean).join(" "))}<br>${esc(state.company.email||"")}</div></div><div class="preview-number"><strong>RECHNUNG</strong>${esc(i.number)}<br><span class="faint">Datum: ${formatDate(i.issueDate)}</span><br><span class="faint">Fällig: ${formatDate(i.dueDate)}</span></div></div><div class="preview-parties"><div><h4>Rechnung an</h4><p><strong>${esc(c?.name||"Kunde nicht gefunden")}</strong></p><p>${esc(c?.contact||"")}</p><p>${esc(c?.street||"")}</p><p>${esc([c?.postalCode,c?.city].filter(Boolean).join(" "))}</p><p>${esc(c?.email||"")}</p></div><div><h4>Beschreibung</h4><p><strong>${esc(i.title||"Rechnungsleistung")}</strong></p><p class="muted">Status: ${statusText(statusOf(i))}</p></div></div><table class="detail-table"><thead><tr><th>Beschreibung</th><th class="right">Menge</th><th class="right">Netto / Einheit</th><th class="right">MwSt.</th><th class="right">Netto</th></tr></thead><tbody>${i.items.map(item=>`<tr><td>${
         esc(item.description)
       }
     </td><td class="right">${
@@ -2205,97 +2191,6 @@ function viewInvoice(id){
 }
 Als bezahlt markieren</button>`:""}</div><div class="foot-right"><button class="btn secondary" data-action="close-modal">Schließen</button></div>`
 });
-}
-function invoicePrintHtml(i){
-  const c=customerById(i.customerId),a=amounts(i);
-  return `<div style="font-family:Arial,sans-serif;color:#1d2638;padding:34px;max-width:850px;margin:auto"><div style="display:flex;justify-content:space-between;gap:30px;border-bottom:3px solid #1d2638;padding-bottom:24px"><div><div style="font-size:28px;font-weight:800">${esc(state.company.name||"Rechnio")}</div><div style="font-size:12px;line-height:1.7;margin-top:8px">${esc(state.company.street||"")}<br>${esc([state.company.postalCode,state.company.city].filter(Boolean).join(" "))}<br>${esc(state.company.email||"")}</div></div><div style="text-align:right"><div style="font-size:20px;font-weight:800;margin-bottom:8px">RECHNUNG</div><div>${esc(i.number)}</div><div style="margin-top:8px;font-size:12px;color:#596579">Datum: ${formatDate(i.issueDate)}<br>Fällig am: ${formatDate(i.dueDate)}</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:30px;margin:30px 0"><div><div style="font-size:10px;text-transform:uppercase;color:#788499;letter-spacing:1px;margin-bottom:8px">Rechnung an</div><strong>${esc(c?.name||"Kunde")}</strong><br>${esc(c?.contact||"")}<br>${esc(c?.street||"")}<br>${esc([c?.postalCode,c?.city].filter(Boolean).join(" "))}<br>${esc(c?.email||"")}</div><div><div style="font-size:10px;text-transform:uppercase;color:#788499;letter-spacing:1px;margin-bottom:8px">Beschreibung</div><strong>${esc(i.title||"Leistung")}</strong></div></div><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:#f4f6fa"><th style="text-align:left;padding:12px">Beschreibung</th><th style="text-align:right;padding:12px">Menge</th><th style="text-align:right;padding:12px">Einzelpreis netto</th><th style="text-align:right;padding:12px">MwSt.</th><th style="text-align:right;padding:12px">Netto</th></tr></thead><tbody>${i.items.map(item=>`<tr><td style="padding:12px;border-bottom:1px solid #e7ebf1">${
-      esc(item.description)
-    }
-  </td><td style="text-align:right;padding:12px;border-bottom:1px solid #e7ebf1">${
-    numberDE(item.quantity)
-  }
-</td><td style="text-align:right;padding:12px;border-bottom:1px solid #e7ebf1">${
-  money(item.price)
-}
-</td><td style="text-align:right;padding:12px;border-bottom:1px solid #e7ebf1">${
-  numberDE(item.vat,0)
-}
-%</td><td style="text-align:right;padding:12px;border-bottom:1px solid #e7ebf1">${
-  money(item.quantity*item.price)
-}
-</td></tr>`).join("")}</tbody></table><div style="width:280px;margin:22px 0 0 auto;font-size:12px"><div style="display:flex;justify-content:space-between;padding:6px 0"><span>Netto</span><strong>${money(a.net)}</strong></div><div style="display:flex;justify-content:space-between;padding:6px 0"><span>MwSt.</span><strong>${money(a.vat)}</strong></div><div style="display:flex;justify-content:space-between;padding:13px 0;border-top:2px solid #1d2638;font-size:16px"><strong>Gesamtbetrag</strong><strong>${money(a.gross)}</strong></div></div><div style="margin-top:50px;padding-top:15px;border-top:1px solid #e7ebf1;color:#657187;font-size:10px;line-height:1.7">${esc(i.notes||state.company.footer||"")}<br>${esc(state.company.email||"")}${state.company.phone?` · ${
-  esc(state.company.phone)
-}
-`:""}</div></div>`;
-}
-function printInvoice(id){
-  const i=invoiceById(id);
-  if(!i)return;
-  const root=$("#printRoot");
-  root.innerHTML=invoicePrintHtml(i);
-  root.classList.remove("hidden");
-  window.print();
-  setTimeout(()=>{
-    root.classList.add("hidden");root.innerHTML="";
-  },500);
-}
-async function emailInvoice(id){
-  const i = invoiceById(id);
-  const c = i ? customerById(i.customerId) : null;
-
-  if (!i) return;
-
-  if (!c?.email) {
-    toast("Keine E-Mail hinterlegt", "Ergänze zuerst die E-Mail-Adresse des Kunden.", "warning");
-    return;
-  }
-
-  try {
-    const a = amounts(i);
-    const totalQuantity = (i.items || []).reduce((total, item) => total + Number(item.quantity || 0), 0) || 1;
-    const serviceText = (i.title || (i.items || []).map(item => item.description).filter(Boolean).join(", ") || "Rechnungsleistung").slice(0, 1000);
-    const taxRate = a.net > 0 ? (a.vat / a.net) * 100 : 0;
-
-    const response = await fetch("/api/send-invoice", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        customerName: String(c.name || c.contact || "Kunde"),
-        customerEmail: String(c.email).trim(),
-        invoiceNumber: String(i.number),
-        service: serviceText,
-        invoiceDate: String(i.issueDate || todayISO()),
-        dueDate: String(i.dueDate || i.issueDate || todayISO()),
-        quantity: totalQuantity,
-        unitPrice: a.net / totalQuantity,
-        taxRate,
-        netAmount: a.net,
-        taxAmount: a.vat,
-        grossAmount: a.gross
-      })
-    });
-
-    let result = {};
-    try {
-      result = await response.json();
-    } catch (_) {
-      // The server did not return JSON; show the fallback error below.
-    }
-
-    if (!response.ok) {
-      throw new Error(result.error || "Die E-Mail konnte nicht gesendet werden.");
-    }
-
-    i.status = "sent";
-    i.sentAt = todayISO();
-    addActivity("email", "Rechnung per E-Mail versendet", i.number, a.gross);
-    saveState();
-    closeModal();
-    renderApp();
-    toast("E-Mail an Brevo übergeben", result.message || "Der Versandserver hat die E-Mail angenommen. Prüfe zur Sicherheit auch den Posteingang.");
-  } catch (error) {
-    toast("E-Mail-Versand fehlgeschlagen", error.message || "Bitte prüfe den Server und versuche es erneut.", "error");
-  }
 }
 function markPaid(id){
   const i=invoiceById(id);
@@ -2401,7 +2296,7 @@ function renderSettings(){
 }
 function settingsTab(tab){
   const c=state.company;
-  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht und im PDF. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
+  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Die Demo berechnet nur den ausgewählten Prozentsatz und prüft keine gesetzlichen Rechnungsanforderungen. Sie ersetzt keine Buchhaltungs- oder Steuerberatung.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><label class="checkbox"><input id="prefDemo" type="checkbox" ${state.preferences.showDemoData?"checked":""}> Hinweis zum Demo-Modus anzeigen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Demo</h2><p>Verwalte die lokalen Daten dieser Testversion. Es gibt keine Cloud-Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Lokale Speicherung:</strong> Kunden, Rechnungen und Einstellungen bleiben im Browser. Browserdaten löschen oder ein anderes Gerät verwenden kann dazu führen, dass die Daten nicht verfügbar sind.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div><div class="divider"></div><div class="settings-danger"><h3>Demo-Daten zurücksetzen</h3><p>Ersetzt aktuelle Demo-Daten durch die ursprünglichen Beispieldaten. Exportiere zuerst, wenn du Änderungen behalten möchtest.</p><button class="btn danger btn-sm" data-action="reset-demo">${icon("refresh","icon icon-sm")} Demo zurücksetzen</button></div></div>`;
@@ -2480,7 +2375,7 @@ function toast(title,message="",type="success",duration=4200){
 }
 function showDemoInfo(){
   openModal({
-    title:"Wichtig zur Demo-Version",subtitle:"Was Rechnio derzeit kann – und was noch fehlt.",size:"small",body:`<div class="form-note">${icon("info")}<span><strong>Rechnio ist hier eine Demo.</strong><br>Daten werden nur in diesem Browser gespeichert. Der Demo-Login ist kein echter Schutz für Daten.</span></div><div class="divider"></div><div class="stack small"><div class="row">${icon("check","icon text-success")} Kunden und Rechnungen erstellen, bearbeiten und löschen</div><div class="row">${icon("check","icon text-success")} Netto, MwSt. und Brutto berechnen</div><div class="row">${icon("check","icon text-success")} Rechnungen drucken oder als PDF speichern</div><div class="row">${icon("info")} Keine echte Benutzerverwaltung, Cloud-Synchronisierung oder sichere Datensicherung</div></div><p class="hint" style="margin-top:16px">Für echten Einsatz wären ein sicherer Server, sichere Anmeldung, Backups und eine Prüfung der rechtlichen Anforderungen nötig. Bitte keine echten sensiblen Kunden- oder Bankdaten eingeben.</p>`,footer:`<button class="btn primary" data-action="close-modal">Verstanden</button>`
+    title:"Wichtig zur Demo-Version",subtitle:"Was Rechnio derzeit kann – und was noch fehlt.",size:"small",body:`<div class="form-note">${icon("info")}<span><strong>Rechnio ist hier eine Demo.</strong><br>Daten werden nur in diesem Browser gespeichert. Der Demo-Login ist kein echter Schutz für Daten.</span></div><div class="divider"></div><div class="stack small"><div class="row">${icon("check","icon text-success")} Kunden und Rechnungen erstellen, bearbeiten und löschen</div><div class="row">${icon("check","icon text-success")} Netto, MwSt. und Brutto berechnen</div><div class="row">${icon("check","icon text-success")} Rechnungen ansehen und verwalten</div><div class="row">${icon("info")} Keine echte Benutzerverwaltung, Cloud-Synchronisierung oder sichere Datensicherung</div></div><p class="hint" style="margin-top:16px">Für echten Einsatz wären ein sicherer Server, sichere Anmeldung, Backups und eine Prüfung der rechtlichen Anforderungen nötig. Bitte keine echten sensiblen Kunden- oder Bankdaten eingeben.</p>`,footer:`<button class="btn primary" data-action="close-modal">Verstanden</button>`
   });
 }
 /* ================================================================
@@ -2641,7 +2536,7 @@ switch(action){
   case "view-invoice":viewInvoice(id);break;case "view-customer":viewCustomer(id);break;
   case "delete-invoice":requestDelete("invoice",id);break;case "delete-customer":requestDelete("customer",id);break;case "confirm-delete":confirmDelete();break;
   case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;
-  case "mark-paid":markPaid(id);break;case "print-invoice":printInvoice(id);break;case "email-invoice":emailInvoice(id);break;
+  case "mark-paid":markPaid(id);break;
   case "new-invoice-for-customer":closeModal(false);openInvoiceForm(null,id);break;
   case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
