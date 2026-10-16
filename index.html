@@ -2013,7 +2013,7 @@ function openCustomerForm(id=null){
   const c=id?customerById(id):null;
   const edit=Boolean(c);
   openModal({
-    title:edit?"Kunden bearbeiten":"Neuen Kunden anlegen",subtitle:edit?"Ändere die Kontaktdaten dieses Kunden.":"Speichere Kontaktdaten für spätere Rechnungen.",size:"wide",body:`<form id="customerForm" novalidate><input type="hidden" id="customerEditId" value="${escAttr(c?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Unternehmen und Kontakt</h3></div><div class="form-grid"><div class="field"><label for="customerName">Unternehmen / Name *</label><input id="customerName" class="input" value="${escAttr(c?.name||"")}" placeholder="z. B. Musterfirma GmbH" required></div><div class="field"><label for="customerContact">Ansprechpartner</label><input id="customerContact" class="input" value="${escAttr(c?.contact||"")}" placeholder="Vor- und Nachname"></div><div class="field"><label for="customerEmail">E-Mail-Adresse</label><input id="customerEmail" class="input" type="email" value="${escAttr(c?.email||"")}" placeholder="kontakt@firma.de"></div><div class="field"><label for="customerPhone">Telefon</label><input id="customerPhone" class="input" value="${escAttr(c?.phone||"")}" placeholder="+49 …"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Rechnungsadresse</h3></div><div class="form-grid"><div class="field full"><label for="customerStreet">Straße und Hausnummer</label><input id="customerStreet" class="input" value="${escAttr(c?.street||"")}" placeholder="Musterstraße 1"></div><div class="field"><label for="customerPostal">Postleitzahl</label><input id="customerPostal" class="input" value="${escAttr(c?.postalCode||"")}" inputmode="numeric"></div><div class="field"><label for="customerCity">Ort</label><input id="customerCity" class="input" value="${escAttr(c?.city||"")}" placeholder="Musterstadt"></div><div class="field full"><label for="customerTaxId">Steuernummer / USt-IdNr. <span class="faint">(optional)</span></label><input id="customerTaxId" class="input" value="${escAttr(c?.taxId||"")}" placeholder="Nur eintragen, wenn erforderlich"></div><div class="field full"><label for="customerNotes">Notizen <span class="faint">(optional)</span></label><textarea id="customerNotes" class="textarea" placeholder="Interne Hinweise">${esc(c?.notes||"")}</textarea></div></div></div></form>`,footer:`<span class="muted tiny">* Pflichtfeld</span><div class="foot-right"><button class="btn secondary" data-action="close-modal">Abbrechen</button><button class="btn primary" type="submit" form="customerForm">${icon("check","icon icon-sm")} ${edit?"Änderungen speichern":"Kunden speichern"}</button></div>`,onOpen:()=>{
+    title:edit?"Kunden bearbeiten":"Neuen Kunden anlegen",subtitle:edit?"Ändere die Kontaktdaten dieses Kunden.":"Speichere Kontaktdaten für spätere Rechnungen.",size:"wide",body:`<form id="customerForm" novalidate><input type="hidden" id="customerEditId" value="${escAttr(c?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Unternehmen und Kontakt</h3></div><div class="form-grid"><div class="field"><label for="customerName">Unternehmen / Name *</label><input id="customerName" class="input" value="${escAttr(c?.name||"")}" placeholder="z. B. Musterfirma GmbH" required></div><div class="field"><label for="customerContact">Ansprechpartner</label><input id="customerContact" class="input" value="${escAttr(c?.contact||"")}" placeholder="Vor- und Nachname"></div><div class="field"><label for="customerEmail">E-Mail-Adresse</label><input id="customerEmail" class="input" type="email" value="${escAttr(c?.email||"")}" placeholder="kontakt@firma.de"></div><div class="field"><label for="customerPhone">Telefon</label><input id="customerPhone" class="input" value="${escAttr(c?.phone||"")}" placeholder="+49 …"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Rechnungsadresse</h3></div><div class="form-grid"><div class="field full"><label for="customerStreet">Straße und Hausnummer *</label><input id="customerStreet" class="input" value="${escAttr(c?.street||"")}" placeholder="Musterstraße 1" required></div><div class="field"><label for="customerPostal">Postleitzahl *</label><input id="customerPostal" class="input" value="${escAttr(c?.postalCode||"")}" autocomplete="postal-code" required></div><div class="field"><label for="customerCity">Ort *</label><input id="customerCity" class="input" value="${escAttr(c?.city||"")}" placeholder="Musterstadt" autocomplete="address-level2" required></div><div class="field full"><label for="customerTaxId">Steuernummer / USt-IdNr. <span class="faint">(optional)</span></label><input id="customerTaxId" class="input" value="${escAttr(c?.taxId||"")}" placeholder="Nur eintragen, wenn erforderlich"></div><div class="field full"><label for="customerNotes">Notizen <span class="faint">(optional)</span></label><textarea id="customerNotes" class="textarea" placeholder="Interne Hinweise">${esc(c?.notes||"")}</textarea></div></div></div></form>`,footer:`<span class="muted tiny">* Pflichtfeld</span><div class="foot-right"><button class="btn secondary" data-action="close-modal">Abbrechen</button><button class="btn primary" type="submit" form="customerForm">${icon("check","icon icon-sm")} ${edit?"Änderungen speichern":"Kunden speichern"}</button></div>`,onOpen:()=>{
       $("#customerForm").addEventListener("submit",e=>{
         e.preventDefault();saveCustomerForm();
       });$("#customerName").focus();
@@ -2022,9 +2022,19 @@ function openCustomerForm(id=null){
 }
 function saveCustomerForm(){
   const name=$("#customerName").value.trim(),email=$("#customerEmail").value.trim(),id=$("#customerEditId").value;
-  if(!name){
-    toast("Name fehlt","Gib einen Unternehmens- oder Kundennamen ein.","error");
-    $("#customerName").focus();
+  const street=$("#customerStreet").value.trim();
+  const postalCode=$("#customerPostal").value.trim();
+  const city=$("#customerCity").value.trim();
+  const requiredCustomerFields=[
+    {value:name,selector:"#customerName",label:"Name/Firma"},
+    {value:street,selector:"#customerStreet",label:"Straße und Hausnummer"},
+    {value:postalCode,selector:"#customerPostal",label:"Postleitzahl"},
+    {value:city,selector:"#customerCity",label:"Ort"}
+  ];
+  const missingField=requiredCustomerFields.find(field=>!field.value);
+  if(missingField){
+    toast("Pflichtfeld fehlt",`Bitte fülle „${missingField.label}“ aus.`,"error");
+    $(missingField.selector).focus();
     return;
   }
 if(email&&!validEmail(email)){
@@ -2038,7 +2048,7 @@ if(state.customers.some(c=>norm(c.name)===norm(name)&&c.id!==id)){
 }
 const old=id?customerById(id):null;
 const c={
-  id:old?.id||uid("cus"),name,contact:$("#customerContact").value.trim(),email,phone:$("#customerPhone").value.trim(),street:$("#customerStreet").value.trim(),postalCode:$("#customerPostal").value.trim(),city:$("#customerCity").value.trim(),taxId:$("#customerTaxId").value.trim(),notes:$("#customerNotes").value.trim(),createdAt:old?.createdAt||todayISO()
+  id:old?.id||uid("cus"),name,contact:$("#customerContact").value.trim(),email,phone:$("#customerPhone").value.trim(),street,postalCode,city,taxId:$("#customerTaxId").value.trim(),notes:$("#customerNotes").value.trim(),createdAt:old?.createdAt||todayISO()
 };
 if(old){
   state.customers=state.customers.map(x=>x.id===id?c:x);
