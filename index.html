@@ -1662,6 +1662,15 @@ function amounts(invoice){
     net,vat,gross:net+vat
   };
 }
+function invoiceVatRowsHtml(invoice){
+  const rates=[...new Set((invoice?.items||[]).map(item=>Number(item.vat)||0))].sort((a,b)=>a-b);
+  return rates.map(rate=>{
+    const net=(invoice.items||[]).filter(item=>(Number(item.vat)||0)===rate)
+      .reduce((total,item)=>total+num(item.quantity)*num(item.price),0);
+    const vat=Math.round((net*rate/100+Number.EPSILON)*100)/100;
+    return `<div class="total-row"><span>Umsatzsteuer ${numberDE(rate,0)} %</span><strong>${money(vat)}</strong></div>`;
+  }).join("");
+}
 function statusOf(invoice){
   if(!invoice)return"draft";
   if(invoice.status==="paid")return"paid";
@@ -2060,7 +2069,7 @@ openModal({
 });
 }
 function invoiceFormBody(invoice,number,issue,due,customer){
-  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer *</label><input id="invoiceNumber" class="input" value="${escAttr(number)}" required></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum *</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}" required></div><div class="field"><label for="invoiceDueDate">Fälligkeitsdatum *</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}" required></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde *</label><select id="invoiceCustomer" class="select" required>${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
+  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer *</label><input id="invoiceNumber" class="input" value="${escAttr(number)}" required></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum *</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}" required></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum *</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}" required></div><div class="field"><label for="invoiceDueDate">Zahlbar bis *</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}" required></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde *</label><select id="invoiceCustomer" class="select" required>${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
       c.id===customer?.id?"selected":""
     }
   >${
@@ -2121,15 +2130,15 @@ renderInvoiceLines();
 calculateDraft();
 }
 function saveInvoiceForm(){
-  const id=$("#invoiceEditId").value,number=$("#invoiceNumber").value.trim(),issueDate=$("#invoiceIssueDate").value,dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value,title=$("#invoiceTitle").value.trim(),notes=$("#invoiceNotes").value.trim(),status=$("#invoiceStatus").value;
+  const id=$("#invoiceEditId").value,number=$("#invoiceNumber").value.trim(),issueDate=$("#invoiceIssueDate").value,serviceDate=$("#invoiceServiceDate").value,dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value,title=$("#invoiceTitle").value.trim(),notes=$("#invoiceNotes").value.trim(),status=$("#invoiceStatus").value;
   const items=invoiceDraftItems.map(i=>({
     description:String(i.description||"").trim(),quantity:num(i.quantity),price:num(i.price),vat:clamp(num(i.vat),0,100)
   }));
-if(!number||!issueDate||!dueDate||!customerId){
+if(!number||!issueDate||!serviceDate||!dueDate||!customerId){
   toast("Pflichtfelder fehlen","Bitte fülle Nummer, Datum, Fälligkeit und Kunde aus.","error");
   return;
 }
-if(!parseDate(issueDate)||!parseDate(dueDate)||parseDate(dueDate)<parseDate(issueDate)){
+if(!parseDate(issueDate)||!parseDate(serviceDate)||!parseDate(dueDate)||parseDate(dueDate)<parseDate(issueDate)){
   toast("Datum prüfen","Das Fälligkeitsdatum darf nicht vor dem Rechnungsdatum liegen.","error");
   return;
 }
@@ -2143,7 +2152,7 @@ if(state.invoices.some(i=>norm(i.number)===norm(number)&&i.id!==id)){
 }
 const old=id?invoiceById(id):null;
 const invoice={
-  id:old?.id||uid("inv"),number,customerId,title,issueDate,dueDate,status,notes,items,createdAt:old?.createdAt||todayISO(),paidAt:status==="paid"?(old?.paidAt||todayISO()):null
+  id:old?.id||uid("inv"),number,customerId,title,issueDate,serviceDate,dueDate,status,notes,items,createdAt:old?.createdAt||todayISO(),paidAt:status==="paid"?(old?.paidAt||todayISO()):null
 };
 if(old){
   state.invoices=state.invoices.map(i=>i.id===id?invoice:i);
@@ -2167,30 +2176,75 @@ function viewInvoice(id){
   const i=invoiceById(id);
   if(!i)return toast("Rechnung nicht gefunden","Der Eintrag existiert nicht mehr.","error");
   const c=customerById(i.customerId),a=amounts(i);
+  const issuerTax=state.company.taxId?`<p>Steuernummer: ${esc(state.company.taxId)}</p>`:"";
+  const issuerVat=state.company.vatNumber?`<p>USt-IdNr.: ${esc(state.company.vatNumber)}</p>`:"";
+  const iban=state.company.iban?`<div><strong>Bankverbindung:</strong> ${esc(state.company.iban)}</div>`:"";
+  const note=i.notes||state.company.footer||"";
   openModal({
-    title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div><div class="invoice-preview" id="invoicePreview"><div class="preview-head"><div><div class="preview-brand">${esc(state.company.name||"Rechnio")}</div><div class="tiny faint">${esc(state.company.street||"")}<br>${esc([state.company.postalCode,state.company.city].filter(Boolean).join(" "))}<br>${esc(state.company.email||"")}</div></div><div class="preview-number"><strong>RECHNUNG</strong>${esc(i.number)}<br><span class="faint">Datum: ${formatDate(i.issueDate)}</span><br><span class="faint">Fällig: ${formatDate(i.dueDate)}</span></div></div><div class="preview-parties"><div><h4>Rechnung an</h4><p><strong>${esc(c?.name||"Kunde nicht gefunden")}</strong></p><p>${esc(c?.contact||"")}</p><p>${esc(c?.street||"")}</p><p>${esc([c?.postalCode,c?.city].filter(Boolean).join(" "))}</p><p>${esc(c?.email||"")}</p></div><div><h4>Beschreibung</h4><p><strong>${esc(i.title||"Rechnungsleistung")}</strong></p><p class="muted">Status: ${statusText(statusOf(i))}</p></div></div><table class="detail-table"><thead><tr><th>Beschreibung</th><th class="right">Menge</th><th class="right">Netto / Einheit</th><th class="right">MwSt.</th><th class="right">Netto</th></tr></thead><tbody>${i.items.map(item=>`<tr><td>${
-        esc(item.description)
-      }
-    </td><td class="right">${
-      numberDE(item.quantity)
-    }
-  </td><td class="right">${
-    money(item.price)
-  }
-</td><td class="right">${
-  numberDE(item.vat,0)
-}
-%</td><td class="right">${
-  money(item.quantity*item.price)
-}
-</td></tr>`).join("")}</tbody></table><div class="preview-total"><div class="total-row"><span>Netto</span><strong>${money(a.net)}</strong></div><div class="total-row"><span>MwSt.</span><strong>${money(a.vat)}</strong></div><div class="total-row final"><span>Gesamtbetrag</span><strong>${money(a.gross)}</strong></div></div><div class="preview-footer">${esc(i.notes||state.company.footer||"")}<br>${esc(state.company.email||"")}${state.company.phone?` · ${
-  esc(state.company.phone)
-}
-`:""}</div></div>`,footer:`<div>${statusOf(i)!=="paid"?`<button class="btn secondary btn-sm" data-action="mark-paid" data-id="${escAttr(i.id)}">${
-  icon("check","icon icon-sm")
-}
-Als bezahlt markieren</button>`:""}</div><div class="foot-right"><button class="btn secondary" data-action="close-modal">Schließen</button></div>`
-});
+    title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",
+    body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div>
+      <div class="invoice-preview" id="invoicePreview">
+        <div class="preview-head">
+          <div>
+            <div class="preview-brand">RECHNUNG</div>
+            <div style="margin-top:12px;font-size:11px;line-height:1.8">
+              <strong>Rechnungssteller</strong>
+              <p style="margin:3px 0">${esc(state.company.name||"")}</p>
+              ${state.company.street?`<p style="margin:3px 0">${esc(state.company.street)}</p>`:""}
+              <p style="margin:3px 0">${esc([state.company.postalCode,state.company.city].filter(Boolean).join(" "))}</p>
+              ${issuerTax}${issuerVat}
+              ${state.company.email?`<p style="margin:3px 0">${esc(state.company.email)}</p>`:""}
+            </div>
+          </div>
+          <div class="preview-number">
+            <strong>${esc(i.number)}</strong>
+            <span class="faint">Rechnungsnummer</span><br>
+            <span>Rechnungsdatum: ${formatDate(i.issueDate)}</span><br>
+            <span>Liefer-/Leistungsdatum: ${i.serviceDate?formatDate(i.serviceDate):"Bitte ergänzen"}</span><br>
+            <span>Zahlbar bis: ${formatDate(i.dueDate)}</span>
+          </div>
+        </div>
+        <div class="preview-parties">
+          <div>
+            <h4>Rechnungsempfänger</h4>
+            <p><strong>${esc(c?.name||"Kunde nicht gefunden")}</strong></p>
+            ${c?.street?`<p>${esc(c.street)}</p>`:""}
+            <p>${esc([c?.postalCode,c?.city].filter(Boolean).join(" "))}</p>
+            ${c?.email?`<p>${esc(c.email)}</p>`:""}
+          </div>
+          <div>
+            <h4>Weitere Angaben</h4>
+            <p><strong>Verwendungszweck:</strong> ${esc(i.number)}</p>
+            <p><strong>Status:</strong> ${statusText(statusOf(i))}</p>
+          </div>
+        </div>
+        <table class="detail-table">
+          <thead><tr><th>Positionen / Beschreibung</th><th class="right">Menge</th><th class="right">Einzelpreis netto</th><th class="right">Steuersatz</th><th class="right">Gesamt netto</th></tr></thead>
+          <tbody>${i.items.map(item=>`<tr>
+            <td>${esc(item.description)}</td>
+            <td class="right">${numberDE(item.quantity)}</td>
+            <td class="right">${money(item.price)}</td>
+            <td class="right">${numberDE(item.vat,0)} %</td>
+            <td class="right">${money(item.quantity*item.price)}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+        <div class="preview-total">
+          <div class="total-row"><span>Nettosumme</span><strong>${money(a.net)}</strong></div>
+          ${invoiceVatRowsHtml(i)}
+          <div class="total-row final"><span>Rechnungsbetrag brutto</span><strong>${money(a.gross)}</strong></div>
+        </div>
+        <div class="preview-footer">
+          <div style="display:grid;gap:5px;color:var(--ink)">
+            <div><strong>Zahlbar bis:</strong> ${formatDate(i.dueDate)}</div>
+            ${iban}
+            <div><strong>Verwendungszweck:</strong> ${esc(i.number)}</div>
+          </div>
+          ${note?`<div style="margin-top:12px"><strong>Hinweis</strong><br>${esc(note).replace(/\n/g,"<br>")}</div>`:""}
+          ${state.company.email?`<div style="margin-top:8px">${esc(state.company.email)}${state.company.phone?` · ${esc(state.company.phone)}`:""}</div>`:""}
+        </div>
+      </div>`,
+    footer:`<div>${statusOf(i)!=="paid"?`<button class="btn secondary btn-sm" data-action="mark-paid" data-id="${escAttr(i.id)}">${icon("check","icon icon-sm")} Als bezahlt markieren</button>`:""}</div><div class="foot-right"><button class="btn secondary" data-action="close-modal">Schließen</button></div>`
+  });
 }
 function markPaid(id){
   const i=invoiceById(id);
@@ -2296,7 +2350,7 @@ function renderSettings(){
 }
 function settingsTab(tab){
   const c=state.company;
-  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
+  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setIban">Bankverbindung (IBAN)</label><input id="setIban" class="input" value="${escAttr(c.iban||"")}" placeholder="DE…"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Die Demo berechnet nur den ausgewählten Prozentsatz und prüft keine gesetzlichen Rechnungsanforderungen. Sie ersetzt keine Buchhaltungs- oder Steuerberatung.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><label class="checkbox"><input id="prefDemo" type="checkbox" ${state.preferences.showDemoData?"checked":""}> Hinweis zum Demo-Modus anzeigen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Demo</h2><p>Verwalte die lokalen Daten dieser Testversion. Es gibt keine Cloud-Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Lokale Speicherung:</strong> Kunden, Rechnungen und Einstellungen bleiben im Browser. Browserdaten löschen oder ein anderes Gerät verwenden kann dazu führen, dass die Daten nicht verfügbar sind.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div><div class="divider"></div><div class="settings-danger"><h3>Demo-Daten zurücksetzen</h3><p>Ersetzt aktuelle Demo-Daten durch die ursprünglichen Beispieldaten. Exportiere zuerst, wenn du Änderungen behalten möchtest.</p><button class="btn danger btn-sm" data-action="reset-demo">${icon("refresh","icon icon-sm")} Demo zurücksetzen</button></div></div>`;
@@ -2304,7 +2358,7 @@ function settingsTab(tab){
 function bindSettingsForms(){
   $("#companySettingsForm")?.addEventListener("submit",e=>{
     e.preventDefault();const email=$("#setEmail").value.trim();if(email&&!validEmail(email))return toast("E-Mail prüfen","Bitte gib eine gültige E-Mail-Adresse ein.","error");Object.assign(state.company,{
-      name:$("#setCompanyName").value.trim(),owner:$("#setOwner").value.trim(),email,phone:$("#setPhone").value.trim(),street:$("#setStreet").value.trim(),postalCode:$("#setPostal").value.trim(),city:$("#setCity").value.trim(),taxId:$("#setTax").value.trim(),vatNumber:$("#setVatNumber").value.trim(),footer:$("#setFooter").value.trim()
+      name:$("#setCompanyName").value.trim(),owner:$("#setOwner").value.trim(),email,phone:$("#setPhone").value.trim(),street:$("#setStreet").value.trim(),postalCode:$("#setPostal").value.trim(),city:$("#setCity").value.trim(),taxId:$("#setTax").value.trim(),vatNumber:$("#setVatNumber").value.trim(),iban:$("#setIban").value.trim(),footer:$("#setFooter").value.trim()
     });saveState();renderApp();toast("Unternehmensangaben gespeichert","Änderungen werden bei Rechnungen verwendet.");
 });
 $("#invoiceSettingsForm")?.addEventListener("submit",e=>{
@@ -2411,12 +2465,79 @@ function exportCustomers(){
   toast("Kunden exportiert","Die CSV-Datei wurde erstellt.");
 }
 function exportInvoices(){
-  const rows=[["Rechnungsnummer","Titel","Kunde","Rechnungsdatum","Fälligkeitsdatum","Status","Netto","MwSt","Brutto"]];
-  state.invoices.forEach(i=>{
-    const a=amounts(i);rows.push([i.number,i.title,customerName(i.customerId),i.issueDate,i.dueDate,statusText(statusOf(i)),a.net.toFixed(2),a.vat.toFixed(2),a.gross.toFixed(2)]);
+  const now=new Date();
+  const currentMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  const currentYear=String(now.getFullYear());
+  openModal({
+    title:"Rechnungen exportieren",
+    subtitle:"Wähle aus, ob du Rechnungen für einen Monat oder ein ganzes Jahr exportieren möchtest.",
+    size:"small",
+    body:`<form id="invoiceExportForm" class="stack">
+      <div class="field">
+        <label for="invoiceExportPeriod">Zeitraum</label>
+        <select id="invoiceExportPeriod" class="select">
+          <option value="month">Ein Monat</option>
+          <option value="year">Ein Jahr</option>
+          <option value="all">Alle Rechnungen</option>
+        </select>
+      </div>
+      <div class="field" id="invoiceExportMonthWrap">
+        <label for="invoiceExportMonth">Monat</label>
+        <input id="invoiceExportMonth" class="input" type="month" value="${currentMonth}">
+      </div>
+      <div class="field hidden" id="invoiceExportYearWrap">
+        <label for="invoiceExportYear">Jahr</label>
+        <input id="invoiceExportYear" class="input" type="number" min="2000" max="2100" step="1" value="${currentYear}">
+      </div>
+    </form>`,
+    footer:`<button class="btn secondary" data-action="close-modal">Abbrechen</button><div class="foot-right"><button class="btn primary" type="submit" form="invoiceExportForm">${icon("download","icon icon-sm")} Exportieren</button></div>`,
+    onOpen:()=>{
+      const form=$("#invoiceExportForm");
+      const period=$("#invoiceExportPeriod");
+      const monthWrap=$("#invoiceExportMonthWrap");
+      const yearWrap=$("#invoiceExportYearWrap");
+      const updateFields=()=>{
+        monthWrap.classList.toggle("hidden",period.value!=="month");
+        yearWrap.classList.toggle("hidden",period.value!=="year");
+      };
+      period.addEventListener("change",updateFields);
+      form.addEventListener("submit",event=>{
+        event.preventDefault();
+        const selectedPeriod=period.value;
+        const month=$("#invoiceExportMonth").value;
+        const year=$("#invoiceExportYear").value.trim();
+        if(selectedPeriod==="month"&&!/^\d{4}-\d{2}$/.test(month)){
+          return toast("Monat auswählen","Bitte wähle einen gültigen Monat aus.","error");
+        }
+        if(selectedPeriod==="year"&&!/^\d{4}$/.test(year)){
+          return toast("Jahr prüfen","Bitte gib ein vierstelliges Jahr ein.","error");
+        }
+        closeModal();
+        finishInvoiceExport(selectedPeriod,month,year);
+      });
+    }
   });
-downloadFile(`rechnio-rechnungen-${todayISO()}.csv`,"\uFEFF"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n"),"text/csv;charset=utf-8");
-toast("Rechnungen exportiert","Die CSV-Datei wurde erstellt.");
+}
+function finishInvoiceExport(period,month,year){
+  const filtered=state.invoices.filter(i=>{
+    const date=String(i.issueDate||"");
+    if(period==="month")return date.startsWith(month);
+    if(period==="year")return date.startsWith(year);
+    return true;
+  });
+  if(!filtered.length){
+    const label=period==="month"?month:period==="year"?year:"dem gewählten Zeitraum";
+    return toast("Keine Rechnungen gefunden",`Für ${label} gibt es keine Rechnungen zum Exportieren.`,"warning");
+  }
+  const rows=[["Rechnungsnummer","Titel","Kunde","Rechnungsdatum","Liefer-/Leistungsdatum","Fälligkeitsdatum","Status","Netto","Umsatzsteuer","Brutto","IBAN","Verwendungszweck"]];
+  filtered.forEach(i=>{
+    const a=amounts(i);
+    rows.push([i.number,i.title,customerName(i.customerId),i.issueDate,i.serviceDate||"",i.dueDate,statusText(statusOf(i)),a.net.toFixed(2),a.vat.toFixed(2),a.gross.toFixed(2),state.company.iban||"",i.number]);
+  });
+  const suffix=period==="month"?month:period==="year"?year:"alle";
+  downloadFile(`rechnio-rechnungen-${suffix}-${todayISO()}.csv`,"\uFEFF"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n"),"text/csv;charset=utf-8");
+  const label=period==="month"?month:period==="year"?year:"alle Zeiträume";
+  toast("Rechnungen exportiert",`${filtered.length} Rechnung(en) für ${label} wurden als CSV erstellt.`);
 }
 function importData(file){
   if(!file)return;
@@ -2457,6 +2578,7 @@ function validateState(){
   state.invoices = state.invoices.filter(i => i && i.id && i.number).map(i => ({
     ...i,
     issueDate:String(i.issueDate || i.date || todayISO()).slice(0,10),
+    serviceDate:String(i.serviceDate || "").slice(0,10),
     dueDate:String(i.dueDate || i.issueDate || i.date || todayISO()).slice(0,10),
     status:["paid","open","overdue","draft","sent"].includes(i.status) ? i.status : "open",
     customerId:state.customers.some(c => c.id === i.customerId) ? i.customerId : (state.customers[0]?.id || ""),
