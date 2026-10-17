@@ -2638,10 +2638,79 @@ function csvCell(value){
   return `"${String(value??"").replaceAll('"','""')}"`;
 }
 function exportCustomers(){
-  const rows=[["Name","Ansprechpartner","E-Mail","Telefon","Straße","PLZ","Ort","Steuernummer","Notizen"]];
-  state.customers.forEach(c=>rows.push([c.name,c.contact,c.email,c.phone,c.street,c.postalCode,c.city,c.taxId,c.notes]));
-  downloadFile(`rechnio-kunden-${todayISO()}.csv`,"\uFEFF"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n"),"text/csv;charset=utf-8");
-  toast("Kunden exportiert","Die CSV-Datei wurde erstellt.");
+  const now=new Date();
+  const currentMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}`;
+  const currentYear=String(now.getFullYear());
+  openModal({
+    title:"Kunden exportieren",
+    subtitle:"Wähle, ob du Kunden für einen Monat, ein Jahr oder alle Zeiträume exportieren möchtest. Der Zeitraum richtet sich nach dem Erstellungsdatum des Kunden.",
+    size:"small",
+    body:`<form id="customerExportForm" class="stack">
+      <div class="field">
+        <label for="customerExportPeriod">Zeitraum</label>
+        <select id="customerExportPeriod" class="select">
+          <option value="month">Ein Monat</option>
+          <option value="year">Ein Jahr</option>
+          <option value="all">Alle Kunden</option>
+        </select>
+      </div>
+      <div class="field" id="customerExportMonthWrap">
+        <label for="customerExportMonth">Monat</label>
+        <input id="customerExportMonth" class="input" type="month" value="${currentMonth}">
+      </div>
+      <div class="field hidden" id="customerExportYearWrap">
+        <label for="customerExportYear">Jahr</label>
+        <input id="customerExportYear" class="input" type="number" min="2000" max="2100" step="1" value="${currentYear}">
+      </div>
+    </form>`,
+    footer:`<button class="btn secondary" data-action="close-modal">Abbrechen</button><div class="foot-right"><button class="btn primary" type="submit" form="customerExportForm">${icon("download","icon icon-sm")} Exportieren</button></div>`,
+    onOpen:()=>{
+      const form=$("#customerExportForm");
+      const period=$("#customerExportPeriod");
+      const monthWrap=$("#customerExportMonthWrap");
+      const yearWrap=$("#customerExportYearWrap");
+      const updateFields=()=>{
+        monthWrap.classList.toggle("hidden",period.value!=="month");
+        yearWrap.classList.toggle("hidden",period.value!=="year");
+      };
+      period.addEventListener("change",updateFields);
+      form.addEventListener("submit",event=>{
+        event.preventDefault();
+        const selectedPeriod=period.value;
+        const month=$("#customerExportMonth").value;
+        const year=$("#customerExportYear").value.trim();
+        if(selectedPeriod==="month"&&!/^\d{4}-\d{2}$/.test(month)){
+          return toast("Monat auswählen","Bitte wähle einen gültigen Monat aus.","error");
+        }
+        if(selectedPeriod==="year"&&!/^\d{4}$/.test(year)){
+          return toast("Jahr prüfen","Bitte gib ein vierstelliges Jahr ein.","error");
+        }
+        closeModal();
+        finishCustomerExport(selectedPeriod,month,year);
+      });
+    }
+  });
+}
+function finishCustomerExport(period,month,year){
+  const filtered=state.customers.filter(c=>{
+    const created=String(c.createdAt||c.created||"").slice(0,10);
+    if(period==="month")return created.startsWith(month);
+    if(period==="year")return created.startsWith(year);
+    return true;
+  });
+  if(!filtered.length){
+    const label=period==="month"?month:period==="year"?year:"den verfügbaren Daten";
+    return toast("Keine Kunden gefunden",`Für ${label} gibt es keine Kunden zum Exportieren.` ,"warning");
+  }
+  const rows=[["Name","Ansprechpartner","E-Mail","Telefon","Straße","PLZ","Ort","Steuernummer","Notizen","Erstellt am","Monat","Jahr"]];
+  filtered.forEach(c=>{
+    const created=String(c.createdAt||c.created||"").slice(0,10);
+    rows.push([c.name,c.contact,c.email,c.phone,c.street,c.postalCode,c.city,c.taxId,c.notes,created,created.slice(0,7),created.slice(0,4)]);
+  });
+  const suffix=period==="month"?month:period==="year"?year:"alle";
+  downloadFile(`rechnio-kunden-${suffix}-${todayISO()}.csv`,"\uFEFF"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n"),"text/csv;charset=utf-8");
+  const label=period==="month"?month:period==="year"?year:"Zeiträume";
+  toast("Kunden exportiert",`${filtered.length} Kunde(n) für ${label} wurden als CSV erstellt.`);
 }
 function exportInvoices(){
   const now=new Date();
