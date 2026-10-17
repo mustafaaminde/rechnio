@@ -1293,15 +1293,15 @@ body{font-size:15px;line-height:1.6}
     <h2 id="authTitle">Willkommen zurück</h2><p id="authSubtitle" class="login-sub">Melde dich an, um deine Rechnungen und Kunden zu verwalten.</p>
     <form id="loginForm" class="login-form" novalidate>
       <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" maxlength="254" required></div></div>
-      <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" minlength="10" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
-      <div id="registerConfirmWrap" class="field hidden"><label for="registerPasswordConfirm">Passwort wiederholen</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="registerPasswordConfirm" class="input" type="password" autocomplete="new-password" placeholder="Passwort erneut eingeben" minlength="10"></div></div>
+      <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
+      <div id="registerConfirmWrap" class="field hidden"><label for="registerPasswordConfirm">Passwort wiederholen</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="registerPasswordConfirm" class="input" type="password" autocomplete="new-password" placeholder="Passwort erneut eingeben"></div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
       <div id="authSetupNotice" class="auth-setup-notice hidden" role="status"></div>
       <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
-      <p class="auth-switch"><span id="authSwitchText">Noch kein Konto?</span> <button id="authModeToggle" class="link-button" type="button">Jetzt registrieren</button></p>
+      <p class="auth-switch hidden"><span id="authSwitchText">Privater Testzugang</span> <button id="authModeToggle" class="link-button" type="button" tabindex="-1">Registrierung deaktiviert</button></p>
     </form>
-    <div class="login-legal">Deine Anmeldung wird sicher über Rechnio geprüft. Nutze ein eigenes, sicheres Passwort.</div>
+    <div class="login-legal">Privater Testzugang für Rechnio. Bitte verwende keine echten Kundendaten.</div>
   </div></div>
 </section>
 
@@ -1774,7 +1774,7 @@ async function boot(){
   try{
     const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
     if(response.status===401){showLogin();return;}
-    if(response.status===404){showLogin();showAuthSetupNotice("Die Kontoverwaltung wird gerade eingerichtet. Die passende Server-Konfiguration muss noch ergänzt werden.");return;}
+    if(response.status===404){showLogin();showAuthSetupNotice("Der Anmeldeserver ist noch nicht bereit. Prüfe, ob die aktuelle server.js deployed wurde.");return;}
     const payload=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(payload.error||"Der Anmeldestatus konnte nicht geprüft werden.");
     const user=extractAuthUser(payload);
@@ -1788,7 +1788,7 @@ async function boot(){
   }catch(error){
     console.error("Rechnio auth status check failed:",error);
     showLogin();
-    showAuthSetupNotice("Die sichere Anmeldung ist noch nicht mit dem Server verbunden. Als Nächstes muss server.js die Registrierungs- und Anmelde-Endpunkte bereitstellen.");
+    showAuthSetupNotice("Die Anmeldung konnte den Server nicht erreichen. Prüfe den Render-Status und die Testzugang-Variablen.");
   }
 }
 function extractAuthUser(payload){
@@ -1805,23 +1805,22 @@ function showAuthSetupNotice(message){
 function showLogin(){
   $("#loginScreen")?.classList.remove("hidden");
   $("#appShell")?.classList.add("hidden");
-  if($("#loginEmail"))$("#loginEmail").value="";
+  if($("#loginEmail"))$("#loginEmail").value="test@trest.de";
   if($("#loginPassword"))$("#loginPassword").value="";
   if($("#registerPasswordConfirm"))$("#registerPasswordConfirm").value="";
   $("#loginError")?.classList.add("hidden");
 }
-function setAuthMode(mode){
-  authMode=mode==="register"?"register":"login";
-  const registering=authMode==="register";
-  $("#authTitle").textContent=registering?"Konto erstellen":"Willkommen zurück";
-  $("#authSubtitle").textContent=registering?"Erstelle ein persönliches Konto für Rechnio.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
-  $("#authSubmit").innerHTML=registering?"Konto erstellen":"Anmelden "+icon("chevron","icon icon-sm");
-  $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
-  $("#authModeToggle").textContent=registering?"Anmelden":"Jetzt registrieren";
-  $("#registerConfirmWrap").classList.toggle("hidden",!registering);
-  $("#loginMeta").classList.toggle("hidden",registering);
-  $("#passwordHint").textContent=registering?"Mindestens 10 Zeichen verwenden.":"Gib dein Konto-Passwort ein.";
-  $("#loginPassword").autocomplete=registering?"new-password":"current-password";
+function setAuthMode(_mode){
+  // Dieser Build ist absichtlich auf den privaten Testzugang beschränkt.
+  authMode="login";
+  $("#authTitle").textContent="Willkommen zurück";
+  $("#authSubtitle").textContent="Melde dich mit dem privaten Rechnio-Testzugang an.";
+  $("#authSubmit").innerHTML="Anmelden "+icon("chevron","icon icon-sm");
+  $("#registerConfirmWrap").classList.add("hidden");
+  $("#loginMeta").classList.remove("hidden");
+  $("#passwordHint").textContent="Gib das Test-Passwort ein.";
+  $("#loginPassword").autocomplete="current-password";
+  $("#authModeToggle").classList.add("hidden");
   $("#loginError").classList.add("hidden");
   $("#authSetupNotice").classList.add("hidden");
 }
@@ -1829,9 +1828,7 @@ async function submitAuth(){
   const email=$("#loginEmail").value.trim().toLowerCase();
   const password=$("#loginPassword").value;
   if(!validEmail(email))throw new Error("Bitte gib eine gültige E-Mail-Adresse ein.");
-  if(password.length<10)throw new Error("Dein Passwort muss mindestens 10 Zeichen haben.");
-  if(authMode==="register"&&password!==$("#registerPasswordConfirm").value)throw new Error("Die beiden Passwörter stimmen nicht überein.");
-  const endpoint=authMode==="register"?"/api/auth/register":"/api/auth/login";
+  const endpoint="/api/auth/login";
   const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
   const payload=await response.json().catch(()=>({}));
   if(!response.ok)throw new Error(payload.error|| (authMode==="register"?"Das Konto konnte nicht erstellt werden.":"Die Anmeldung ist fehlgeschlagen."));
@@ -1843,7 +1840,7 @@ async function submitAuth(){
   validateState();
   $("#authSetupNotice").classList.add("hidden");
   showApp();
-  toast(authMode==="register"?"Konto erstellt":"Willkommen zurück",authMode==="register"?"Dein Rechnio-Konto wurde erstellt.":"Du bist erfolgreich angemeldet.");
+  toast("Willkommen zurück","Du bist erfolgreich angemeldet.");
   if(!String(user.name||"").trim())askForName();
 }
 async function logout(){
