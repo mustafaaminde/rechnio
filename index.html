@@ -8,9 +8,8 @@
 <title>Rechnio — Rechnungen im Griff</title>
 <style>
 /* ================================================================
-   RECHNIO / SINGLE-FILE DEMO
-   Professional responsive UI, accessible controls, local demo storage.
-   This is not a production accounting system or secure multi-user app.
+   RECHNIO / SINGLE-FILE INTERFACE
+   Responsive invoicing interface. User authentication is handled server-side.
    ================================================================ */
 :root{
   color-scheme:light; --bg:#f4f7fb; --panel:#fff; --panel-2:#f8fafc; --ink:#172033; --muted:#59677d; --faint:#8995a7; --line:#e4eaf2; --line-2:#d4deeb; --brand:#3867f4; --brand-dark:#244dd0; --brand-soft:#edf2ff; --green:#13845b; --green-soft:#e8f8f0; --amber:#a96708; --amber-soft:#fff4dd; --red:#c43b4b; --red-soft:#fff0f1; --purple:#7855d8; --purple-soft:#f1edff; --sidebar:#101827; --sidebar-text:#a4b0c3; --shadow:0 1px 3px #14213d0a; --shadow-lg:0 22px 70px #14213d2b; --r:14px; --r-sm:10px; --sidebar-w:250px; --font:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif
@@ -269,6 +268,11 @@ svg{
 .login-legal{
   margin-top:22px; text-align:center; color:#9ca6b5; font-size:10px; line-height:1.7
 }
+.auth-switch{margin:0;text-align:center;color:var(--muted);font-size:12px}
+.auth-switch .link-button{font-size:12px;margin-left:3px}
+.auth-setup-notice{padding:11px 12px;border:1px solid #f0d7a4;border-radius:9px;background:#fff8e8;color:#7b5714;font-size:11px;line-height:1.6}
+#authSubmit{margin-top:2px}
+
 /* shell */
 .shell{
   min-height:100vh
@@ -1278,24 +1282,26 @@ body{font-size:15px;line-height:1.6}
 <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
 </svg>
 
-<section id="loginScreen" class="login">
+<section id="loginScreen" class="login" aria-labelledby="authTitle">
   <div class="login-visual">
     <div class="brand"><span class="brand-mark"><svg class="icon icon-lg"><use href="#i-file"/></svg></span><div><div class="brand-name">rechnio</div><div class="brand-sub">Einfach. Klar. Organisiert.</div></div></div>
     <div class="login-copy"><div class="eyebrow">Dein Büro. Einfacher.</div><h1>Rechnungen im Griff. Kopf frei fürs Geschäft.</h1><p>Verwalte Kunden, erstelle Rechnungen und behalte offene Beträge im Blick – mit einer klaren und übersichtlichen Oberfläche.</p><div class="login-features"><div class="feature"><span class="feature-check"><svg class="icon icon-sm"><use href="#i-check"/></svg></span>Rechnungen in wenigen Schritten erstellen</div><div class="feature"><span class="feature-check"><svg class="icon icon-sm"><use href="#i-check"/></svg></span>Kundeninformationen an einem Ort speichern</div><div class="feature"><span class="feature-check"><svg class="icon icon-sm"><use href="#i-check"/></svg></span>Offene und bezahlte Beträge direkt erkennen</div></div></div>
-    <div class="login-foot">© <span data-year></span> Rechnio · Demo-Version</div>
+    <div class="login-foot">© <span data-year></span> Rechnio · Einfach organisiert</div>
   </div>
   <div class="login-panel"><div class="login-form-wrap">
     <div class="mobile-brand"><span class="brand-mark"><svg class="icon icon-lg"><use href="#i-file"/></svg></span><div><div class="brand-name">rechnio</div><div class="brand-sub">Einfach. Klar. Organisiert.</div></div></div>
-    <h2>Willkommen zurück</h2><p class="login-sub">Melde dich an, um deine Rechnungen und Kunden zu verwalten.</p>
-    <form id="loginForm" class="login-form">
-      <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" required></div></div>
-      <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div></div>
+    <h2 id="authTitle">Willkommen zurück</h2><p id="authSubtitle" class="login-sub">Melde dich an, um deine Rechnungen und Kunden zu verwalten.</p>
+    <form id="loginForm" class="login-form" novalidate>
+      <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" maxlength="254" required></div></div>
+      <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" minlength="10" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
+      <div id="registerConfirmWrap" class="field hidden"><label for="registerPasswordConfirm">Passwort wiederholen</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="registerPasswordConfirm" class="input" type="password" autocomplete="new-password" placeholder="Passwort erneut eingeben" minlength="10"></div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
-      <div class="login-meta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label><span class="faint tiny">Demo-Zugang</span></div>
-      <button class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
-      <div class="demo-credentials"><strong>Demo-Zugang</strong><br>E-Mail: <code>test@test.de</code><br>Passwort: <code>1234</code></div>
+      <div id="authSetupNotice" class="auth-setup-notice hidden" role="status"></div>
+      <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
+      <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
+      <p class="auth-switch"><span id="authSwitchText">Noch kein Konto?</span> <button id="authModeToggle" class="link-button" type="button">Jetzt registrieren</button></p>
     </form>
-    <div class="login-legal">Dies ist eine Testversion. Verwende keine echten oder vertraulichen Kundendaten. Die Demo speichert Daten lokal in diesem Browser.</div>
+    <div class="login-legal">Deine Anmeldung wird sicher über Rechnio geprüft. Nutze ein eigenes, sicheres Passwort.</div>
   </div></div>
 </section>
 
@@ -1306,7 +1312,7 @@ body{font-size:15px;line-height:1.6}
     <div class="nav-label">Arbeitsbereich</div>
     <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button></nav>
     <div class="nav-label">Verwaltung</div><nav class="nav" aria-label="Verwaltung"><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
-    <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Demo-Arbeitsbereich</div><p>Teste die wichtigsten Rechnio-Funktionen mit Beispieldaten. Noch keine echten Online-Konten.</p><button class="btn btn-sm" data-action="demo-info">Was bedeutet Demo?</button></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name">Mustafa</div><div id="sidebarUserEmail" class="user-email">test@test.de</div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
+    <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
   <main class="main">
     <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Kunden oder Rechnungen suchen…" aria-label="Globale Suche"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
@@ -1320,12 +1326,9 @@ body{font-size:15px;line-height:1.6}
 /* ================================================================
 APP CONFIGURATION AND STATE
 ================================================================ */
-const VERSION = "1.1.0-demo";
+const VERSION = "2.0.0";
 const STORAGE_KEY = "rechnio_local_v2";
-const SESSION_KEY = "rechnio_demo_session";
-const DEMO = Object.freeze({
-  id:"demo-user",email:"test@test.de",password:"1234",name:"Mustafa"
-});
+const DEFAULT_USER = Object.freeze({ id:"", email:"", name:"" });
 const PAGE_META = {
   dashboard:{
     title:"Dashboard",subtitle:"Hier siehst du, was in deinem Unternehmen gerade wichtig ist."
@@ -1340,14 +1343,16 @@ reports:{
   title:"Auswertungen",subtitle:"Behalte deine Rechnungsbeträge und Zahlungseingänge im Blick."
 },
 settings:{
-  title:"Einstellungen",subtitle:"Passe die Demo und deine Unternehmensangaben an."
+  title:"Einstellungen",subtitle:"Passe deine Unternehmensangaben an."
 }
 };
 const AVATAR_COLORS = ["","pink","green","orange","purple"];
 const SHORT_MONTHS = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
 const $ = (selector, root=document) => root.querySelector(selector);
 const $$ = (selector, root=document) => Array.from(root.querySelectorAll(selector));
-let state = loadState();
+let state = createInitialState();
+let authMode = "login";
+let authenticatedUser = null;
 let currentModal = null;
 let pendingDelete = null;
 let invoiceDraftItems = [];
@@ -1361,7 +1366,7 @@ function createInitialState(){
   };
 const customers = [
 {
-  id:"cus-1001",name:"Müller Elektrotechnik",contact:"Thomas Müller",email:"thomas@example.de",phone:"+49 151 23456789",street:"Hauptstraße 18",postalCode:"64283",city:"Darmstadt",taxId:"",notes:"Beispielkunde für die Demo.",createdAt:date(-90)
+  id:"cus-1001",name:"Müller Elektrotechnik",contact:"Thomas Müller",email:"thomas@example.de",phone:"+49 151 23456789",street:"Hauptstraße 18",postalCode:"64283",city:"Darmstadt",taxId:"",notes:"",createdAt:date(-90)
 },
 {
   id:"cus-1002",name:"Studio Balance",contact:"Laura Schneider",email:"laura@example.de",phone:"+49 160 5551122",street:"Rheinstraße 42",postalCode:"64283",city:"Darmstadt",taxId:"",notes:"",createdAt:date(-65)
@@ -1409,7 +1414,7 @@ const invoices = [
 ];
 return {
   version:VERSION,currentPage:"dashboard",user:{
-    name:DEMO.name,email:DEMO.email
+    name:DEFAULT_USER.name,email:DEFAULT_USER.email
   },
 company:{
   name:"Rechnio Demo",owner:"Mustafa",email:"test@test.de",phone:"",street:"",postalCode:"",city:"",taxId:"",vatNumber:"",paymentDays:14,defaultVat:19,invoicePrefix:"RE",invoiceYear:today.getFullYear(),nextInvoiceNumber:6,currency:"EUR",footer:"Vielen Dank für Ihren Auftrag."
@@ -1554,10 +1559,46 @@ function loadState(){
   }
   return initial;
 }
+function accountStorageKey(userId){
+  const safeId=String(userId||"").replace(/[^a-zA-Z0-9_-]/g,"_");
+  return `${STORAGE_KEY}:account:${safeId}`;
+}
+function emptyAccountState(user){
+  const fresh=createInitialState();
+  fresh.customers=[];
+  fresh.invoices=[];
+  fresh.expenses=[];
+  fresh.activity=[];
+  fresh.user={id:String(user.id),name:String(user.name||""),email:String(user.email||"")};
+  fresh.company={...fresh.company,name:"",owner:String(user.name||""),email:String(user.email||""),nextInvoiceNumber:1};
+  fresh.preferences={...fresh.preferences,showDemoData:false};
+  return fresh;
+}
+function loadStateForUser(user){
+  const initial=emptyAccountState(user);
+  let raw=null;
+  try{raw=localStorage.getItem(accountStorageKey(user.id));}
+  catch(error){console.warn("Rechnio konnte lokale Kontodaten nicht lesen.",error);return initial;}
+  if(!raw)return initial;
+  try{
+    const loaded=normalizeSavedState(JSON.parse(raw),initial);
+    loaded.user={...loaded.user,...user};
+    loaded.customers=Array.isArray(loaded.customers)?loaded.customers:[];
+    loaded.invoices=Array.isArray(loaded.invoices)?loaded.invoices:[];
+    loaded.expenses=Array.isArray(loaded.expenses)?loaded.expenses:[];
+    loaded.activity=Array.isArray(loaded.activity)?loaded.activity:[];
+    if(loaded.company.name==="Rechnio Demo")loaded.company.name="";
+    if(loaded.company.owner==="Mustafa"&&!user.name)loaded.company.owner="";
+    if(loaded.company.email==="test@test.de")loaded.company.email=user.email||"";
+    loaded.preferences={...loaded.preferences,showDemoData:false};
+    return loaded;
+  }catch(error){console.error("Rechnio konnte gespeicherte Kontodaten nicht lesen.",error);return initial;}
+}
 function saveState(){
   try{
     state.version=VERSION;
-    localStorage.setItem(STORAGE_KEY,JSON.stringify(state));
+    const key=state.user&&state.user.id?accountStorageKey(state.user.id):STORAGE_KEY;
+    localStorage.setItem(key,JSON.stringify(state));
     return true;
   }
 catch(error){
@@ -1725,58 +1766,132 @@ state.activity=state.activity.slice(0,40);
 /* ================================================================
 STARTUP, AUTHENTICATION AND NAVIGATION
 ================================================================ */
-function boot(){
+async function boot(){
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
-  // Storage may be disabled in private/restricted browser contexts. Never let that
-  // prevent the login screen from appearing or make the whole app fail at startup.
-  let remembered=false;
+  setAuthMode("login");
+  showLogin();
   try{
-    remembered=localStorage.getItem(SESSION_KEY)==="yes"||sessionStorage.getItem(SESSION_KEY)==="yes";
+    const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
+    if(response.status===401){showLogin();return;}
+    if(response.status===404){showLogin();showAuthSetupNotice("Die Kontoverwaltung wird gerade eingerichtet. Die passende Server-Konfiguration muss noch ergänzt werden.");return;}
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Der Anmeldestatus konnte nicht geprüft werden.");
+    const user=extractAuthUser(payload);
+    if(!user){showLogin();return;}
+    authenticatedUser=user;
+    state=loadStateForUser(user);
+    state.user=user;
+    validateState();
+    showApp();
+    if(!String(user.name||"").trim())askForName();
   }catch(error){
-    console.warn("Rechnio could not read the demo login session; showing login instead.",error);
+    console.error("Rechnio auth status check failed:",error);
+    showLogin();
+    showAuthSetupNotice("Die sichere Anmeldung ist noch nicht mit dem Server verbunden. Als Nächstes muss server.js die Registrierungs- und Anmelde-Endpunkte bereitstellen.");
   }
-  remembered?showApp():showLogin();
+}
+function extractAuthUser(payload){
+  const raw=payload&&payload.user?payload.user:payload&&payload.account?payload.account:payload;
+  if(!raw||typeof raw!=="object"||!raw.id||!raw.email)return null;
+  return {id:String(raw.id),email:String(raw.email),name:String(raw.name||"")};
+}
+function showAuthSetupNotice(message){
+  const box=$("#authSetupNotice");
+  if(!box)return;
+  box.textContent=message;
+  box.classList.remove("hidden");
 }
 function showLogin(){
-  $("#loginScreen").classList.remove("hidden");
-  $("#appShell").classList.add("hidden");
-  $("#loginEmail").value=DEMO.email;
-  $("#loginPassword").value="";
+  $("#loginScreen")?.classList.remove("hidden");
+  $("#appShell")?.classList.add("hidden");
+  if($("#loginEmail"))$("#loginEmail").value="";
+  if($("#loginPassword"))$("#loginPassword").value="";
+  if($("#registerPasswordConfirm"))$("#registerPasswordConfirm").value="";
+  $("#loginError")?.classList.add("hidden");
+}
+function setAuthMode(mode){
+  authMode=mode==="register"?"register":"login";
+  const registering=authMode==="register";
+  $("#authTitle").textContent=registering?"Konto erstellen":"Willkommen zurück";
+  $("#authSubtitle").textContent=registering?"Erstelle ein persönliches Konto für Rechnio.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
+  $("#authSubmit").innerHTML=registering?"Konto erstellen":"Anmelden "+icon("chevron","icon icon-sm");
+  $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
+  $("#authModeToggle").textContent=registering?"Anmelden":"Jetzt registrieren";
+  $("#registerConfirmWrap").classList.toggle("hidden",!registering);
+  $("#loginMeta").classList.toggle("hidden",registering);
+  $("#passwordHint").textContent=registering?"Mindestens 10 Zeichen verwenden.":"Gib dein Konto-Passwort ein.";
+  $("#loginPassword").autocomplete=registering?"new-password":"current-password";
   $("#loginError").classList.add("hidden");
+  $("#authSetupNotice").classList.add("hidden");
 }
-function login(email,password,remember){
-  if(norm(email)!==DEMO.email||password!==DEMO.password){
-    $("#loginError").textContent="Die Anmeldedaten stimmen nicht. Nutze für die Demo test@test.de und 1234.";
-    $("#loginError").classList.remove("hidden");
-    return false;
-  }
-try {
-  if(remember){ localStorage.setItem(SESSION_KEY,"yes"); sessionStorage.removeItem(SESSION_KEY); }
-  else { sessionStorage.setItem(SESSION_KEY,"yes"); localStorage.removeItem(SESSION_KEY); }
-} catch (error) { console.warn("Rechnio could not persist the demo login session.", error); }
-state.user={
-  name:DEMO.name,email:DEMO.email
-};
-saveState();
-showApp();
-toast("Willkommen bei Rechnio","Du bist in der Demo angemeldet.");
-return true;
+async function submitAuth(){
+  const email=$("#loginEmail").value.trim().toLowerCase();
+  const password=$("#loginPassword").value;
+  if(!validEmail(email))throw new Error("Bitte gib eine gültige E-Mail-Adresse ein.");
+  if(password.length<10)throw new Error("Dein Passwort muss mindestens 10 Zeichen haben.");
+  if(authMode==="register"&&password!==$("#registerPasswordConfirm").value)throw new Error("Die beiden Passwörter stimmen nicht überein.");
+  const endpoint=authMode==="register"?"/api/auth/register":"/api/auth/login";
+  const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error|| (authMode==="register"?"Das Konto konnte nicht erstellt werden.":"Die Anmeldung ist fehlgeschlagen."));
+  const user=extractAuthUser(payload);
+  if(!user)throw new Error("Der Server hat kein gültiges Benutzerkonto zurückgegeben.");
+  authenticatedUser=user;
+  state=loadStateForUser(user);
+  state.user=user;
+  validateState();
+  $("#authSetupNotice").classList.add("hidden");
+  showApp();
+  toast(authMode==="register"?"Konto erstellt":"Willkommen zurück",authMode==="register"?"Dein Rechnio-Konto wurde erstellt.":"Du bist erfolgreich angemeldet.");
+  if(!String(user.name||"").trim())askForName();
 }
-function logout(){
+async function logout(){
   try{
-    localStorage.removeItem(SESSION_KEY);
-    sessionStorage.removeItem(SESSION_KEY);
-  }catch(error){
-    console.warn("Rechnio could not clear the demo login session.",error);
-  }
+    await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"Accept":"application/json"}});
+  }catch(error){console.warn("Abmeldung konnte den Server nicht erreichen.",error);}
+  authenticatedUser=null;
   closeSidebar();
   showLogin();
+  setAuthMode("login");
 }
 function showApp(){
-  $("#loginScreen").classList.add("hidden");
-  $("#appShell").classList.remove("hidden");
+  $("#loginScreen")?.classList.add("hidden");
+  const appShell=$("#appShell");
+  if(!appShell)return;
+  appShell.classList.remove("hidden");
   renderApp();
+}
+function askForName(){
+  openModal({
+    title:"Willkommen bei Rechnio!",
+    subtitle:"Wie dürfen wir dich nennen?",
+    size:"small",
+    body:`<div class="field"><label for="welcomeName">Dein Name</label><input id="welcomeName" class="input" type="text" maxlength="80" autocomplete="name" placeholder="Vor- und Nachname" required></div><p class="hint" style="margin-top:10px">Wir verwenden deinen Namen für die persönliche Begrüßung.</p>`,
+    footer:`<button class="btn primary" data-action="save-profile-name">Weiter</button>`,
+    onOpen:()=>{ $("#welcomeName")?.focus(); }
+  });
+}
+async function saveProfileName(){
+  const name=$("#welcomeName")?.value.trim()||"";
+  if(name.length<2){toast("Name fehlt","Bitte gib mindestens zwei Zeichen ein.","warning");$("#welcomeName")?.focus();return;}
+  try{
+    const response=await fetch("/api/auth/profile",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({name})});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Dein Name konnte nicht gespeichert werden.");
+    const returned=extractAuthUser(payload);
+    state.user={...(state.user||authenticatedUser||{}),...(returned||{}),name,email:(returned&&returned.email)||(state.user&&state.user.email)||"",id:(returned&&returned.id)||(state.user&&state.user.id)||""};
+    if(!state.company.owner)state.company.owner=name;
+    if(!state.company.email)state.company.email=state.user.email;
+    authenticatedUser=state.user;
+    saveState();
+    closeModal();
+    renderApp();
+    toast("Alles bereit",`Guten Tag, ${name}! Dein Arbeitsbereich ist bereit.`);
+  }catch(error){
+    console.error("Profile name could not be saved:",error);
+    toast("Name nicht gespeichert",error.message||"Bitte versuche es erneut.","error");
+  }
 }
 function navigate(page){
   if(!PAGE_META[page])return;
@@ -1795,12 +1910,12 @@ function renderApp(){
   updateNotifications();
 }
 function updateChrome(){
-  const user=state.user||DEMO;
+  const user=state.user||{id:"",name:"",email:""};
   const initialsText=initials(user.name);
   $("#sidebarAvatar").textContent=initialsText;
   $("#topbarAvatar").textContent=initialsText;
-  $("#sidebarUserName").textContent=user.name||DEMO.name;
-  $("#sidebarUserEmail").textContent=user.email||DEMO.email;
+  $("#sidebarUserName").textContent=user.name||"";
+  $("#sidebarUserEmail").textContent=user.email||"";
   $("#breadcrumbCurrent").textContent=PAGE_META[state.currentPage]?.title||"Dashboard";
   $("#navInvoiceCount").textContent=state.invoices.length;
   $("#navCustomerCount").textContent=state.customers.length;
@@ -1832,7 +1947,7 @@ function heading(title,subtitle,actions=""){
   return `<div class="page-head"><div><h1>${esc(title)}</h1><p>${esc(subtitle)}</p></div><div class="head-actions">${actions}</div></div>`;
 }
 function demoBanner(){
-  return `<div class="demo-banner">${icon("info")}<div><strong>Demo-Modus:</strong> Änderungen werden nur in diesem Browser gespeichert. Verwende keine echten vertraulichen Daten. <button class="link-button" data-action="demo-info">Mehr erfahren</button></div></div>`;
+  return "";
 }
 function statCard(label,value,iconName,tone,foot){
   const tones={
@@ -1862,10 +1977,7 @@ const monthlyRevenue=sum(list.filter(i=>i.computedStatus==="paid"&&String(i.paid
 const paidThisMonth=list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).length;
 const recent=[...state.invoices].sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))).slice(0,5);
 const actions=`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
-return `${heading(`Guten Tag, ${
-    state.user?.name||"Mustafa"
-  }
-!`,"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${demoBanner()}
+return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${demoBanner()}
 <section class="stats" aria-label="Kennzahlen">${statCard("Monatsumsatz",money(monthlyRevenue),"chart","blue",`${paidThisMonth} bezahlte Rechnungen diesen Monat`)}${statCard("Bezahlte Rechnungen",money(paid),"wallet","green",`${list.filter(i=>i.computedStatus==="paid").length} bezahlt insgesamt`)}${statCard("Offene Beträge",money(open),"clock","amber",`${list.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).length} offen`)}${statCard("Überfällig",money(overdue),"calendar","red",`${list.filter(i=>i.computedStatus==="overdue").length} überfällig`)}${statCard("Kunden",String(state.customers.length),"users","purple","Gespeicherte Kontakte")}</section>
 <div class="dashboard"><div class="dash-left"><section class="card"><div class="card-head"><div><h2 class="card-title">Rechnungsvolumen</h2><div class="card-subtitle">Bruttobeträge der letzten sechs Monate</div></div><div class="legend"><span class="legend-item"><span class="legend-dot"></span>Bezahlt</span><span class="legend-item"><span class="legend-dot light"></span>Offen</span></div></div><div id="dashboardChart" class="chart-area"><div class="chart-empty">Diagramm wird geladen…</div></div></section>
 <section class="card table-card"><div class="card-head"><div><h2 class="card-title">Letzte Rechnungen</h2><div class="card-subtitle">Die zuletzt erstellten Rechnungen</div></div><button class="link-button" data-page="invoices">Alle anzeigen ${icon("chevron","icon icon-sm")}</button></div>${recent.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
@@ -2416,8 +2528,8 @@ function reportLine(label,value){
   return `<div class="between"><span class="muted small">${esc(label)}</span><strong class="small mono">${esc(value)}</strong></div>`;
 }
 function renderSettings(){
-  const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Demo"]];
-  return `${heading("Einstellungen","Unternehmensangaben und Standardwerte für deine Demo.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${state.ui.settingsTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${
+  const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"]];
+  return `${heading("Einstellungen","Unternehmensangaben und Standardwerte für Rechnio.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${state.ui.settingsTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${
       icon(ic,"icon icon-sm")
     }
   ${
@@ -2427,10 +2539,10 @@ function renderSettings(){
 }
 function settingsTab(tab){
   const c=state.company;
-  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte keine sensiblen Echtdaten in der Demo verwenden.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setIban">Bankverbindung (IBAN)</label><input id="setIban" class="input" value="${escAttr(c.iban||"")}" placeholder="DE…"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
+  if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte überprüfe deine Firmenangaben, bevor du Rechnungen erstellst.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setIban">Bankverbindung (IBAN)</label><input id="setIban" class="input" value="${escAttr(c.iban||"")}" placeholder="DE…"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Rechnio berechnet den ausgewählten Steuersatz, prüft aber nicht, ob er rechtlich zur konkreten Leistung passt. 7 % nur bei gesetzlich begünstigten Umsätzen auswählen; sonst gilt regelmäßig 19 %. Die Rechnungsvorschau ist kein strukturiertes XRechnung-/ZUGFeRD-Dokument.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
-  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><label class="checkbox"><input id="prefDemo" type="checkbox" ${state.preferences.showDemoData?"checked":""}> Hinweis zum Demo-Modus anzeigen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
-  return `<h2>Daten & Demo</h2><p>Verwalte die lokalen Daten dieser Testversion. Es gibt keine Cloud-Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Lokale Speicherung:</strong> Kunden, Rechnungen und Einstellungen bleiben im Browser. Browserdaten löschen oder ein anderes Gerät verwenden kann dazu führen, dass die Daten nicht verfügbar sind.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div><div class="divider"></div><div class="settings-danger"><h3>Demo-Daten zurücksetzen</h3><p>Ersetzt aktuelle Demo-Daten durch die ursprünglichen Beispieldaten. Exportiere zuerst, wenn du Änderungen behalten möchtest.</p><button class="btn danger btn-sm" data-action="reset-demo">${icon("refresh","icon icon-sm")} Demo zurücksetzen</button></div></div>`;
+  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
+  return `<h2>Daten & Sicherung</h2><p>Verwalte deine Rechnio-Daten und erstelle bei Bedarf eine lokale Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Hinweis zur Speicherung:</strong> Rechnungs- und Kundendaten werden derzeit in diesem Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div></div>`;
 }
 function bindSettingsForms(){
   $("#companySettingsForm")?.addEventListener("submit",e=>{
@@ -2444,7 +2556,7 @@ $("#invoiceSettingsForm")?.addEventListener("submit",e=>{
   });saveState();renderApp();toast("Rechnungseinstellungen gespeichert","Neue Rechnungen verwenden die neuen Standardwerte.");
 });
 $("#preferencesForm")?.addEventListener("submit",e=>{
-  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=$("#prefDemo").checked;saveState();renderApp();toast("Einstellungen gespeichert","Deine Einstellungen wurden aktualisiert.");
+  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=false;saveState();renderApp();toast("Einstellungen gespeichert","Deine Einstellungen wurden aktualisiert.");
 });
 $("#importFile")?.addEventListener("change",e=>{
   importData(e.target.files?.[0]);e.target.value="";
@@ -2505,9 +2617,7 @@ function toast(title,message="",type="success",duration=4200){
   if(duration>0)setTimeout(()=>region.querySelector(`[data-toast="${CSS.escape(id)}"]`)?.remove(),duration);
 }
 function showDemoInfo(){
-  openModal({
-    title:"Wichtig zur Demo-Version",subtitle:"Was Rechnio derzeit kann – und was noch fehlt.",size:"small",body:`<div class="form-note">${icon("info")}<span><strong>Rechnio ist hier eine Demo.</strong><br>Daten werden nur in diesem Browser gespeichert. Der Demo-Login ist kein echter Schutz für Daten.</span></div><div class="divider"></div><div class="stack small"><div class="row">${icon("check","icon text-success")} Kunden und Rechnungen erstellen, bearbeiten und löschen</div><div class="row">${icon("check","icon text-success")} Netto, MwSt. und Brutto berechnen</div><div class="row">${icon("check","icon text-success")} Rechnungen ansehen und verwalten</div><div class="row">${icon("info")} Keine echte Benutzerverwaltung, Cloud-Synchronisierung oder sichere Datensicherung</div></div><p class="hint" style="margin-top:16px">Für echten Einsatz wären ein sicherer Server, sichere Anmeldung, Backups und eine Prüfung der rechtlichen Anforderungen nötig. Bitte keine echten sensiblen Kunden- oder Bankdaten eingeben.</p>`,footer:`<button class="btn primary" data-action="close-modal">Verstanden</button>`
-  });
+  toast("Rechnio", "Verwalte deine Kunden und Rechnungen in deinem Arbeitsbereich.");
 }
 /* ================================================================
 DATA EXPORT, CSV AND IMPORT
@@ -2668,17 +2778,6 @@ function validateState(){
   if(!PAGE_META[state.currentPage]) state.currentPage = "dashboard";
   if(!["all","paid","open","overdue","draft","sent"].includes(state.ui.invoiceStatus)) state.ui.invoiceStatus = "all";
 }
-function resetDemo(){
-  state=createInitialState();
-  saveState();
-  renderApp();
-  toast("Demo zurückgesetzt","Beispieldaten wurden wiederhergestellt.");
-}
-function confirmReset(){
-  openModal({
-    title:"Demo wirklich zurücksetzen?",subtitle:"Aktuell gespeicherte Demo-Daten werden ersetzt.",size:"small",body:`<div class="confirm-icon">${icon("refresh","icon icon-lg")}</div><p class="confirm-copy">Alle lokal gespeicherten Kunden, Rechnungen und Einstellungen werden durch die ursprünglichen Beispieldaten ersetzt. Exportiere vorher, wenn du Änderungen behalten möchtest.</p>`,footer:`<button class="btn secondary" data-action="close-modal">Abbrechen</button><button class="btn danger" data-action="confirm-reset">${icon("refresh","icon icon-sm")} Zurücksetzen</button>`
-  });
-}
 /* ================================================================
 GLOBAL SEARCH AND EVENT DELEGATION
 ================================================================ */
@@ -2708,22 +2807,25 @@ function bindEvents(){
   const loginForm = $("#loginForm");
   if (loginForm && !loginForm.dataset.rechnioLoginBound) {
     loginForm.dataset.rechnioLoginBound = "true";
-    loginForm.addEventListener("submit", e => {
-      // Always prevent a native form submission, even if login code throws.
+    loginForm.addEventListener("submit", async e => {
       e.preventDefault();
-      const errorBox = $("#loginError");
-      if (errorBox) errorBox.classList.add("hidden");
-      try {
-        const success = login($("#loginEmail").value.trim(), $("#loginPassword").value, $("#rememberLogin").checked);
-        if (success === false && errorBox) errorBox.classList.remove("hidden");
-      } catch (error) {
-        console.error("Rechnio login failed unexpectedly:", error);
-        if (errorBox) {
-          errorBox.textContent = "Die Anmeldung konnte nicht abgeschlossen werden. Bitte lade die Seite neu. Details stehen in der Browser-Konsole.";
-          errorBox.classList.remove("hidden");
-        }
+      const errorBox=$("#loginError"),submitButton=$("#authSubmit");
+      errorBox.classList.add("hidden");
+      $("#authSetupNotice").classList.add("hidden");
+      submitButton.disabled=true;
+      submitButton.textContent=authMode==="register"?"Konto wird erstellt…":"Anmeldung läuft…";
+      try{
+        await submitAuth();
+      }catch(error){
+        console.error("Rechnio authentication failed:",error);
+        errorBox.textContent=error.message||"Die Anmeldung konnte nicht abgeschlossen werden. Bitte versuche es erneut.";
+        errorBox.classList.remove("hidden");
+      }finally{
+        submitButton.disabled=false;
+        submitButton.innerHTML=authMode==="register"?"Konto erstellen":"Anmelden "+icon("chevron","icon icon-sm");
       }
     });
+    $("#authModeToggle")?.addEventListener("click",()=>setAuthMode(authMode==="login"?"register":"login"));
   }
 document.addEventListener("click",e=>{
   const page=e.target.closest("[data-page]");if(page){
@@ -2738,12 +2840,11 @@ switch(action){
   case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;
   case "mark-paid":markPaid(id);break;
   case "new-invoice-for-customer":closeModal(false);openInvoiceForm(null,id);break;
-  case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;
+  case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;case "save-profile-name":saveProfileName();break;
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
   case "import-data":$("#importFile")?.click();break;case "dismiss-toast":button.closest(".toast")?.remove();break;
   case "settings-tab":state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
   case "page-prev":changePage(button.dataset.type,-1);break;case "page-next":changePage(button.dataset.type,1);break;
-  case "reset-demo":confirmReset();break;case "confirm-reset":closeModal();resetDemo();break;
   default:break;
 }
 });
@@ -2776,30 +2877,12 @@ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){
 }
 });
 }
-/* Start only after all functions and event handlers are available. */
-try {
-  validateState();
-  boot();
-} catch (error) {
-  // If startup fails, keep the login form from doing a native page reload.
-  console.error("Rechnio could not finish starting:", error);
-  const loginForm = document.querySelector("#loginForm");
-  const errorBox = document.querySelector("#loginError");
-  if (loginForm && !loginForm.dataset.rechnioFallbackBound) {
-    loginForm.dataset.rechnioFallbackBound = "true";
-    loginForm.addEventListener("submit", event => {
-      event.preventDefault();
-      if (errorBox) {
-        errorBox.textContent = "Rechnio konnte nicht vollständig starten. Bitte öffne F12 → Console und prüfe die rote Fehlermeldung.";
-        errorBox.classList.remove("hidden");
-      }
-    });
-  }
-  if (errorBox) {
-    errorBox.textContent = "Rechnio konnte nicht vollständig starten. Bitte öffne F12 → Console und prüfe die rote Fehlermeldung.";
-    errorBox.classList.remove("hidden");
-  }
-}
+/* Start after the page and event handlers are ready. Authentication is checked server-side. */
+boot().catch(error=>{
+  console.error("Rechnio could not finish starting:",error);
+  showLogin();
+  showAuthSetupNotice("Rechnio konnte die Kontoverwaltung nicht erreichen. Bitte prüfe die Server-Konfiguration.");
+});
 </script>
 </body>
 </html>
