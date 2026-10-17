@@ -270,7 +270,6 @@ svg{
 }
 .auth-switch{margin:0;text-align:center;color:var(--muted);font-size:12px}
 .auth-switch .link-button{font-size:12px;margin-left:3px}
-.auth-setup-notice{padding:11px 12px;border:1px solid #f0d7a4;border-radius:9px;background:#fff8e8;color:#7b5714;font-size:11px;line-height:1.6}
 #authSubmit{margin-top:2px}
 
 /* shell */
@@ -1296,7 +1295,6 @@ body{font-size:15px;line-height:1.6}
       <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
       <div id="registerConfirmWrap" class="field hidden"><label for="registerPasswordConfirm">Passwort wiederholen</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="registerPasswordConfirm" class="input" type="password" autocomplete="new-password" placeholder="Passwort erneut eingeben"></div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
-      <div id="authSetupNotice" class="auth-setup-notice hidden" role="status"></div>
       <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
       <p class="auth-switch hidden"><span id="authSwitchText">Privater Testzugang</span> <button id="authModeToggle" class="link-button" type="button" tabindex="-1">Registrierung deaktiviert</button></p>
@@ -1796,11 +1794,8 @@ function extractAuthUser(payload){
   if(!raw||typeof raw!=="object"||!raw.id||!raw.email)return null;
   return {id:String(raw.id),email:String(raw.email),name:String(raw.name||"")};
 }
-function showAuthSetupNotice(message){
-  const box=$("#authSetupNotice");
-  if(!box)return;
-  box.textContent=message;
-  box.classList.remove("hidden");
+function showAuthSetupNotice(_message){
+  // Der separate gelbe Einrichtungshinweis wurde auf Wunsch entfernt.
 }
 function showLogin(){
   $("#loginScreen")?.classList.remove("hidden");
@@ -1822,7 +1817,7 @@ function setAuthMode(_mode){
   $("#loginPassword").autocomplete="current-password";
   $("#authModeToggle").classList.add("hidden");
   $("#loginError").classList.add("hidden");
-  $("#authSetupNotice").classList.add("hidden");
+  $("#authSetupNotice")?.classList.add("hidden");
 }
 async function submitAuth(){
   const email=$("#loginEmail").value.trim().toLowerCase();
@@ -1838,7 +1833,7 @@ async function submitAuth(){
   state=loadStateForUser(user);
   state.user=user;
   validateState();
-  $("#authSetupNotice").classList.add("hidden");
+  $("#authSetupNotice")?.classList.add("hidden");
   showApp();
   toast("Willkommen zurück","Du bist erfolgreich angemeldet.");
   if(!String(user.name||"").trim())askForName();
@@ -2808,7 +2803,7 @@ function bindEvents(){
       e.preventDefault();
       const errorBox=$("#loginError"),submitButton=$("#authSubmit");
       errorBox.classList.add("hidden");
-      $("#authSetupNotice").classList.add("hidden");
+      $("#authSetupNotice")?.classList.add("hidden");
       submitButton.disabled=true;
       submitButton.textContent=authMode==="register"?"Konto wird erstellt…":"Anmeldung läuft…";
       try{
