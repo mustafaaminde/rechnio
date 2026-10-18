@@ -193,12 +193,18 @@ async function supabaseRequest(
     };
   }
 
+  // Supabase Auth needs the API key, but the API key is not a user access token.
+  // Only send Authorization: Bearer when a real user access token is available.
+  // This also avoids treating newer sb_publishable_* API keys as JWTs.
   const headers = {
     apikey: config.key,
-    Authorization: `Bearer ${accessToken || config.key}`,
     Accept: "application/json",
     ...extraHeaders,
   };
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
 
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
@@ -317,12 +323,12 @@ function safeAuthMessage(result, isSignup = false) {
   if (result?.status === 400 || result?.status === 422) {
     return isSignup
       ? "Das Konto konnte nicht erstellt werden. Prüfe die E-Mail-Adresse, das Passwort und die Supabase-Authentifizierungseinstellungen."
-      : "Anmeldung fehlgeschlagen.";
+      : "Supabase hat die Anmeldung abgelehnt. Prüfe E-Mail und Passwort und ob das Konto in Supabase → Authentication → Users existiert und bestätigt ist.";
   }
 
   return isSignup
     ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen in Render."
-    : "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.";
+    : "Die Anmeldung ist fehlgeschlagen. Prüfe die Supabase-Einstellungen in Render und versuche es erneut.";
 }
 
 function requestIp(req) {
@@ -343,7 +349,6 @@ function isRateLimited(map, key, maxCount) {
   }
 
   current.count += 1;
-
   return current.count > maxCount;
 }
 
@@ -574,86 +579,7 @@ function emailHtml({
 
   const notes = String(invoice.notes || company.footer || "");
 
-  return `<!doctype html>
-<html lang="de">
-<head><meta charset="utf-8"></head>
-<body style="margin:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#172033">
-  <div style="max-width:760px;margin:0 auto;padding:28px 14px">
-    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-      <div style="padding:24px 26px;background:#172033;color:#fff">
-        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.8">Rechnung</div>
-        <h1 style="font-size:25px;margin:8px 0 0">${h(invoice.number)}</h1>
-        <div style="margin-top:8px;color:#dbeafe">${h(companyName)}</div>
-      </div>
-      <div style="padding:24px 26px">
-        <div style="display:flex;flex-wrap:wrap;gap:28px;margin-bottom:24px">
-          <div style="flex:1;min-width:220px">
-            <strong>Rechnungssteller</strong>
-            <p style="font-size:13px;line-height:1.7">${companyInfo || "Angaben zum Rechnungssteller fehlen."}</p>
-          </div>
-          <div style="flex:1;min-width:220px">
-            <strong>Rechnungsempfänger</strong>
-            <p style="font-size:13px;line-height:1.7">
-              <b>${h(customer.name || "")}</b><br>
-              ${customerAddress}
-              ${customer.email ? `<br>${h(customer.email)}` : ""}
-            </p>
-          </div>
-        </div>
-        <div style="background:#f8fafc;border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:20px;font-size:13px;margin-bottom:22px">
-          <div><strong>Rechnungsdatum</strong><br>${displayDate(invoice.issueDate)}</div>
-          <div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>
-          ${
-            invoice.serviceDate
-              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(invoice.serviceDate)}</div>`
-              : invoice.servicePeriod
-                ? `<div><strong>Leistungszeitraum</strong><br>${h(invoice.servicePeriod)}</div>`
-                : ""
-          }
-        </div>
-        <div style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:13px">
-            <thead>
-              <tr style="text-align:left;background:#f8fafc">
-                <th style="padding:10px">Beschreibung</th>
-                <th style="padding:10px;text-align:right">Menge</th>
-                <th style="padding:10px;text-align:right">Einzelpreis netto</th>
-                <th style="padding:10px;text-align:right">MwSt.</th>
-                <th style="padding:10px;text-align:right">Netto</th>
-              </tr>
-            </thead>
-            <tbody>${items}</tbody>
-          </table>
-        </div>
-        <div style="max-width:310px;margin:22px 0 0 auto;font-size:14px">
-          <div style="display:flex;justify-content:space-between;padding:5px 0">
-            <span>Nettosumme</span><strong>${money(net)}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:5px 0">
-            <span>Umsatzsteuer</span><strong>${money(vat)}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #172033;font-size:18px">
-            <span>Gesamtbetrag</span><strong>${money(gross)}</strong>
-          </div>
-        </div>
-        ${
-          company.iban
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>`
-            : ""
-        }
-        ${
-          notes
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>`
-            : ""
-        }
-        <p style="font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:26px">
-          Diese E-Mail wurde über Rechnio versendet. Bitte bewahre die Nachricht für deine Unterlagen auf.
-        </p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>`;
+  return `<!doctype html><html lang="de"><head><meta charset="utf-8"></head><body style="margin:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#172033"><div style="max-width:760px;margin:0 auto;padding:28px 14px"><div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden"><div style="padding:24px 26px;background:#172033;color:#fff"><div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.8">Rechnung</div><h1 style="font-size:25px;margin:8px 0 0">${h(invoice.number)}</h1><div style="margin-top:8px;color:#dbeafe">${h(companyName)}</div></div><div style="padding:24px 26px"><div style="display:flex;flex-wrap:wrap;gap:28px;margin-bottom:24px"><div style="flex:1;min-width:220px"><strong>Rechnungssteller</strong><p style="font-size:13px;line-height:1.7">${companyInfo || "Angaben zum Rechnungssteller fehlen."}</p></div><div style="flex:1;min-width:220px"><strong>Rechnungsempfänger</strong><p style="font-size:13px;line-height:1.7"><b>${h(customer.name || "")}</b><br>${customerAddress}${customer.email ? `<br>${h(customer.email)}` : ""}</p></div></div><div style="background:#f8fafc;border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:20px;font-size:13px;margin-bottom:22px"><div><strong>Rechnungsdatum</strong><br>${displayDate(invoice.issueDate)}</div><div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>${invoice.serviceDate ? `<div><strong>Leistungsdatum</strong><br>${displayDate(invoice.serviceDate)}</div>` : invoice.servicePeriod ? `<div><strong>Leistungszeitraum</strong><br>${h(invoice.servicePeriod)}</div>` : ""}</div><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="text-align:left;background:#f8fafc"><th style="padding:10px">Beschreibung</th><th style="padding:10px;text-align:right">Menge</th><th style="padding:10px;text-align:right">Einzelpreis netto</th><th style="padding:10px;text-align:right">MwSt.</th><th style="padding:10px;text-align:right">Netto</th></tr></thead><tbody>${items}</tbody></table></div><div style="max-width:310px;margin:22px 0 0 auto;font-size:14px"><div style="display:flex;justify-content:space-between;padding:5px 0"><span>Nettosumme</span><strong>${money(net)}</strong></div><div style="display:flex;justify-content:space-between;padding:5px 0"><span>Umsatzsteuer</span><strong>${money(vat)}</strong></div><div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #172033;font-size:18px"><span>Gesamtbetrag</span><strong>${money(gross)}</strong></div></div>${company.iban ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>` : ""}${notes ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>` : ""}<p style="font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:26px">Diese E-Mail wurde über Rechnio versendet. Bitte bewahre die Nachricht für deine Unterlagen auf.</p></div></div></div></body></html>`;
 }
 
 function validateInvoicePayload(body) {
@@ -889,7 +815,9 @@ async function handle(req, res) {
 
     const result = await supabaseRequest(endpoint, {
       method: "POST",
-      body: signup ? { email, password, data: {} } : { email, password },
+      body: signup
+        ? { email, password, data: {} }
+        : { email, password },
     });
 
     if (!result.ok) {
@@ -903,6 +831,12 @@ async function handle(req, res) {
           result.data?.error ||
           "unknown"
         ).slice(0, 80),
+        reason: String(
+          result.data?.error_description ||
+          result.data?.msg ||
+          result.data?.message ||
+          ""
+        ).slice(0, 160),
       });
 
       sendJson(
@@ -953,11 +887,7 @@ async function handle(req, res) {
       signup ? 201 : 200,
       { user: opened.session.user },
       {
-        "Set-Cookie": cookieHeader(
-          req,
-          opened.token,
-          opened.ttlSeconds
-        ),
+        "Set-Cookie": cookieHeader(req, opened.token, opened.ttlSeconds),
       }
     );
     return;
@@ -1325,7 +1255,9 @@ async function handle(req, res) {
       console.error(
         "Resend hat eine E-Mail abgelehnt:",
         resendResponse.status,
-        String(resendData.message || resendData.name || "").slice(0, 300)
+        String(
+          resendData.message || resendData.name || ""
+        ).slice(0, 300)
       );
 
       if (resendResponse.status === 401) {
