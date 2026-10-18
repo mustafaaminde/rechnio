@@ -1852,8 +1852,14 @@ async function submitAuth(){
   const password=$("#loginPassword").value;
   if(!validEmail(email))throw new Error("Bitte gib eine gültige E-Mail-Adresse ein.");
   const endpoint="/api/auth/login";
-  const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
+  const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
   const payload=await response.json().catch(()=>({}));
+  if(response.status===401){
+    throw new Error("Der Server hat diese Zugangsdaten abgelehnt. Prüfe in Render → Environment, ob RECHNIO_TEST_EMAIL exakt mit deiner E-Mail und RECHNIO_TEST_PASSWORD mit deinem Passwort übereinstimmen. Keine doppelten Variablen hinzufügen.");
+  }
+  if(response.status===503){
+    throw new Error(payload.error||"Der Testzugang ist in Render nicht vollständig eingerichtet.");
+  }
   if(!response.ok)throw new Error(payload.error|| (authMode==="register"?"Das Konto konnte nicht erstellt werden.":"Die Anmeldung ist fehlgeschlagen."));
   const user=extractAuthUser(payload);
   if(!user)throw new Error("Der Server hat kein gültiges Benutzerkonto zurückgegeben.");
