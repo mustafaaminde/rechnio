@@ -1,4 +1,3 @@
-
 "use strict";
 
 const http = require("node:http");
@@ -15,6 +14,30 @@ const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const sessions = new Map();
 const loginAttempts = new Map();
 
+// Zugangsdaten ausschließlich serverseitig aus Render lesen.
+function getTestCredentials() {
+  const email = String(
+    process.env.RECHNIO_TEST_EMAIL ?? ""
+  ).trim().toLowerCase();
+
+  const password = String(
+    process.env.RECHNIO_TEST_PASSWORD ?? ""
+  ).trim();
+
+  if (!email || !password) return null;
+
+  return { email, password };
+}
+
+function safeEqual(leftValue, rightValue) {
+  const left = Buffer.from(String(leftValue), "utf8");
+  const right = Buffer.from(String(rightValue), "utf8");
+
+  if (left.length !== right.length) return false;
+
+  return crypto.timingSafeEqual(left, right);
+}
+
 function sendJson(response, statusCode, data, extraHeaders = {}) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
@@ -29,7 +52,10 @@ function sendJson(response, statusCode, data, extraHeaders = {}) {
 function serveIndex(response) {
   fs.readFile(INDEX_PATH, (error, contents) => {
     if (error) {
-      console.error("index.html konnte nicht gelesen werden:", error.message);
+      console.error(
+        "index.html konnte nicht gelesen werden:",
+        error.message
+      );
 
       sendJson(response, 500, {
         error: "Rechnio konnte nicht geladen werden."
@@ -51,21 +77,20 @@ function serveIndex(response) {
 function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = "";
+    let tooLarge = false;
 
     request.on("data", chunk => {
       body += chunk;
 
-      if (body.length > 10000) {
+      if (body.length > 10_000 && !tooLarge) {
+        tooLarge = true;
         reject(new Error("Anfrage zu groß."));
-        request.destroy();
       }
     });
 
     request.on("end", () => {
-      if (!body) {
-        resolve({});
-        return;
-      }
+      if (tooLarge) return;
+      if (!body) return resolve({});
 
       try {
         resolve(JSON.parse(body));
@@ -81,7 +106,9 @@ function readJson(request) {
 function cookies(request) {
   const result = {};
 
-  for (const part of String(request.headers.cookie || "").split(";")) {
+  for (const part of String(
+    request.headers.cookie || ""
+  ).split(";")) {
     const index = part.indexOf("=");
 
     if (index < 0) continue;
@@ -89,12 +116,12 @@ function cookies(request) {
     const name = part.slice(0, index).trim();
     const value = part.slice(index + 1).trim();
 
-    if (name) {
-      try {
-        result[name] = decodeURIComponent(value);
-      } catch {
-        result[name] = "";
-      }
+    if (!name) continue;
+
+    try {
+      result[name] = decodeURIComponent(value);
+    } catch {
+      // Fehlerhafte Cookies ignorieren.
     }
   }
 
@@ -119,25 +146,18 @@ function getSession(request) {
 }
 
 function sessionCookie(token, maxAgeSeconds = 43200) {
-  return [
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
-    "Path=/",
-    `Max-Age=${maxAgeSeconds}`,
-    "HttpOnly",
-    "Secure",
-    "SameSite=Lax"
-  ].join("; ");
+  return (
+    `${SESSION_COOKIE}=${encodeURIComponent(token)}` +
+    `; Path=/; Max-Age=${maxAgeSeconds}` +
+    "; HttpOnly; Secure; SameSite=Lax"
+  );
 }
 
 function clearSessionCookie() {
-  return [
-    `${SESSION_COOKIE}=`,
-    "Path=/",
-    "Max-Age=0",
-    "HttpOnly",
-    "Secure",
-    "SameSite=Lax"
-  ].join("; ");
+  return (
+    `${SESSION_COOKIE}=; Path=/; Max-Age=0` +
+    "; HttpOnly; Secure; SameSite=Lax"
+  );
 }
 
 function clientIp(request) {
@@ -191,7 +211,7 @@ async function handle(request, response) {
     return;
   }
 
-  // Rechnio-Oberfläche
+  // Hauptseite
   if (
     request.method === "GET" &&
     (url.pathname === "/" || url.pathname === "/reset-password")
@@ -200,15 +220,15 @@ async function handle(request, response) {
     return;
   }
 
-  // Statusprüfung
-  if (request.method === "GET" && url.pathname === "/api/health") {
+  // Status des Dienstes
+  if (
+    request.method === "GET" &&
+    url.pathname === "/api/health"
+  ) {
     sendJson(response, 200, {
       ok: true,
       service: "Rechnio",
-      authConfigured: Boolean(
-        process.env.RECHNIO_TEST_EMAIL &&
-        process.env.RECHNIO_TEST_PASSWORD
-      ),
+      authConfigured: Boolean(getTestCredentials()),
       emailConfigured: Boolean(
         process.env.RESEND_API_KEY &&
         process.env.EMAIL_FROM
@@ -218,7 +238,7 @@ async function handle(request, response) {
     return;
   }
 
-  // Bestehende Sitzung prüfen
+  // Aktuelle Anmeldung prüfen
   if (
     request.method === "GET" &&
     url.pathname === "/api/auth/me"
@@ -240,7 +260,7 @@ async function handle(request, response) {
     return;
   }
 
-  // Privater Test-Login
+  // Anmeldung
   if (
     request.method === "POST" &&
     url.pathname === "/api/auth/login"
@@ -253,12 +273,13 @@ async function handle(request, response) {
       return;
     }
 
-    const expectedEmail = process.env.RECHNIO_TEST_EMAIL;
-    const expectedPassword = process.env.RECHNIO_TEST_PASSWORD;
+    const credentials = getTestCredentials();
 
-    if (!expectedEmail || expectedPassword === undefined) {
+    if (!credentials) {
       sendJson(response, 503, {
-        error: "Der private Testzugang ist noch nicht konfiguriert."
+        error:
+          "Der private Testzugang ist nicht vollständig konfiguriert. " +
+          "Prüfe RECHNIO_TEST_EMAIL und RECHNIO_TEST_PASSWORD in Render."
       });
 
       return;
@@ -276,26 +297,43 @@ async function handle(request, response) {
       return;
     }
 
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password ?? "");
-    const correctEmail = String(expectedEmail).trim().toLowerCase();
-    const correctPassword = String(expectedPassword);
+    const email = String(body.email ?? "")
+      .trim()
+      .toLowerCase();
 
-    // Keine Mindestlänge oder andere Passwortregeln.
-    if (email !== correctEmail || password !== correctPassword) {
+    const password = String(body.password ?? "");
+
+    const emailMatches = email === credentials.email;
+    const passwordMatches = safeEqual(
+      password,
+      credentials.password
+    );
+
+    if (!emailMatches || !passwordMatches) {
+      // Keine Passwörter oder eingegebenen E-Mail-Adressen loggen.
+      console.warn(
+        "Rechnio-Testlogin abgelehnt:",
+        `E-Mail passt: ${emailMatches},`,
+        `Passwort passt: ${passwordMatches}`
+      );
+
       sendJson(response, 401, {
-        error: "E-Mail oder Passwort stimmt nicht."
+        error:
+          "E-Mail oder Passwort stimmt nicht. " +
+          "Prüfe die Zugangsdaten in Render."
       });
 
       return;
     }
+
+    loginAttempts.delete(clientIp(request));
 
     const token = crypto.randomBytes(32).toString("base64url");
 
     const session = {
       user: {
         id: "rechnio-private-test",
-        email: correctEmail,
+        email: credentials.email,
         name: "Rechnio Test"
       },
       expiresAt: Date.now() + SESSION_TTL_MS
@@ -313,19 +351,20 @@ async function handle(request, response) {
     return;
   }
 
-  // Registrierung ist für diesen Testzugang deaktiviert.
+  // Registrierung ist im Test-Build deaktiviert.
   if (
     request.method === "POST" &&
     url.pathname === "/api/auth/register"
   ) {
     sendJson(response, 403, {
-      error: "Die Registrierung ist für den privaten Testzugang deaktiviert."
+      error:
+        "Die Registrierung ist für den privaten Testzugang deaktiviert."
     });
 
     return;
   }
 
-  // Profilnamen speichern
+  // Profil aktualisieren
   if (
     request.method === "POST" &&
     url.pathname === "/api/auth/profile"
@@ -352,7 +391,9 @@ async function handle(request, response) {
       return;
     }
 
-    const name = String(body.name || "").trim().slice(0, 80);
+    const name = String(body.name || "")
+      .trim()
+      .slice(0, 80);
 
     if (name.length < 2) {
       sendJson(response, 400, {
@@ -392,13 +433,14 @@ async function handle(request, response) {
     return;
   }
 
-  // E-Mail-Versand ist in diesem Test-Build deaktiviert.
+  // E-Mail-Versand im aktuellen Test-Build deaktiviert.
   if (
     request.method === "POST" &&
     url.pathname === "/api/send-invoice"
   ) {
     sendJson(response, 503, {
-      error: "Der Rechnungs-E-Mail-Versand ist in diesem Test-Build nicht aktiviert."
+      error:
+        "Der Rechnungs-E-Mail-Versand ist in diesem Test-Build noch nicht aktiviert."
     });
 
     return;
@@ -406,7 +448,8 @@ async function handle(request, response) {
 
   if (url.pathname.startsWith("/api/auth/")) {
     sendJson(response, 501, {
-      error: "Diese Authentifizierungsfunktion ist nicht aktiviert."
+      error:
+        "Diese Authentifizierungsfunktion ist in diesem Test-Build nicht aktiviert."
     });
 
     return;
@@ -414,13 +457,17 @@ async function handle(request, response) {
 
   if (url.pathname.startsWith("/api/")) {
     sendJson(response, 404, {
-      error: "Diese API-Funktion ist nicht eingerichtet."
+      error:
+        "Diese API-Funktion ist in diesem Test-Build nicht eingerichtet."
     });
 
     return;
   }
 
-  if (request.method === "GET" && url.pathname === "/favicon.ico") {
+  if (
+    request.method === "GET" &&
+    url.pathname === "/favicon.ico"
+  ) {
     response.writeHead(204, {
       "Cache-Control": "public, max-age=86400"
     });
@@ -436,7 +483,10 @@ async function handle(request, response) {
 
 const server = http.createServer((request, response) => {
   Promise.resolve(handle(request, response)).catch(error => {
-    console.error("Rechnio-Anfrage fehlgeschlagen:", error.message);
+    console.error(
+      "Rechnio-Anfrage fehlgeschlagen:",
+      error.message
+    );
 
     if (!response.headersSent) {
       sendJson(response, 500, {
@@ -456,3 +506,8 @@ server.on("error", error => {
 server.listen(PORT, HOST, () => {
   console.log(`Rechnio läuft auf Port ${PORT}.`);
 });
+
+// Hinweis:
+// Test-Sitzungen werden im Arbeitsspeicher gespeichert und laufen
+// nach 12 Stunden ab. Bei einem Neustart von Render gehen sie verloren.
+// Dieser Test-Build ist nicht für echte Kundenkonten vorgesehen.
