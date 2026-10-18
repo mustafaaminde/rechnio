@@ -1,5 +1,9 @@
 "use strict";
 
+// Rechnio: Supabase Auth, benutzerspezifische Cloud-Daten und Rechnungs-E-Mail über Resend.
+// Keine Passwörter oder API-Schlüssel im Quellcode hinterlegen.
+// Voraussetzung für Cloud-Daten: SQL aus rechnio_supabase_setup.sql in Supabase ausführen.
+
 const http = require("node:http");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -8,48 +12,43 @@ const crypto = require("node:crypto");
 const HOST = "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 const INDEX_PATH = path.join(__dirname, "index.html");
-const SESSION_COOKIE = "rn_test_session";
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const COOKIE_NAME = "rn_session";
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+const REMEMBER_SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const RATE_WINDOW_MS = 15 * 60 * 1000;
+const MAX_AUTH_ATTEMPTS = 10;
+const MAX_EMAILS_PER_WINDOW = 10;
 
+// Sitzungen liegen serverseitig im Arbeitsspeicher.
+// Nach einem Render-Neustart müssen Benutzer sich erneut anmelden.
 const sessions = new Map();
-const loginAttempts = new Map();
+const authAttempts = new Map();
+const emailAttempts = new Map();
 
-// Zugangsdaten ausschließlich serverseitig aus Render lesen.
-function getTestCredentials() {
-  const email = String(
-    process.env.RECHNIO_TEST_EMAIL ?? ""
-  ).trim().toLowerCase();
+function supabaseConfig() {
+  const url = String(process.env.SUPABASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
 
-  const password = String(
-    process.env.RECHNIO_TEST_PASSWORD ?? ""
-  ).trim();
+  const key = String(process.env.SUPABASE_ANON_KEY || "").trim();
 
-  if (!email || !password) return null;
-
-  return { email, password };
+  return url && key ? { url, key } : null;
 }
 
-function safeEqual(leftValue, rightValue) {
-  const left = Buffer.from(String(leftValue), "utf8");
-  const right = Buffer.from(String(rightValue), "utf8");
-
-  if (left.length !== right.length) return false;
-
-  return crypto.timingSafeEqual(left, right);
-}
-
-function sendJson(response, statusCode, data, extraHeaders = {}) {
-  response.writeHead(statusCode, {
+function sendJson(res, statusCode, data, headers = {}) {
+  res.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store",
     "X-Content-Type-Options": "nosniff",
-    ...extraHeaders
+    "Referrer-Policy": "same-origin",
+    ...headers,
   });
 
-  response.end(JSON.stringify(data));
+  res.end(JSON.stringify(data));
 }
 
-function serveIndex(response) {
+function serveIndex(res) {
   fs.readFile(INDEX_PATH, (error, contents) => {
     if (error) {
       console.error(
@@ -57,457 +56,222 @@ function serveIndex(response) {
         error.message
       );
 
-      sendJson(response, 500, {
-        error: "Rechnio konnte nicht geladen werden."
+      sendJson(res, 500, {
+        error: "Rechnio konnte nicht geladen werden.",
       });
 
       return;
     }
 
-    response.writeHead(200, {
+    res.writeHead(200, {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
-      "X-Content-Type-Options": "nosniff"
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "same-origin",
     });
 
-    response.end(contents);
+    res.end(contents);
   });
 }
 
-function readJson(request) {
+function readJson(req) {
   return new Promise((resolve, reject) => {
     let body = "";
-    let tooLarge = false;
+    let size = 0;
+    let finished = false;
 
-    request.on("data", chunk => {
-      body += chunk;
+    req.on("data", (chunk) => {
+      size += chunk.length;
 
-      if (body.length > 10_000 && !tooLarge) {
-        tooLarge = true;
-        reject(new Error("Anfrage zu groß."));
+      if (size > MAX_BODY_BYTES) {
+        if (!finished) {
+          finished = true;
+          reject(new Error("Die Anfrage ist zu groß."));
+        }
+
+        return;
+      }
+
+      if (!finished) {
+        body += chunk.toString("utf8");
       }
     });
 
-    request.on("end", () => {
-      if (tooLarge) return;
-      if (!body) return resolve({});
+    req.on("end", () => {
+      if (finished) return;
+
+      if (!body.trim()) {
+        finished = true;
+        resolve({});
+        return;
+      }
 
       try {
-        resolve(JSON.parse(body));
+        const value = JSON.parse(body);
+
+        if (
+          !value ||
+          typeof value !== "object" ||
+          Array.isArray(value)
+        ) {
+          throw new Error("Ungültiges Datenformat.");
+        }
+
+        finished = true;
+        resolve(value);
       } catch {
-        reject(new Error("Ungültiges JSON."));
+        finished = true;
+        reject(new Error("Die Anfrage enthält kein gültiges JSON."));
       }
     });
 
-    request.on("error", reject);
+    req.on("error", (error) => {
+      if (!finished) {
+        finished = true;
+        reject(error);
+      }
+    });
   });
 }
 
-function cookies(request) {
-  const result = {};
+async function readResponse(response) {
+  const text = await response.text();
 
-  for (const part of String(
-    request.headers.cookie || ""
-  ).split(";")) {
-    const index = part.indexOf("=");
+  if (!text) return {};
 
-    if (index < 0) continue;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text.slice(0, 500) };
+  }
+}
 
-    const name = part.slice(0, index).trim();
-    const value = part.slice(index + 1).trim();
+async function supabaseRequest(
+  endpoint,
+  {
+    method = "GET",
+    body,
+    accessToken,
+    extraHeaders = {},
+  } = {}
+) {
+  const config = supabaseConfig();
 
-    if (!name) continue;
-
-    try {
-      result[name] = decodeURIComponent(value);
-    } catch {
-      // Fehlerhafte Cookies ignorieren.
-    }
+  if (!config) {
+    return {
+      ok: false,
+      status: 503,
+      data: {
+        message:
+          "SUPABASE_URL oder SUPABASE_ANON_KEY fehlt in Render.",
+      },
+    };
   }
 
-  return result;
-}
+  const headers = {
+    apikey: config.key,
+    Authorization: `Bearer ${accessToken || config.key}`,
+    Accept: "application/json",
+    ...extraHeaders,
+  };
 
-function getSession(request) {
-  const token = cookies(request)[SESSION_COOKIE];
-
-  if (!token) return null;
-
-  const session = sessions.get(token);
-
-  if (!session) return null;
-
-  if (session.expiresAt <= Date.now()) {
-    sessions.delete(token);
-    return null;
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
   }
 
-  return { token, session };
-}
+  let response;
 
-function sessionCookie(token, maxAgeSeconds = 43200) {
-  return (
-    `${SESSION_COOKIE}=${encodeURIComponent(token)}` +
-    `; Path=/; Max-Age=${maxAgeSeconds}` +
-    "; HttpOnly; Secure; SameSite=Lax"
-  );
-}
-
-function clearSessionCookie() {
-  return (
-    `${SESSION_COOKIE}=; Path=/; Max-Age=0` +
-    "; HttpOnly; Secure; SameSite=Lax"
-  );
-}
-
-function clientIp(request) {
-  const forwarded = String(
-    request.headers["x-forwarded-for"] || ""
-  ).split(",")[0].trim();
-
-  return forwarded || request.socket.remoteAddress || "unknown";
-}
-
-function isRateLimited(request) {
-  const key = clientIp(request);
-  const now = Date.now();
-  const current = loginAttempts.get(key);
-
-  if (!current || current.resetAt <= now) {
-    loginAttempts.set(key, {
-      count: 1,
-      resetAt: now + 15 * 60 * 1000
+  try {
+    response = await fetch(`${config.url}${endpoint}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
-
-    return false;
+  } catch (error) {
+    return {
+      ok: false,
+      status: 502,
+      data: {
+        message: `Supabase ist nicht erreichbar: ${error.message}`,
+      },
+    };
   }
 
-  current.count += 1;
-
-  return current.count > 8;
-}
-
-function userFor(session) {
   return {
-    id: session.user.id,
-    email: session.user.email,
-    name: session.user.name || ""
+    ok: response.ok,
+    status: response.status,
+    data: await readResponse(response),
   };
 }
 
-async function handle(request, response) {
-  let url;
+function normalizeUser(user) {
+  const metadata =
+    (user && (user.user_metadata || user.raw_user_meta_data)) || {};
 
-  try {
-    url = new URL(
-      request.url || "/",
-      `http://${request.headers.host || "localhost"}`
-    );
-  } catch {
-    sendJson(response, 400, {
-      error: "Die Anfrageadresse ist ungültig."
-    });
-
-    return;
-  }
-
-  // Hauptseite
-  if (
-    request.method === "GET" &&
-    (url.pathname === "/" || url.pathname === "/reset-password")
-  ) {
-    serveIndex(response);
-    return;
-  }
-
-  // Status des Dienstes
-  if (
-    request.method === "GET" &&
-    url.pathname === "/api/health"
-  ) {
-    sendJson(response, 200, {
-      ok: true,
-      service: "Rechnio",
-      authConfigured: Boolean(getTestCredentials()),
-      emailConfigured: Boolean(
-        process.env.RESEND_API_KEY &&
-        process.env.EMAIL_FROM
-      )
-    });
-
-    return;
-  }
-
-  // Aktuelle Anmeldung prüfen
-  if (
-    request.method === "GET" &&
-    url.pathname === "/api/auth/me"
-  ) {
-    const found = getSession(request);
-
-    if (!found) {
-      sendJson(response, 401, {
-        error: "Bitte melde dich an."
-      });
-
-      return;
-    }
-
-    sendJson(response, 200, {
-      user: userFor(found.session)
-    });
-
-    return;
-  }
-
-  // Anmeldung
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/auth/login"
-  ) {
-    if (isRateLimited(request)) {
-      sendJson(response, 429, {
-        error: "Zu viele Anmeldeversuche. Bitte warte 15 Minuten."
-      });
-
-      return;
-    }
-
-    const credentials = getTestCredentials();
-
-    if (!credentials) {
-      sendJson(response, 503, {
-        error:
-          "Der private Testzugang ist nicht vollständig konfiguriert. " +
-          "Prüfe RECHNIO_TEST_EMAIL und RECHNIO_TEST_PASSWORD in Render."
-      });
-
-      return;
-    }
-
-    let body;
-
-    try {
-      body = await readJson(request);
-    } catch (error) {
-      sendJson(response, 400, {
-        error: error.message || "Ungültige Anfrage."
-      });
-
-      return;
-    }
-
-    const email = String(body.email ?? "")
-      .trim()
-      .toLowerCase();
-
-    const password = String(body.password ?? "");
-
-    const emailMatches = email === credentials.email;
-    const passwordMatches = safeEqual(
-      password,
-      credentials.password
-    );
-
-    if (!emailMatches || !passwordMatches) {
-      // Keine Passwörter oder eingegebenen E-Mail-Adressen loggen.
-      console.warn(
-        "Rechnio-Testlogin abgelehnt:",
-        `E-Mail passt: ${emailMatches},`,
-        `Passwort passt: ${passwordMatches}`
-      );
-
-      sendJson(response, 401, {
-        error:
-          "E-Mail oder Passwort stimmt nicht. " +
-          "Prüfe die Zugangsdaten in Render."
-      });
-
-      return;
-    }
-
-    loginAttempts.delete(clientIp(request));
-
-    const token = crypto.randomBytes(32).toString("base64url");
-
-    const session = {
-      user: {
-        id: "rechnio-private-test",
-        email: credentials.email,
-        name: "Rechnio Test"
-      },
-      expiresAt: Date.now() + SESSION_TTL_MS
-    };
-
-    sessions.set(token, session);
-
-    sendJson(
-      response,
-      200,
-      { user: userFor(session) },
-      { "Set-Cookie": sessionCookie(token) }
-    );
-
-    return;
-  }
-
-  // Registrierung ist im Test-Build deaktiviert.
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/auth/register"
-  ) {
-    sendJson(response, 403, {
-      error:
-        "Die Registrierung ist für den privaten Testzugang deaktiviert."
-    });
-
-    return;
-  }
-
-  // Profil aktualisieren
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/auth/profile"
-  ) {
-    const found = getSession(request);
-
-    if (!found) {
-      sendJson(response, 401, {
-        error: "Bitte melde dich erneut an."
-      });
-
-      return;
-    }
-
-    let body;
-
-    try {
-      body = await readJson(request);
-    } catch (error) {
-      sendJson(response, 400, {
-        error: error.message || "Ungültige Anfrage."
-      });
-
-      return;
-    }
-
-    const name = String(body.name || "")
-      .trim()
-      .slice(0, 80);
-
-    if (name.length < 2) {
-      sendJson(response, 400, {
-        error: "Bitte gib mindestens zwei Zeichen als Namen ein."
-      });
-
-      return;
-    }
-
-    found.session.user.name = name;
-
-    sendJson(response, 200, {
-      user: userFor(found.session)
-    });
-
-    return;
-  }
-
-  // Abmelden
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/auth/logout"
-  ) {
-    const found = getSession(request);
-
-    if (found) {
-      sessions.delete(found.token);
-    }
-
-    sendJson(
-      response,
-      200,
-      { ok: true },
-      { "Set-Cookie": clearSessionCookie() }
-    );
-
-    return;
-  }
-
-  // E-Mail-Versand im aktuellen Test-Build deaktiviert.
-  if (
-    request.method === "POST" &&
-    url.pathname === "/api/send-invoice"
-  ) {
-    sendJson(response, 503, {
-      error:
-        "Der Rechnungs-E-Mail-Versand ist in diesem Test-Build noch nicht aktiviert."
-    });
-
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/auth/")) {
-    sendJson(response, 501, {
-      error:
-        "Diese Authentifizierungsfunktion ist in diesem Test-Build nicht aktiviert."
-    });
-
-    return;
-  }
-
-  if (url.pathname.startsWith("/api/")) {
-    sendJson(response, 404, {
-      error:
-        "Diese API-Funktion ist in diesem Test-Build nicht eingerichtet."
-    });
-
-    return;
-  }
-
-  if (
-    request.method === "GET" &&
-    url.pathname === "/favicon.ico"
-  ) {
-    response.writeHead(204, {
-      "Cache-Control": "public, max-age=86400"
-    });
-
-    response.end();
-    return;
-  }
-
-  sendJson(response, 404, {
-    error: "Diese Seite ist nicht verfügbar."
-  });
+  return {
+    id: String(user?.id || ""),
+    email: String(user?.email || "").trim().toLowerCase(),
+    name: String(metadata.full_name || metadata.name || ""),
+  };
 }
 
-const server = http.createServer((request, response) => {
-  Promise.resolve(handle(request, response)).catch(error => {
-    console.error(
-      "Rechnio-Anfrage fehlgeschlagen:",
-      error.message
-    );
+function safeAuthMessage(result, isSignup = false) {
+  const message = String(
+    result?.data?.msg ||
+      result?.data?.message ||
+      result?.data?.error_description ||
+      result?.data?.error ||
+      ""
+  ).toLowerCase();
 
-    if (!response.headersSent) {
-      sendJson(response, 500, {
-        error: "Interner Fehler. Bitte versuche es erneut."
-      });
-    } else {
-      response.end();
-    }
-  });
-});
+  if (
+    /invalid login credentials|invalid credentials|email or password/.test(
+      message
+    )
+  ) {
+    return "E-Mail oder Passwort stimmt nicht.";
+  }
 
-server.on("error", error => {
-  console.error("Serverfehler:", error.message);
-  process.exitCode = 1;
-});
+  if (/email not confirmed|email_not_confirmed/.test(message)) {
+    return "Bitte bestätige zuerst deine E-Mail-Adresse. Prüfe auch deinen Spam-Ordner.";
+  }
 
-server.listen(PORT, HOST, () => {
-  console.log(`Rechnio läuft auf Port ${PORT}.`);
-});
+  if (
+    /already registered|user already exists|already been registered/.test(
+      message
+    )
+  ) {
+    return "Für diese E-Mail-Adresse existiert bereits ein Konto. Melde dich an oder verwende die Funktion zum Zurücksetzen des Passworts in Supabase.";
+  }
 
-// Hinweis:
-// Test-Sitzungen werden im Arbeitsspeicher gespeichert und laufen
-// nach 12 Stunden ab. Bei einem Neustart von Render gehen sie verloren.
-// Dieser Test-Build ist nicht für echte Kundenkonten vorgesehen.
+  if (/password.*(weak|short|least)|weak_password/.test(message)) {
+    return "Das Passwort ist zu schwach. Verwende ein längeres Passwort.";
+  }
+
+  if (
+    /signup is disabled|signups not allowed|disable_signup/.test(message)
+  ) {
+    return "Die Registrierung ist in Supabase deaktiviert. Aktiviere unter Authentication die Registrierung neuer Benutzer.";
+  }
+
+  if (/rate limit|too many requests/.test(message)) {
+    return "Zu viele Versuche. Bitte warte etwas und versuche es erneut.";
+  }
+
+  if (result?.status === 400 || result?.status === 422) {
+    return isSignup
+      ? "Das Konto konnte nicht erstellt werden. Prüfe E-Mail, Passwort und die Supabase-Authentifizierungseinstellungen."
+      : "E-Mail oder Passwort stimmt nicht.";
+  }
+
+  return isSignup
+    ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen."
+    : "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.";
+}
+
+function requestIp(req) {
+  return req.socket.remoteAddress || "unknown";
+}
+
+function isRateLimited(map, key, maxCount) {
+  const now = Date
