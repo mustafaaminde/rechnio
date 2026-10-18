@@ -13,8 +13,7 @@ const HOST = "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 const INDEX_PATH = path.join(__dirname, "index.html");
 
-// Öffentliche Rechnio-Adresse für Bestätigungslinks.
-// Verhindert, dass localhost als Produktionsziel verwendet wird.
+// Öffentliche URL für Supabase-Bestätigungslinks.
 const PUBLIC_SITE_URL = (() => {
   const fallback = "https://rechnio.onrender.com";
   const configured = String(process.env.SITE_URL || "").trim();
@@ -49,8 +48,6 @@ const RATE_WINDOW_MS = 15 * 60 * 1000;
 const MAX_AUTH_ATTEMPTS = 10;
 const MAX_EMAILS_PER_WINDOW = 10;
 
-// Sitzungen liegen im Arbeitsspeicher des Servers.
-// Nach einem Render-Neustart muss man sich gegebenenfalls erneut anmelden.
 const sessions = new Map();
 const authAttempts = new Map();
 const emailAttempts = new Map();
@@ -243,56 +240,94 @@ function normalizeUser(user) {
   };
 }
 
+// Detailliertere Anmeldefehler, damit wir die tatsächliche Ursache erkennen.
 function safeAuthMessage(result, isSignup = false) {
-  const message = String(
-    result?.data?.msg ||
-      result?.data?.message ||
-      result?.data?.error_description ||
-      result?.data?.error ||
-      ""
+  const data = result?.data || {};
+
+  const code = String(
+    data.code || data.error_code || data.error || ""
   ).toLowerCase();
 
-  if (
-    /invalid login credentials|invalid credentials|email or password/.test(
-      message
-    )
-  ) {
-    return "E-Mail oder Passwort stimmt nicht.";
-  }
+  const message = String(
+    data.msg || data.message || data.error_description || ""
+  ).toLowerCase();
 
-  if (/email not confirmed|email_not_confirmed/.test(message)) {
-    return "Bitte bestätige zuerst deine E-Mail-Adresse. Prüfe auch deinen Spam-Ordner.";
-  }
+  const detail = `${code} ${message}`;
 
   if (
-    /already registered|user already exists|already been registered/.test(
-      message
+    /invalid api key|invalid_api_key|api key.*(invalid|missing)|missing.*api key|apikey/.test(
+      detail
     )
   ) {
-    return "Für diese E-Mail-Adresse existiert bereits ein Konto. Melde dich an oder verwende die Funktion zum Zurücksetzen des Passworts in Supabase.";
+    return "Rechnio kann Supabase nicht authentifizieren. Prüfe in Render unter Environment, ob SUPABASE_URL und SUPABASE_ANON_KEY exakt aus deinem Supabase-Projekt stammen. Speichere keine Schlüssel im HTML-Code.";
   }
 
-  if (/password.*(weak|short|least)|weak_password/.test(message)) {
+  if (
+    /email not confirmed|email_not_confirmed|email.*not.*confirmed/.test(
+      detail
+    )
+  ) {
+    return "Deine E-Mail-Adresse ist noch nicht bestätigt. Öffne die neueste Bestätigungs-E-Mail. Falls du den Link bereits angeklickt hast, prüfe in Supabase unter Authentication → Users, ob der Benutzer als bestätigt angezeigt wird.";
+  }
+
+  if (
+    /invalid login credentials|invalid credentials|invalid_credentials|email or password/.test(
+      detail
+    )
+  ) {
+    return "Supabase hat die Anmeldung abgelehnt. Prüfe, ob du dieselbe E-Mail-Adresse und dasselbe Passwort verwendest, mit denen du das Konto erstellt hast. Falls beides stimmt, prüfe in Supabase unter Authentication → Users, ob dieses Konto existiert und bestätigt ist.";
+  }
+
+  if (
+    /already registered|user already exists|already been registered|user_already_exists/.test(
+      detail
+    )
+  ) {
+    return "Für diese E-Mail-Adresse existiert bereits ein Konto. Melde dich an, statt ein neues Konto zu erstellen.";
+  }
+
+  if (
+    /password.*(weak|short|least)|weak_password|password should be/.test(
+      detail
+    )
+  ) {
     return "Das Passwort ist zu schwach. Verwende ein längeres Passwort.";
   }
 
-  if (/signup is disabled|signups not allowed|disable_signup/.test(message)) {
+  if (
+    /signup is disabled|signups not allowed|disable_signup/.test(
+      detail
+    )
+  ) {
     return "Die Registrierung ist in Supabase deaktiviert. Aktiviere unter Authentication die Registrierung neuer Benutzer.";
   }
 
-  if (/rate limit|too many requests/.test(message)) {
+  if (
+    /rate limit|too many requests|over_request_rate_limit/.test(
+      detail
+    ) ||
+    result?.status === 429
+  ) {
     return "Zu viele Versuche. Bitte warte etwas und versuche es erneut.";
+  }
+
+  if (result?.status === 401 || result?.status === 403) {
+    return "Supabase hat die Anfrage abgelehnt. Prüfe die Supabase-Schlüssel in Render unter Environment und kontrolliere, ob das Benutzerkonto in Supabase → Authentication → Users vorhanden ist.";
+  }
+
+  if (result?.status >= 500) {
+    return "Supabase hat gerade einen Serverfehler zurückgegeben. Bitte versuche es später erneut und prüfe bei Bedarf den Supabase-Status.";
   }
 
   if (result?.status === 400 || result?.status === 422) {
     return isSignup
-      ? "Das Konto konnte nicht erstellt werden. Prüfe E-Mail, Passwort und die Supabase-Authentifizierungseinstellungen."
-      : "E-Mail oder Passwort stimmt nicht.";
+      ? "Das Konto konnte nicht erstellt werden. Prüfe die E-Mail-Adresse, das Passwort und die Supabase-Authentifizierungseinstellungen."
+      : "Supabase hat die Anmeldung abgelehnt. Prüfe E-Mail und Passwort und ob das Konto in Supabase → Authentication → Users existiert und bestätigt ist.";
   }
 
   return isSignup
-    ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen."
-    : "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.";
+    ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen in Render."
+    : "Die Anmeldung ist fehlgeschlagen. Prüfe die Supabase-Einstellungen in Render und versuche es erneut.";
 }
 
 function requestIp(req) {
@@ -427,6 +462,7 @@ async function getSession(req) {
 
     session.accessToken = result.data.access_token;
     session.refreshToken = result.data.refresh_token;
+
     session.accessExpiresAt =
       Date.now() + Number(result.data.expires_in || 3600) * 1000;
 
@@ -488,7 +524,15 @@ function displayDate(value) {
     : h(value || "—");
 }
 
-function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
+function emailHtml({
+  invoice,
+  customer,
+  company,
+  rows,
+  net,
+  vat,
+  gross,
+}) {
   const companyName = String(company.name || "Rechnio");
 
   const issuerAddress = [
@@ -500,24 +544,13 @@ function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
 
   const items = rows
     .map(
-      (row) =>
-        `<tr>
-          <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(
-            row.description
-          )}</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(
-            row.quantity
-          )}</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(
-            row.price
-          )}</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(
-            row.vat
-          )} %</td>
-          <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(
-            row.net
-          )}</td>
-        </tr>`
+      (row) => `<tr>
+        <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(row.description)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.quantity)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.price)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.vat)} %</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.net)}</td>
+      </tr>`
     )
     .join("");
 
@@ -563,11 +596,8 @@ function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
         <div style="display:flex;flex-wrap:wrap;gap:28px;margin-bottom:24px">
           <div style="flex:1;min-width:220px">
             <strong>Rechnungssteller</strong>
-            <p style="font-size:13px;line-height:1.7">${
-              companyInfo || "Angaben zum Rechnungssteller fehlen."
-            }</p>
+            <p style="font-size:13px;line-height:1.7">${companyInfo || "Angaben zum Rechnungssteller fehlen."}</p>
           </div>
-
           <div style="flex:1;min-width:220px">
             <strong>Rechnungsempfänger</strong>
             <p style="font-size:13px;line-height:1.7">
@@ -579,22 +609,14 @@ function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
         </div>
 
         <div style="background:#f8fafc;border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:20px;font-size:13px;margin-bottom:22px">
-          <div><strong>Rechnungsdatum</strong><br>${displayDate(
-            invoice.issueDate
-          )}</div>
-          <div><strong>Fällig am</strong><br>${displayDate(
-            invoice.dueDate
-          )}</div>
+          <div><strong>Rechnungsdatum</strong><br>${displayDate(invoice.issueDate)}</div>
+          <div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>
           ${
             invoice.serviceDate
-              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(
-                  invoice.serviceDate
-                )}</div>`
+              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(invoice.serviceDate)}</div>`
               : invoice.servicePeriod
-              ? `<div><strong>Leistungszeitraum</strong><br>${h(
-                  invoice.servicePeriod
-                )}</div>`
-              : ""
+                ? `<div><strong>Leistungszeitraum</strong><br>${h(invoice.servicePeriod)}</div>`
+                : ""
           }
         </div>
 
@@ -627,17 +649,13 @@ function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
 
         ${
           company.iban
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(
-                company.iban
-              )}</p>`
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>`
             : ""
         }
 
         ${
           notes
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(
-                notes
-              ).replace(/\n/g, "<br>")}</p>`
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>`
             : ""
         }
 
@@ -675,8 +693,7 @@ function validateInvoicePayload(body) {
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
     return {
-      error:
-        "Beim Rechnungsempfänger ist keine gültige E-Mail-Adresse hinterlegt.",
+      error: "Beim Rechnungsempfänger ist keine gültige E-Mail-Adresse hinterlegt.",
     };
   }
 
@@ -704,10 +721,7 @@ function validateInvoicePayload(body) {
     const quantity = Number(item.quantity);
     const price = Number(item.price);
     const rate = Number(item.vat ?? 0);
-    const description = String(item.description || "Leistung").slice(
-      0,
-      300
-    );
+    const description = String(item.description || "Leistung").slice(0, 300);
 
     if (
       !Number.isFinite(quantity) ||
@@ -719,13 +733,12 @@ function validateInvoicePayload(body) {
       rate > 100
     ) {
       return {
-        error:
-          "Eine Rechnungsposition enthält ungültige Mengen, Preise oder Steuersätze.",
+        error: "Eine Rechnungsposition enthält ungültige Mengen, Preise oder Steuersätze.",
       };
     }
 
     const rowNet = Math.round(quantity * price * 100) / 100;
-    const rowVat = Math.round((rowNet * rate)) / 100;
+    const rowVat = Math.round(rowNet * rate) / 100;
 
     net += rowNet;
     vat += rowVat;
@@ -837,8 +850,7 @@ async function handle(req, res) {
 
     if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
       sendJson(res, 429, {
-        error:
-          "Zu viele Versuche. Bitte warte 15 Minuten und versuche es danach erneut.",
+        error: "Zu viele Versuche. Bitte warte 15 Minuten und versuche es danach erneut.",
       });
 
       return;
@@ -846,8 +858,7 @@ async function handle(req, res) {
 
     if (!supabaseConfig()) {
       sendJson(res, 503, {
-        error:
-          "Die Anmeldung ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render.",
+        error: "Die Anmeldung ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render.",
       });
 
       return;
@@ -897,21 +908,31 @@ async function handle(req, res) {
 
     const result = await supabaseRequest(endpoint, {
       method: "POST",
-      body: signup
-        ? { email, password, data: {} }
-        : { email, password },
+      body: signup ? { email, password, data: {} } : { email, password },
     });
 
     if (!result.ok) {
+      // Keine E-Mail-Adresse, Passwörter oder Sitzungstokens protokollieren.
+      console.warn("Supabase auth request rejected", {
+        action: signup ? "register" : "login",
+        status: result.status,
+        code: String(
+          result.data?.code ||
+          result.data?.error_code ||
+          result.data?.error ||
+          "unknown"
+        ).slice(0, 80),
+      });
+
       sendJson(
         res,
         result.status === 429
           ? 429
           : result.status >= 500
-          ? 502
-          : signup
-          ? 400
-          : 401,
+            ? 502
+            : signup
+              ? 400
+              : 401,
         {
           error: safeAuthMessage(result, signup),
         }
@@ -920,7 +941,7 @@ async function handle(req, res) {
       return;
     }
 
-    // Wenn Supabase eine E-Mail-Bestätigung verlangt, gibt es eventuell noch keine Sitzung.
+    // Supabase kann eine E-Mail-Bestätigung verlangen.
     if (
       signup &&
       (!result.data?.access_token ||
@@ -929,8 +950,7 @@ async function handle(req, res) {
     ) {
       sendJson(res, 202, {
         needsEmailConfirmation: true,
-        message:
-          "Dein Konto wurde angelegt. Öffne die Bestätigungs-E-Mail von Supabase. Danach kannst du dich anmelden.",
+        message: "Dein Konto wurde angelegt. Öffne die Bestätigungs-E-Mail von Supabase. Danach kannst du dich anmelden.",
       });
 
       return;
@@ -943,8 +963,7 @@ async function handle(req, res) {
 
     if (!opened) {
       sendJson(res, 502, {
-        error:
-          "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
+        error: "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
       });
 
       return;
@@ -1032,10 +1051,7 @@ async function handle(req, res) {
         res,
         req,
         502,
-        {
-          error:
-            "Dein Name konnte nicht im Benutzerkonto gespeichert werden.",
-        },
+        { error: "Dein Name konnte nicht im Benutzerkonto gespeichert werden." },
         found
       );
 
@@ -1063,7 +1079,6 @@ async function handle(req, res) {
     const found = await getSession(req);
 
     if (found) {
-      // Sitzung lokal beenden, auch wenn Supabase vorübergehend nicht erreichbar ist.
       sessions.delete(found.token);
 
       await supabaseRequest("/auth/v1/logout", {
@@ -1082,7 +1097,7 @@ async function handle(req, res) {
     return;
   }
 
-  // Benutzerspezifische Cloud-Daten über Supabase.
+  // Benutzerspezifischer Cloudspeicher mit Supabase Row Level Security.
   if (
     route === "/api/state" &&
     (req.method === "GET" || req.method === "PUT")
@@ -1109,9 +1124,7 @@ async function handle(req, res) {
 
         const missingTable =
           result.status === 404 ||
-          /rechnio_user_state|schema cache|does not exist/i.test(
-            message
-          );
+          /rechnio_user_state|schema cache|does not exist/i.test(message);
 
         authResponse(
           res,
@@ -1191,9 +1204,7 @@ async function handle(req, res) {
 
       const missingTable =
         result.status === 404 ||
-        /rechnio_user_state|schema cache|does not exist/i.test(
-          message
-        );
+        /rechnio_user_state|schema cache|does not exist/i.test(message);
 
       authResponse(
         res,
@@ -1201,7 +1212,7 @@ async function handle(req, res) {
         missingTable ? 503 : 502,
         {
           error: missingTable
-            ? "Die Cloud-Tabelle fehlt noch. Führe rechnio_supabase_setup.sql im Supabase SQL Editor aus."
+            ? "Die Cloud-Tabelle fehlt noch. Führe die Datei rechnio_supabase_setup.sql im Supabase SQL Editor aus."
             : "Cloud-Speicherung fehlgeschlagen. Prüfe die RLS-Regeln in Supabase.",
         },
         found
@@ -1238,8 +1249,7 @@ async function handle(req, res) {
         req,
         503,
         {
-          error:
-            "Der E-Mail-Dienst ist nicht vollständig eingerichtet. Prüfe RESEND_API_KEY und EMAIL_FROM in Render.",
+          error: "Der E-Mail-Dienst ist nicht vollständig eingerichtet. Prüfe RESEND_API_KEY und EMAIL_FROM in Render.",
         },
         found
       );
@@ -1259,8 +1269,7 @@ async function handle(req, res) {
         req,
         429,
         {
-          error:
-            "Du hast gerade viele E-Mails gesendet. Bitte versuche es später erneut.",
+          error: "Du hast gerade viele E-Mails gesendet. Bitte versuche es später erneut.",
         },
         found
       );
@@ -1291,17 +1300,22 @@ async function handle(req, res) {
       return;
     }
 
-    const { invoice, customer, company, rows, net, vat, gross } =
-      checked;
+    const {
+      invoice,
+      customer,
+      company,
+      rows,
+      net,
+      vat,
+      gross,
+    } = checked;
 
     const html = emailHtml(checked);
 
     const textRows = rows
       .map(
         (row) =>
-          `${row.description} | Menge ${row.quantity} | ${money(
-            row.price
-          )} netto | ${row.vat}% MwSt. | ${money(row.net)} netto`
+          `${row.description} | Menge ${row.quantity} | ${money(row.price)} netto | ${row.vat}% MwSt. | ${money(row.net)} netto`
       )
       .join("\n");
 
@@ -1338,9 +1352,7 @@ async function handle(req, res) {
           body: JSON.stringify({
             from: String(process.env.EMAIL_FROM).trim(),
             to: [customer.email],
-            subject: `Rechnung ${invoice.number} von ${
-              company.name || "Rechnio"
-            }`,
+            subject: `Rechnung ${invoice.number} von ${company.name || "Rechnio"}`,
             html,
             text: plainText,
             tags: [{ name: "product", value: "rechnio" }],
@@ -1355,8 +1367,7 @@ async function handle(req, res) {
         req,
         502,
         {
-          error:
-            "Der E-Mail-Dienst ist nicht erreichbar. Versuche es erneut.",
+          error: "Der E-Mail-Dienst ist nicht erreichbar. Versuche es erneut.",
         },
         found
       );
@@ -1381,8 +1392,7 @@ async function handle(req, res) {
           req,
           502,
           {
-            error:
-              "Der Resend-API-Schlüssel ist ungültig. Prüfe RESEND_API_KEY in Render.",
+            error: "Der Resend-API-Schlüssel ist ungültig. Prüfe RESEND_API_KEY in Render.",
           },
           found
         );
@@ -1401,8 +1411,7 @@ async function handle(req, res) {
           req,
           502,
           {
-            error:
-              "Resend lehnt den Absender ab. EMAIL_FROM muss von einer bei Resend verifizierten Domain stammen. Eine Gmail-Adresse allein reicht dafür nicht.",
+            error: "Resend lehnt den Absender ab. EMAIL_FROM muss von einer bei Resend verifizierten Domain stammen. Eine Gmail-Adresse allein reicht dafür nicht.",
           },
           found
         );
@@ -1415,8 +1424,7 @@ async function handle(req, res) {
         req,
         502,
         {
-          error:
-            "Resend konnte die E-Mail nicht senden. Prüfe API-Key, Absender und Empfänger im Resend-Dashboard.",
+          error: "Resend konnte die E-Mail nicht senden. Prüfe API-Key, Absender und Empfänger im Resend-Dashboard.",
         },
         found
       );
@@ -1454,8 +1462,7 @@ const server = http.createServer((req, res) => {
 
     if (!res.headersSent) {
       sendJson(res, 500, {
-        error:
-          "Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.",
+        error: "Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.",
       });
     } else {
       res.end();
