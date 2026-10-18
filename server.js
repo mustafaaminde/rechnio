@@ -663,3 +663,811 @@ function validateInvoicePayload(body) {
       : null;
 
   const company =
+    body.company && typeof body.company === "object"
+      ? body.company
+      : {};
+
+  if (!invoice || !customer) {
+    return { error: "Rechnungs- oder Kundendaten fehlen." };
+  }
+
+  const to = String(customer.email || "").trim().toLowerCase();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return {
+      error:
+        "Beim Rechnungsempfänger ist keine gültige E-Mail-Adresse hinterlegt.",
+    };
+  }
+
+  const number = String(invoice.number || "").trim().slice(0, 100);
+
+  if (!number) {
+    return { error: "Die Rechnungsnummer fehlt." };
+  }
+
+  if (
+    !Array.isArray(invoice.items) ||
+    invoice.items.length < 1 ||
+    invoice.items.length > 100
+  ) {
+    return {
+      error: "Die Rechnung muss zwischen 1 und 100 Positionen enthalten.",
+    };
+  }
+
+  let net = 0;
+  let vat = 0;
+  const rows = [];
+
+  for (const item of invoice.items) {
+    const quantity = Number(item.quantity);
+    const price = Number(item.price);
+    const rate = Number(item.vat ?? 0);
+    const description = String(item.description || "Leistung").slice(
+      0,
+      300
+    );
+
+    if (
+      !Number.isFinite(quantity) ||
+      quantity <= 0 ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !Number.isFinite(rate) ||
+      rate < 0 ||
+      rate > 100
+    ) {
+      return {
+        error:
+          "Eine Rechnungsposition enthält ungültige Mengen, Preise oder Steuersätze.",
+      };
+    }
+
+    const rowNet = Math.round(quantity * price * 100) / 100;
+    const rowVat = Math.round((rowNet * rate)) / 100;
+
+    net += rowNet;
+    vat += rowVat;
+
+    rows.push({
+      description,
+      quantity: quantity.toLocaleString("de-DE"),
+      price,
+      vat: rate,
+      net: rowNet,
+    });
+  }
+
+  net = Math.round(net * 100) / 100;
+  vat = Math.round(vat * 100) / 100;
+
+  const safeCompany = {
+    name: String(company.name || "").slice(0, 200),
+    owner: String(company.owner || "").slice(0, 160),
+    email: String(company.email || "").slice(0, 254),
+    phone: String(company.phone || "").slice(0, 80),
+    street: String(company.street || "").slice(0, 200),
+    postalCode: String(company.postalCode || "").slice(0, 40),
+    city: String(company.city || "").slice(0, 160),
+    taxId: String(company.taxId || "").slice(0, 100),
+    vatNumber: String(company.vatNumber || "").slice(0, 100),
+    iban: String(company.iban || "").slice(0, 60),
+    footer: String(company.footer || "").slice(0, 1000),
+  };
+
+  const safeInvoice = {
+    number,
+    title: String(invoice.title || "").slice(0, 200),
+    issueDate: String(invoice.issueDate || "").slice(0, 10),
+    serviceDate: String(invoice.serviceDate || "").slice(0, 10),
+    servicePeriod: String(invoice.servicePeriod || "").slice(0, 100),
+    dueDate: String(invoice.dueDate || "").slice(0, 10),
+    notes: String(invoice.notes || "").slice(0, 1000),
+  };
+
+  const safeCustomer = {
+    name: String(customer.name || "").slice(0, 200),
+    email: to,
+    street: String(customer.street || "").slice(0, 200),
+    postalCode: String(customer.postalCode || "").slice(0, 40),
+    city: String(customer.city || "").slice(0, 160),
+  };
+
+  return {
+    invoice: safeInvoice,
+    customer: safeCustomer,
+    company: safeCompany,
+    rows,
+    net,
+    vat,
+    gross: Math.round((net + vat) * 100) / 100,
+  };
+}
+
+async function handle(req, res) {
+  let url;
+
+  try {
+    url = new URL(
+      req.url || "/",
+      `http://${req.headers.host || "localhost"}`
+    );
+  } catch {
+    sendJson(res, 400, { error: "Ungültige Anfrageadresse." });
+    return;
+  }
+
+  const route = url.pathname;
+
+  if (
+    req.method === "GET" &&
+    (route === "/" || route === "/reset-password")
+  ) {
+    serveIndex(res);
+    return;
+  }
+
+  if (req.method === "GET" && route === "/favicon.ico") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "GET" && route === "/api/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "Rechnio",
+      authConfigured: Boolean(supabaseConfig()),
+      cloudConfigured: Boolean(supabaseConfig()),
+      emailConfigured: Boolean(
+        process.env.RESEND_API_KEY && process.env.EMAIL_FROM
+      ),
+    });
+
+    return;
+  }
+
+  if (
+    req.method === "POST" &&
+    (route === "/api/auth/login" || route === "/api/auth/register")
+  ) {
+    const signup = route.endsWith("/register");
+    const limitKey = `${requestIp(req)}:${signup ? "register" : "login"}`;
+
+    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
+      sendJson(res, 429, {
+        error:
+          "Zu viele Versuche. Bitte warte 15 Minuten und versuche es danach erneut.",
+      });
+
+      return;
+    }
+
+    if (!supabaseConfig()) {
+      sendJson(res, 503, {
+        error:
+          "Die Anmeldung ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render.",
+      });
+
+      return;
+    }
+
+    let body;
+
+    try {
+      body = await readJson(req);
+    } catch (error) {
+      sendJson(res, 400, { error: error.message });
+      return;
+    }
+
+    const email = String(body.email || "").trim().toLowerCase();
+    const password = String(body.password ?? "");
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      sendJson(res, 400, {
+        error: "Bitte gib eine gültige E-Mail-Adresse ein.",
+      });
+
+      return;
+    }
+
+    if (signup && password.length < 8) {
+      sendJson(res, 400, {
+        error: "Das Passwort muss mindestens 8 Zeichen enthalten.",
+      });
+
+      return;
+    }
+
+    if (!password || password.length > 256) {
+      sendJson(res, 400, {
+        error: "Bitte gib ein gültiges Passwort ein.",
+      });
+
+      return;
+    }
+
+    const siteUrl = PUBLIC_SITE_URL;
+
+    const endpoint = signup
+      ? `/auth/v1/signup?redirect_to=${encodeURIComponent(siteUrl)}`
+      : "/auth/v1/token?grant_type=password";
+
+    const result = await supabaseRequest(endpoint, {
+      method: "POST",
+      body: signup
+        ? { email, password, data: {} }
+        : { email, password },
+    });
+
+    if (!result.ok) {
+      sendJson(
+        res,
+        result.status === 429
+          ? 429
+          : result.status >= 500
+          ? 502
+          : signup
+          ? 400
+          : 401,
+        {
+          error: safeAuthMessage(result, signup),
+        }
+      );
+
+      return;
+    }
+
+    // Wenn Supabase eine E-Mail-Bestätigung verlangt, gibt es eventuell noch keine Sitzung.
+    if (
+      signup &&
+      (!result.data?.access_token ||
+        !result.data?.refresh_token ||
+        !result.data?.user?.id)
+    ) {
+      sendJson(res, 202, {
+        needsEmailConfirmation: true,
+        message:
+          "Dein Konto wurde angelegt. Öffne die Bestätigungs-E-Mail von Supabase. Danach kannst du dich anmelden.",
+      });
+
+      return;
+    }
+
+    const opened = newSessionFromAuth(
+      result.data,
+      body.remember === true
+    );
+
+    if (!opened) {
+      sendJson(res, 502, {
+        error:
+          "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
+      });
+
+      return;
+    }
+
+    authAttempts.delete(limitKey);
+
+    sendJson(
+      res,
+      signup ? 201 : 200,
+      { user: opened.session.user },
+      {
+        "Set-Cookie": cookieHeader(
+          req,
+          opened.token,
+          opened.ttlSeconds
+        ),
+      }
+    );
+
+    return;
+  }
+
+  if (req.method === "GET" && route === "/api/auth/me") {
+    const found = await getSession(req);
+
+    if (!found) {
+      sendJson(res, 401, { error: "Bitte melde dich an." });
+      return;
+    }
+
+    authResponse(
+      res,
+      req,
+      200,
+      { user: found.session.user },
+      found
+    );
+
+    return;
+  }
+
+  if (req.method === "POST" && route === "/api/auth/profile") {
+    const found = await getSession(req);
+
+    if (!found) {
+      sendJson(res, 401, {
+        error: "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
+      });
+
+      return;
+    }
+
+    let body;
+
+    try {
+      body = await readJson(req);
+    } catch (error) {
+      authResponse(res, req, 400, { error: error.message }, found);
+      return;
+    }
+
+    const name = String(body.name || "").trim().slice(0, 80);
+
+    if (name.length < 2) {
+      authResponse(
+        res,
+        req,
+        400,
+        { error: "Bitte gib mindestens zwei Zeichen als Namen ein." },
+        found
+      );
+
+      return;
+    }
+
+    const updated = await supabaseRequest("/auth/v1/user", {
+      method: "PUT",
+      accessToken: found.session.accessToken,
+      body: { data: { full_name: name } },
+    });
+
+    if (!updated.ok) {
+      authResponse(
+        res,
+        req,
+        502,
+        {
+          error:
+            "Dein Name konnte nicht im Benutzerkonto gespeichert werden.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    found.session.user = normalizeUser(updated.data);
+
+    if (!found.session.user.name) {
+      found.session.user.name = name;
+    }
+
+    authResponse(
+      res,
+      req,
+      200,
+      { user: found.session.user },
+      found
+    );
+
+    return;
+  }
+
+  if (req.method === "POST" && route === "/api/auth/logout") {
+    const found = await getSession(req);
+
+    if (found) {
+      // Sitzung lokal beenden, auch wenn Supabase vorübergehend nicht erreichbar ist.
+      sessions.delete(found.token);
+
+      await supabaseRequest("/auth/v1/logout", {
+        method: "POST",
+        accessToken: found.session.accessToken,
+      }).catch(() => null);
+    }
+
+    sendJson(
+      res,
+      200,
+      { ok: true },
+      { "Set-Cookie": clearCookie(req) }
+    );
+
+    return;
+  }
+
+  // Benutzerspezifische Cloud-Daten über Supabase.
+  if (
+    route === "/api/state" &&
+    (req.method === "GET" || req.method === "PUT")
+  ) {
+    const found = await getSession(req);
+
+    if (!found) {
+      sendJson(res, 401, { error: "Bitte melde dich an." });
+      return;
+    }
+
+    const userId = encodeURIComponent(found.session.user.id);
+
+    if (req.method === "GET") {
+      const result = await supabaseRequest(
+        `/rest/v1/rechnio_user_state?select=state&user_id=eq.${userId}`,
+        { accessToken: found.session.accessToken }
+      );
+
+      if (!result.ok) {
+        const message = String(
+          result.data?.message || result.data?.details || ""
+        );
+
+        const missingTable =
+          result.status === 404 ||
+          /rechnio_user_state|schema cache|does not exist/i.test(
+            message
+          );
+
+        authResponse(
+          res,
+          req,
+          missingTable ? 503 : 502,
+          {
+            error: missingTable
+              ? "Die Cloud-Tabelle fehlt noch. Führe die Datei rechnio_supabase_setup.sql im Supabase SQL Editor aus."
+              : "Die Cloud-Daten konnten nicht geladen werden. Prüfe Supabase-RLS und den Login.",
+          },
+          found
+        );
+
+        return;
+      }
+
+      const row = Array.isArray(result.data)
+        ? result.data[0]
+        : null;
+
+      authResponse(
+        res,
+        req,
+        200,
+        { state: row?.state || null },
+        found
+      );
+
+      return;
+    }
+
+    let body;
+
+    try {
+      body = await readJson(req);
+    } catch (error) {
+      authResponse(res, req, 400, { error: error.message }, found);
+      return;
+    }
+
+    if (
+      !body.state ||
+      typeof body.state !== "object" ||
+      Array.isArray(body.state)
+    ) {
+      authResponse(
+        res,
+        req,
+        400,
+        { error: "Der zu speichernde Rechnio-Datenstand ist ungültig." },
+        found
+      );
+
+      return;
+    }
+
+    const result = await supabaseRequest(
+      "/rest/v1/rechnio_user_state?on_conflict=user_id",
+      {
+        method: "POST",
+        accessToken: found.session.accessToken,
+        extraHeaders: {
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: {
+          user_id: found.session.user.id,
+          state: body.state,
+          updated_at: new Date().toISOString(),
+        },
+      }
+    );
+
+    if (!result.ok) {
+      const message = String(
+        result.data?.message || result.data?.details || ""
+      );
+
+      const missingTable =
+        result.status === 404 ||
+        /rechnio_user_state|schema cache|does not exist/i.test(
+          message
+        );
+
+      authResponse(
+        res,
+        req,
+        missingTable ? 503 : 502,
+        {
+          error: missingTable
+            ? "Die Cloud-Tabelle fehlt noch. Führe rechnio_supabase_setup.sql im Supabase SQL Editor aus."
+            : "Cloud-Speicherung fehlgeschlagen. Prüfe die RLS-Regeln in Supabase.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    authResponse(
+      res,
+      req,
+      200,
+      { ok: true, savedAt: new Date().toISOString() },
+      found
+    );
+
+    return;
+  }
+
+  if (req.method === "POST" && route === "/api/send-invoice") {
+    const found = await getSession(req);
+
+    if (!found) {
+      sendJson(res, 401, {
+        error: "Bitte melde dich erneut an.",
+      });
+
+      return;
+    }
+
+    if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+      authResponse(
+        res,
+        req,
+        503,
+        {
+          error:
+            "Der E-Mail-Dienst ist nicht vollständig eingerichtet. Prüfe RESEND_API_KEY und EMAIL_FROM in Render.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    if (
+      isRateLimited(
+        emailAttempts,
+        found.session.user.id,
+        MAX_EMAILS_PER_WINDOW
+      )
+    ) {
+      authResponse(
+        res,
+        req,
+        429,
+        {
+          error:
+            "Du hast gerade viele E-Mails gesendet. Bitte versuche es später erneut.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    let body;
+
+    try {
+      body = await readJson(req);
+    } catch (error) {
+      authResponse(res, req, 400, { error: error.message }, found);
+      return;
+    }
+
+    const checked = validateInvoicePayload(body);
+
+    if (checked.error) {
+      authResponse(
+        res,
+        req,
+        400,
+        { error: checked.error },
+        found
+      );
+
+      return;
+    }
+
+    const { invoice, customer, company, rows, net, vat, gross } =
+      checked;
+
+    const html = emailHtml(checked);
+
+    const textRows = rows
+      .map(
+        (row) =>
+          `${row.description} | Menge ${row.quantity} | ${money(
+            row.price
+          )} netto | ${row.vat}% MwSt. | ${money(row.net)} netto`
+      )
+      .join("\n");
+
+    const plainText = [
+      `RECHNUNG ${invoice.number}`,
+      `Von: ${company.name || "Rechnio"}`,
+      `Rechnung an: ${customer.name} <${customer.email}>`,
+      `Rechnungsdatum: ${displayDate(invoice.issueDate)}`,
+      `Fällig am: ${displayDate(invoice.dueDate)}`,
+      "",
+      "Positionen:",
+      textRows,
+      "",
+      `Nettosumme: ${money(net)}`,
+      `Umsatzsteuer: ${money(vat)}`,
+      `Gesamtbetrag: ${money(gross)}`,
+      invoice.notes || company.footer || "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    let resendResponse;
+
+    try {
+      resendResponse = await fetch(
+        "https://api.resend.com/emails",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          body: JSON.stringify({
+            from: String(process.env.EMAIL_FROM).trim(),
+            to: [customer.email],
+            subject: `Rechnung ${invoice.number} von ${
+              company.name || "Rechnio"
+            }`,
+            html,
+            text: plainText,
+            tags: [{ name: "product", value: "rechnio" }],
+          }),
+        }
+      );
+    } catch (error) {
+      console.error("Resend ist nicht erreichbar:", error.message);
+
+      authResponse(
+        res,
+        req,
+        502,
+        {
+          error:
+            "Der E-Mail-Dienst ist nicht erreichbar. Versuche es erneut.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    const resendData = await readResponse(resendResponse);
+
+    if (!resendResponse.ok) {
+      console.error(
+        "Resend hat eine E-Mail abgelehnt:",
+        resendResponse.status,
+        String(
+          resendData.message || resendData.name || ""
+        ).slice(0, 300)
+      );
+
+      if (resendResponse.status === 401) {
+        authResponse(
+          res,
+          req,
+          502,
+          {
+            error:
+              "Der Resend-API-Schlüssel ist ungültig. Prüfe RESEND_API_KEY in Render.",
+          },
+          found
+        );
+
+        return;
+      }
+
+      if (
+        resendResponse.status === 403 ||
+        /domain.*(verify|verified)|testing.*email/i.test(
+          String(resendData.message || "")
+        )
+      ) {
+        authResponse(
+          res,
+          req,
+          502,
+          {
+            error:
+              "Resend lehnt den Absender ab. EMAIL_FROM muss von einer bei Resend verifizierten Domain stammen. Eine Gmail-Adresse allein reicht dafür nicht.",
+          },
+          found
+        );
+
+        return;
+      }
+
+      authResponse(
+        res,
+        req,
+        502,
+        {
+          error:
+            "Resend konnte die E-Mail nicht senden. Prüfe API-Key, Absender und Empfänger im Resend-Dashboard.",
+        },
+        found
+      );
+
+      return;
+    }
+
+    authResponse(
+      res,
+      req,
+      200,
+      { ok: true, emailId: resendData.id || null },
+      found
+    );
+
+    return;
+  }
+
+  if (route.startsWith("/api/")) {
+    sendJson(res, 404, {
+      error: "Diese API-Funktion ist nicht eingerichtet.",
+    });
+
+    return;
+  }
+
+  sendJson(res, 404, {
+    error: "Diese Seite ist nicht verfügbar.",
+  });
+}
+
+const server = http.createServer((req, res) => {
+  Promise.resolve(handle(req, res)).catch((error) => {
+    console.error("Rechnio request failed:", error.message);
+
+    if (!res.headersSent) {
+      sendJson(res, 500, {
+        error:
+          "Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.",
+      });
+    } else {
+      res.end();
+    }
+  });
+});
+
+server.on("error", (error) => {
+  console.error("Rechnio server error:", error.message);
+  process.exitCode = 1;
+});
+
+server.listen(PORT, HOST, () => {
+  console.log(`Rechnio läuft auf Port ${PORT}.`);
+});
