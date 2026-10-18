@@ -1245,6 +1245,41 @@ body{font-size:15px;line-height:1.6}
 @media(max-width:1200px){.content{padding:24px}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:980px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:600px){.content{padding:16px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:15px;min-height:130px}.stat-value{font-size:21px}.card-head,.card-body{padding:16px}}
+
+/* Help center: readable cards and easy tap targets on desktop, tablet and phone. */
+.help-layout{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:18px;align-items:start}
+.help-card{min-width:0;padding:22px;border:1px solid var(--line);border-radius:var(--r);background:#fff;box-shadow:var(--shadow)}
+.help-hero{padding:24px;border-radius:16px;background:linear-gradient(135deg,#eef3ff,#f8fbff);border:1px solid #dce6ff;margin-bottom:18px}
+.help-hero h2{font-size:clamp(20px,2.4vw,28px);line-height:1.2;letter-spacing:-.7px;margin:8px 0}
+.help-hero p{max-width:720px;color:var(--muted);margin:0;line-height:1.7}
+.help-kicker{font-size:10px;font-weight:850;letter-spacing:1.1px;text-transform:uppercase;color:var(--brand)}
+.help-progress{height:8px;background:#e8edf6;border-radius:99px;overflow:hidden;margin:14px 0 18px}
+.help-progress-fill{height:100%;background:var(--brand);border-radius:99px;transition:width .2s ease}
+.help-step-number{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border-radius:999px;background:var(--brand-soft);color:var(--brand-dark);font-weight:800;font-size:11px}
+.help-current-step h2{margin:14px 0 8px;font-size:22px;line-height:1.25;letter-spacing:-.4px}
+.help-current-step p{color:var(--muted);line-height:1.75;margin:0 0 15px}
+.help-detail-list{padding-left:21px;margin:12px 0 18px;display:grid;gap:9px;color:#39475d;line-height:1.65}
+.help-step-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+.help-question-form{display:grid;gap:10px}
+.help-question-form .textarea{min-height:92px}
+.help-suggestions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}
+.help-chip{border:1px solid var(--line-2);border-radius:999px;background:#fff;padding:8px 11px;color:#37445a;font-size:11px;font-weight:650;text-align:left;white-space:normal}
+.help-chip:hover{background:var(--brand-soft);border-color:#b8c9ff;color:var(--brand-dark)}
+.help-answer{margin-top:16px;padding:17px;border:1px solid #dce6ff;border-radius:12px;background:#f8faff;overflow-wrap:anywhere}
+.help-answer h3{margin:0 0 7px;font-size:15px;line-height:1.35}
+.help-answer p{margin:0;color:var(--muted);line-height:1.7}
+.help-answer ol{padding-left:21px;margin:12px 0;display:grid;gap:7px;line-height:1.65}
+.help-success{padding:18px;border:1px solid #b9e8d4;background:#f0fbf6;border-radius:12px}
+.help-success h2{margin:8px 0;font-size:21px}
+.invoice-missing-notice{display:flex;align-items:flex-start;gap:12px;padding:15px;margin:0 0 15px;border:1px solid #f1d5a4;background:#fffaf0;color:#614414;border-radius:12px}
+.invoice-missing-notice .notice-icon{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:9px;background:#fff0d2;color:#9c6308}
+.invoice-missing-notice h3{margin:0 0 4px;font-size:13px;color:#734d08}
+.invoice-missing-notice p{margin:0 0 8px;font-size:12px;line-height:1.65;color:#765a2b}
+.invoice-missing-notice ul{margin:7px 0 0;padding-left:18px;font-size:12px;line-height:1.7}
+.invoice-missing-notice .btn{white-space:normal}
+@media(max-width:980px){.help-layout{grid-template-columns:minmax(0,1fr)}.help-hero{padding:20px}.help-card{padding:19px}}
+@media(max-width:600px){.help-card{padding:15px}.help-hero{padding:17px}.help-step-actions{display:grid;grid-template-columns:1fr}.help-step-actions .btn{width:100%;white-space:normal}.help-suggestions{display:grid;grid-template-columns:1fr}.help-chip{width:100%;padding:10px 12px}.invoice-missing-notice{flex-wrap:wrap}.invoice-missing-notice .btn{width:100%}}
+
 </style>
 </head>
 <body>
@@ -1308,7 +1343,7 @@ body{font-size:15px;line-height:1.6}
   <aside id="sidebar" class="sidebar">
     <div class="sidebar-brand brand"><span class="brand-mark"><svg class="icon icon-lg"><use href="#i-file"/></svg></span><div><div class="brand-name">rechnio</div><div class="brand-sub">Einfach. Klar. Organisiert.</div></div></div>
     <div class="nav-label">Arbeitsbereich</div>
-    <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button></nav>
+    <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button><button class="nav-item" data-page="help"><svg class="icon"><use href="#i-info"/></svg>Hilfe & Anleitung</button></nav>
     <div class="nav-label">Verwaltung</div><nav class="nav" aria-label="Verwaltung"><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
     <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
@@ -1342,6 +1377,9 @@ reports:{
 },
 settings:{
   title:"Einstellungen",subtitle:"Passe deine Unternehmensangaben an."
+},
+help:{
+  title:"Hilfe & Anleitung",subtitle:"Schritt für Schritt durch Rechnio – mit Antworten auf häufige Fragen."
 }
 };
 const AVATAR_COLORS = ["","pink","green","orange","purple"];
@@ -1422,7 +1460,8 @@ preferences:{
   showDemoData:true,confirmDelete:true
 },
 ui:{
-  invoiceSearch:"",customerSearch:"",invoiceStatus:"all",customerPage:1,invoicePage:1,pageSize:8,settingsTab:"company"
+  invoiceSearch:"",customerSearch:"",invoiceStatus:"all",customerPage:1,invoicePage:1,pageSize:8,settingsTab:"company",
+  helpStep:0,helpShowDetails:false,helpQuestion:"",helpAnswer:null
 }
 };
 }
@@ -1441,9 +1480,9 @@ function normalizeSavedState(parsed, initial=createInitialState()){
       contact: String(customer?.contact || customer?.contactPerson || customer?.person || ""),
       email: String(customer?.email || ""),
       phone: String(customer?.phone || customer?.telephone || ""),
-      street: String(customer?.street || customer?.address || customer?.billingAddress || ""),
-      postalCode: String(customer?.postalCode || customer?.zip || customer?.postcode || ""),
-      city: String(customer?.city || customer?.town || ""),
+      street: String(customer?.street || customer?.address || customer?.addressLine || customer?.billingAddress || customer?.billing_address || ""),
+      postalCode: String(customer?.postalCode || customer?.postal_code || customer?.zip || customer?.zipCode || customer?.postcode || customer?.postCode || ""),
+      city: String(customer?.city || customer?.town || customer?.locality || ""),
       taxId: String(customer?.taxId || customer?.tax || customer?.taxNumber || customer?.vatNumber || ""),
       notes: String(customer?.notes || customer?.note || ""),
       createdAt: customer?.createdAt || customer?.created || todayISO()
@@ -1687,7 +1726,22 @@ function validEmail(value){
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value||"").trim());
 }
 function customerById(id){
-  return state.customers.find(c=>c.id===id)||null;
+  return state.customers.find(c=>String(c.id)===String(id))||null;
+}
+// Unterstützt auch ältere/importierte Kunden- und Firmenfelder, damit
+// gespeicherte Adressen bei der Rechnungsprüfung nicht fälschlich fehlen.
+function normalizedAddress(record){
+  const firstValue=(...values)=>{
+    for(const value of values){
+      if(value!==undefined&&value!==null&&String(value).trim()!="")return String(value).trim();
+    }
+    return "";
+  };
+  return {
+    street:firstValue(record?.street,record?.address,record?.addressLine,record?.billingAddress,record?.billing_address),
+    postalCode:firstValue(record?.postalCode,record?.postal_code,record?.zip,record?.zipCode,record?.postcode,record?.postCode),
+    city:firstValue(record?.city,record?.town,record?.locality)
+  };
 }
 function invoiceById(id){
   return state.invoices.find(i=>i.id===id)||null;
@@ -1716,11 +1770,13 @@ function invoicePrintValidation(invoice){
   const errors=[];
   const company=state.company||{};
   const customer=customerById(invoice?.customerId);
-  const companyName=String(company.name||"").trim();
+  const companyAddress=normalizedAddress(company);
+  const customerAddress=normalizedAddress(customer);
+  const companyName=String(company.name||company.companyName||"").trim();
   if(!companyName || norm(companyName)==="rechnio demo"){
     errors.push('Ersetze „Rechnio Demo“ durch deinen vollständigen rechtlichen Namen bzw. Firmennamen (Einstellungen → Unternehmen).');
   }
-  if(!company.street?.trim() || !company.postalCode?.trim() || !company.city?.trim()){
+  if(!companyAddress.street || !companyAddress.postalCode || !companyAddress.city){
     errors.push('Ergänze die vollständige Anschrift des Rechnungsstellers (Straße, Hausnummer, PLZ und Ort unter Einstellungen → Unternehmen).');
   }
   if(!String(company.taxId||"").trim() && !String(company.vatNumber||"").trim()){
@@ -1729,8 +1785,8 @@ function invoicePrintValidation(invoice){
   if(!customer){
     errors.push('Der Rechnungsempfänger wurde nicht gefunden.');
   }else{
-    if(!String(customer.name||"").trim()) errors.push('Der vollständige Name bzw. Firmenname des Rechnungsempfängers fehlt.');
-    if(!String(customer.street||"").trim() || !String(customer.postalCode||"").trim() || !String(customer.city||"").trim()){
+    if(!String(customer.name||customer.customerName||customer.companyName||"").trim()) errors.push('Der vollständige Name bzw. Firmenname des Rechnungsempfängers fehlt.');
+    if(!customerAddress.street || !customerAddress.postalCode || !customerAddress.city){
       errors.push('Ergänze die vollständige Anschrift des Rechnungsempfängers (Straße, Hausnummer, PLZ und Ort) im Kundenprofil.');
     }
   }
@@ -1915,7 +1971,7 @@ function updateChrome(){
 }
 function renderPage(){
   const renderers={
-    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,settings:renderSettings
+    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,settings:renderSettings,help:renderHelp
   };
 $("#pageContent").innerHTML=(renderers[state.currentPage]||renderDashboard)();
 if(state.currentPage==="dashboard"){
@@ -2125,10 +2181,18 @@ function openCustomerForm(id=null){
 });
 }
 function saveCustomerForm(){
-  const name=$("#customerName").value.trim(),email=$("#customerEmail").value.trim(),id=$("#customerEditId").value;
-  const street=$("#customerStreet").value.trim();
-  const postalCode=$("#customerPostal").value.trim();
-  const city=$("#customerCity").value.trim();
+  const form=$("#customerForm");
+  if(!form){
+    toast("Formular nicht gefunden","Schließe das Fenster und öffne den Kunden erneut.","error");
+    return;
+  }
+  // Werte direkt aus dem Kundenformular lesen, damit keine andere DOM-Stelle
+  // versehentlich als Quelle genutzt wird.
+  const fieldValue=id=>String(form.querySelector(`#${id}`)?.value??"").trim();
+  const name=fieldValue("customerName"),email=fieldValue("customerEmail"),id=fieldValue("customerEditId");
+  const street=fieldValue("customerStreet");
+  const postalCode=fieldValue("customerPostal");
+  const city=fieldValue("customerCity");
   const requiredCustomerFields=[
     {value:name,selector:"#customerName",label:"Name/Firma"},
     {value:street,selector:"#customerStreet",label:"Straße und Hausnummer"},
@@ -2162,7 +2226,7 @@ else{
   state.customers.unshift(c);
   addActivity("customer","Kunde hinzugefügt",c.name);
 }
-saveState();
+if(!saveState())return;
 closeModal();
 renderApp();
 toast(old?"Kunde aktualisiert":"Kunde gespeichert",c.name);
@@ -2319,13 +2383,16 @@ function viewInvoice(id){
   const i=invoiceById(id);
   if(!i)return toast("Rechnung nicht gefunden","Der Eintrag existiert nicht mehr.","error");
   const c=customerById(i.customerId),a=amounts(i);
+  const issuerAddress=normalizedAddress(state.company);
+  const recipientAddress=normalizedAddress(c);
   const issuerTax=state.company.taxId?`<p>Steuernummer: ${esc(state.company.taxId)}</p>`:"";
   const issuerVat=state.company.vatNumber?`<p>USt-IdNr.: ${esc(state.company.vatNumber)}</p>`:"";
-  const issuerTaxMissing=(!state.company.taxId&&!state.company.vatNumber)?`<p class="invoice-missing">Steuernummer oder USt-IdNr. fehlt (Einstellungen)</p>`:"";
-  const iban=state.company.iban?`<div><strong>Bankverbindung:</strong> ${esc(state.company.iban)}</div>`:`<div class="invoice-missing"><strong>Bankverbindung:</strong> IBAN in Einstellungen ergänzen (falls für diese Rechnung gewünscht)</div>`;
+  const issuerTaxMissing=(!state.company.taxId&&!state.company.vatNumber)?`<p class="invoice-missing">Steuernummer oder USt-IdNr. in den Unternehmenseinstellungen prüfen</p>`:"";
+  const iban=state.company.iban?`<div><strong>Bankverbindung:</strong> ${esc(state.company.iban)}</div>`:"";
   const note=i.notes||state.company.footer||"";
   const printCheck=invoicePrintValidation(i);
-  const printWarning=printCheck.errors.length?`<div class="form-note" role="status" style="margin-bottom:14px;border:1px solid #f3c7ca;background:#fff6f6;color:#8f2733"><span><strong>Vor dem Drucken/PDF korrigieren:</strong><ul style="margin:6px 0 0;padding-left:18px">${printCheck.errors.map(error=>`<li>${esc(error)}</li>`).join("")}</ul></span></div>`:"";
+  const needsCompanySettings=printCheck.errors.some(error=>error.includes("Einstellungen → Unternehmen"));
+  const printWarning=printCheck.errors.length?`<div class="invoice-missing-notice" role="status"><span class="notice-icon">${icon("info","icon icon-sm")}</span><div class="grow"><h3>Vor dem Drucken bitte kurz prüfen</h3><p>In der Rechnung fehlen noch Angaben. Die Vorschau kannst du ansehen; ergänze die Punkte unten, bevor du die Rechnung als PDF speicherst oder druckst.</p><ul>${printCheck.errors.map(error=>`<li>${esc(error)}</li>`).join("")}</ul>${needsCompanySettings?`<div style="margin-top:12px"><button class="btn primary btn-sm" data-action="invoice-missing-company-settings">${icon("settings","icon icon-sm")} Firmendaten ergänzen</button></div>`:""}</div></div>`:"";
   openModal({
     title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",
     body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div>${printWarning}
@@ -2335,9 +2402,9 @@ function viewInvoice(id){
             <div class="preview-brand">RECHNUNG</div>
             <div style="margin-top:12px;font-size:11px;line-height:1.8">
               <strong>Rechnungssteller</strong>
-              <p style="margin:3px 0">${esc(state.company.name||"Name/Firma fehlt")}</p>
-              ${state.company.street?`<p style="margin:3px 0">${esc(state.company.street)}</p>`:`<p class="invoice-missing">Straße und Hausnummer fehlen (Einstellungen)</p>`}
-              <p style="margin:3px 0">${state.company.postalCode||state.company.city?esc([state.company.postalCode,state.company.city].filter(Boolean).join(" ")):`<span class="invoice-missing">PLZ und Ort fehlen (Einstellungen)</span>`}</p>
+              <p style="margin:3px 0">${esc(state.company.name||"Firmenname noch nicht eingetragen")}</p>
+              ${issuerAddress.street?`<p style="margin:3px 0">${esc(issuerAddress.street)}</p>`:`<p class="invoice-missing">Straße und Hausnummer bitte unter Einstellungen → Unternehmen ergänzen</p>`}
+              <p style="margin:3px 0">${issuerAddress.postalCode||issuerAddress.city?esc([issuerAddress.postalCode,issuerAddress.city].filter(Boolean).join(" ")):`<span class="invoice-missing">PLZ und Ort bitte unter Einstellungen → Unternehmen ergänzen</span>`}</p>
               ${issuerTax}${issuerVat}${issuerTaxMissing}
               ${state.company.email?`<p style="margin:3px 0">${esc(state.company.email)}</p>`:""}
             </div>
@@ -2354,8 +2421,8 @@ function viewInvoice(id){
           <div>
             <h4>Rechnungsempfänger</h4>
             <p><strong>${esc(c?.name||"Kunde nicht gefunden")}</strong></p>
-            ${c?.street?`<p>${esc(c.street)}</p>`:`<p class="invoice-missing">Straße und Hausnummer fehlen (Kundenprofil)</p>`}
-            <p>${c?.postalCode||c?.city?esc([c?.postalCode,c?.city].filter(Boolean).join(" ")):`<span class="invoice-missing">PLZ und Ort fehlen (Kundenprofil)</span>`}</p>
+            ${recipientAddress.street?`<p>${esc(recipientAddress.street)}</p>`:`<p class="invoice-missing">Straße und Hausnummer fehlen (Kundenprofil)</p>`}
+            <p>${recipientAddress.postalCode||recipientAddress.city?esc([recipientAddress.postalCode,recipientAddress.city].filter(Boolean).join(" ")):`<span class="invoice-missing">PLZ und Ort fehlen (Kundenprofil)</span>`}</p>
             ${c?.email?`<p>${esc(c.email)}</p>`:""}
           </div>
           <div>
@@ -2496,6 +2563,73 @@ function showOverdue(){
   const count=state.invoices.filter(i=>statusOf(i)==="overdue").length;
   toast(count?`${count} überfällige Rechnung(en)`:"Keine überfälligen Rechnungen",count?"Prüfe die Fälligkeiten und kontaktiere deine Kunden bei Bedarf.":"Aktuell ist keine Rechnung überfällig.",count?"warning":"success");
 }
+/* ================================================================
+HELP CENTER AND GUIDED WALKTHROUGH
+================================================================ */
+function helpSteps(){
+  return [
+    {title:"Unternehmensangaben eintragen",question:"Sind deine Firmendaten eingetragen?",summary:"Damit Rechnungen deinen richtigen Namen und deine Anschrift zeigen.",details:["Öffne Einstellungen → Unternehmen.","Trage deinen rechtlichen Namen bzw. Firmennamen ein.","Ergänze Straße und Hausnummer, PLZ und Ort.","Trage – soweit für deine Situation erforderlich – Steuernummer oder USt-IdNr. ein. Die IBAN ist optional, wenn du keine Banküberweisung auf der Rechnung anbieten möchtest.","Klicke auf „Änderungen speichern“."],target:"company",button:"Unternehmensangaben öffnen"},
+    {title:"Kunden anlegen",question:"Hast du den Rechnungsempfänger gespeichert?",summary:"Eine Rechnung braucht den richtigen Kunden und die passenden Adressdaten.",details:["Öffne links den Bereich Kunden.","Klicke auf „Kunde hinzufügen“.","Trage mindestens Name/Firma und die passenden Kontaktdaten ein.","Ergänze Straße, Hausnummer, PLZ und Ort.","Speichere den Kunden und kontrolliere den Eintrag in der Kundenliste."],target:"customers",button:"Kunden öffnen"},
+    {title:"Rechnung erstellen",question:"Hast du eine neue Rechnung angelegt?",summary:"Wähle einen Kunden und trage die Leistung sowie die Beträge ein.",details:["Öffne Rechnungen und klicke auf „Neue Rechnung“.","Wähle den richtigen Kunden.","Prüfe Rechnungsdatum, Liefer-/Leistungsdatum und Zahlungsziel.","Trage für jede Position eine verständliche Beschreibung, Menge, Preis und den passenden Steuersatz ein.","Kontrolliere Netto, Umsatzsteuer und Bruttobetrag, bevor du speicherst."],target:"invoices",button:"Rechnungen öffnen"},
+    {title:"Rechnung prüfen und als PDF speichern",question:"Ist die Rechnung vollständig und geprüft?",summary:"Öffne die Rechnung und kontrolliere die Vorschau, bevor du sie druckst oder als PDF speicherst.",details:["Öffne die gespeicherte Rechnung mit „Ansehen“.","Prüfe Rechnungssteller, Empfänger, Rechnungsnummer, Daten, Positionen und Gesamtbetrag.","Wenn Firmendaten fehlen, öffne Einstellungen → Unternehmen und speichere die fehlenden Angaben.","Klicke auf Drucken. Wähle im Druckdialog „Als PDF speichern“, wenn du eine PDF-Datei brauchst."],target:"invoices",button:"Rechnungen öffnen"},
+    {title:"Zahlungsstatus aktualisieren",question:"Hast du den Status geprüft?",summary:"So bleiben offene und bezahlte Rechnungen in deinen Übersichten richtig sortiert.",details:["Öffne Rechnungen und wähle die passende Rechnung.","Markiere sie erst dann als bezahlt, wenn die Zahlung tatsächlich eingegangen ist.","Prüfe anschließend Dashboard und Auswertungen.","Bei verspäteter Zahlung kontrollierst du das Fälligkeitsdatum und kontaktierst den Kunden bei Bedarf."],target:"reports",button:"Auswertungen öffnen"}
+  ];
+}
+function getHelpAnswer(question){
+  const q=norm(question);
+  if(!q)return {title:"Was möchtest du machen?",intro:"Schreib eine Frage hinein oder nutze eine der Beispiel-Fragen. Ich zeige dir die passenden Schritte.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?"],target:"help",button:"Hilfe ansehen"};
+  if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b/.test(q))return {title:"Mitarbeiterkonten",intro:"Mitarbeiterkonten sind für die nächste Entwicklungsphase geplant und in dieser Rechnio-Version noch nicht als fertige Funktion bestätigt.",steps:["Für echte Mitarbeiterkonten müssen zuerst sichere Benutzerkonten eingerichtet werden.","Danach werden Firmen und Benutzer sicher miteinander verknüpft.","Zum Schluss testen wir, dass Mitarbeiter nur die Daten ihrer eigenen Firma sehen."],target:"help",button:"Hilfe ansehen"};
+  if(/pdf|drucken|druck|rechnung anschauen|rechnung ansehen|vorschau/.test(q))return {title:"Rechnung prüfen und als PDF speichern",intro:"So prüfst du eine gespeicherte Rechnung, bevor du sie druckst.",steps:["Öffne links „Rechnungen“.","Klicke bei der gewünschten Rechnung auf „Ansehen“.","Lies die Warnhinweise in der Vorschau. Wenn Firmendaten fehlen, gehe zu Einstellungen → Unternehmen und speichere Name, Anschrift und – soweit benötigt – Steuernummer oder USt-IdNr.","Öffne die Rechnung erneut und klicke auf „Drucken“.","Wähle im Druckfenster „Als PDF speichern“."],target:"invoices",button:"Zu Rechnungen"};
+  if(/kunde|kunden|kunde anlegen|kunden anlegen|kontakt/.test(q))return {title:"Kunden hinzufügen",intro:"Lege zuerst den Rechnungsempfänger an, damit du ihn bei einer Rechnung auswählen kannst.",steps:["Öffne links „Kunden“.","Klicke auf „Kunde hinzufügen“.","Trage den Namen bzw. Firmennamen und die erreichbaren Kontaktdaten ein.","Ergänze Straße und Hausnummer, PLZ und Ort und speichere den Kunden."],target:"customers",button:"Zu Kunden"};
+  if(/einstellung|unternehmen|firmenname|firmendaten|steuernummer|ust|iban|absender|rechnungssteller|adresse/.test(q))return {title:"Firmendaten vervollständigen",intro:"Die Angaben zum Rechnungssteller werden in den Unternehmenseinstellungen gepflegt – nicht im Kundenformular.",steps:["Öffne links „Einstellungen“.","Wähle den Tab „Unternehmen“.","Trage den richtigen rechtlichen Namen/Firmennamen sowie Straße, Hausnummer, PLZ und Ort ein.","Ergänze deine Steuernummer oder USt-IdNr., soweit für deine Rechnung erforderlich. Eine IBAN kannst du ergänzen, wenn Kunden per Überweisung zahlen sollen.","Klicke auf „Änderungen speichern“ und öffne die Rechnung erneut."],target:"company",button:"Firmendaten öffnen"};
+  if(/rechnung|neue rechnung|rechnung erstellen|invoice|position|umsatzsteuer/.test(q))return {title:"Eine Rechnung erstellen",intro:"Gehe diese Schritte der Reihe nach durch. Vor dem Drucken musst du die Daten sorgfältig kontrollieren.",steps:["Falls noch nicht erledigt: Öffne Einstellungen → Unternehmen und ergänze deine Firmendaten.","Öffne links „Rechnungen“ und klicke auf „Neue Rechnung“.","Wähle den Kunden aus. Fehlt er, lege ihn zuerst im Bereich „Kunden“ an.","Prüfe Rechnungsdatum, Liefer-/Leistungsdatum und Zahlungsziel.","Füge Positionen hinzu: Beschreibung, Menge, Einzelpreis und den zutreffenden Steuersatz.","Speichere die Rechnung, öffne „Ansehen“ und prüfe alle Daten sowie den Gesamtbetrag.","Wenn alles stimmt, klicke auf „Drucken“ und wähle „Als PDF speichern“."],target:"invoices",button:"Zu Rechnungen"};
+  if(/bezahlt|zahlung|status|offen|überfällig|ueberfaellig|fällig/.test(q))return {title:"Zahlungsstatus verstehen",intro:"Rechnio hilft dir, offene und bezahlte Rechnungen im Blick zu behalten.",steps:["Öffne links „Rechnungen“.","Suche die Rechnung und kontrolliere ihren Status sowie das Fälligkeitsdatum.","Markiere eine Rechnung nur dann als bezahlt, wenn das Geld angekommen ist.","Kontrolliere die Übersicht anschließend im Dashboard oder unter „Auswertungen“."],target:"invoices",button:"Zu Rechnungen"};
+  if(/export|csv|download/.test(q))return {title:"Daten exportieren",intro:"Nutze den Export in der jeweils passenden Übersicht.",steps:["Für Kunden: öffne „Kunden“ und klicke auf „Export“.","Wähle Monat, Jahr oder alle Kunden aus und bestätige den Export.","Für Rechnungen: öffne „Rechnungen“ und wähle dort „Export“.","Speichere die heruntergeladene CSV-Datei an einem Ort, an dem du sie wiederfindest."],target:"customers",button:"Zu Kunden"};
+  return {title:"Das kann ich dir zeigen",intro:"Ich antworte anhand der Rechnio-Bedienungsanleitung. Versuche es mit einer konkreten Frage wie diesen:",steps:["Wie erstelle ich eine Rechnung?","Wie füge ich einen Kunden hinzu?","Warum fehlen Firmendaten auf meiner Rechnung?","Wie speichere ich eine Rechnung als PDF?","Wie exportiere ich meine Kunden?"],target:"help",button:"Hilfe ansehen"};
+}
+function renderHelpAnswer(answer){
+  if(!answer)return "";
+  const list=(answer.steps||[]).map(step=>`<li>${esc(step)}</li>`).join("");
+  let action="";
+  if(answer.target==="company")action=`<button class="btn primary btn-sm" data-action="help-open-company">${icon("settings","icon icon-sm")}${esc(answer.button||"Firmendaten öffnen")}</button>`;
+  else if(["customers","invoices","reports"].includes(answer.target))action=`<button class="btn primary btn-sm" data-page="${escAttr(answer.target)}">${icon("chevron","icon icon-sm")}${esc(answer.button||"Öffnen")}</button>`;
+  return `<section class="help-answer" aria-live="polite"><h3>${esc(answer.title||"Antwort")}</h3><p>${esc(answer.intro||"")}</p><ol>${list}</ol>${action}</section>`;
+}
+function renderHelp(){
+  const steps=helpSteps();
+  const rawStep=Number(state.ui.helpStep)||0;
+  const complete=rawStep>=steps.length;
+  const index=Math.max(0,Math.min(rawStep,steps.length-1));
+  const step=steps[index];
+  const progress=complete?100:Math.round((index/steps.length)*100);
+  const wizard=complete?`<div class="help-success"><span class="help-step-number">${icon("check","icon icon-sm")} Anleitung abgeschlossen</span><h2>Sehr gut – du bist einmal durch Rechnio gegangen.</h2><p class="muted">Du kannst die Anleitung jederzeit neu starten oder eine konkrete Frage stellen.</p><div class="help-step-actions"><button class="btn primary" data-action="help-step-reset">Anleitung neu starten</button><button class="btn secondary" data-page="invoices">Zu Rechnungen</button></div></div>`:`<div class="help-current-step"><span class="help-step-number">Schritt ${index+1} von ${steps.length}</span><h2>${esc(step.title)}</h2><p>${esc(step.summary)}</p>${state.ui.helpShowDetails?`<ol class="help-detail-list">${step.details.map(x=>`<li>${esc(x)}</li>`).join("")}</ol>`:`<p class="muted small">${esc(step.question)}</p>`}<div class="help-step-actions"><button class="btn primary" data-action="help-step-next">${index===steps.length-1?"Ja, fertig – Anleitung beenden":"Ja, Schritt erledigt – weiter"}${icon("chevron","icon icon-sm")}</button><button class="btn secondary" data-action="help-step-details">${state.ui.helpShowDetails?"Schritte ausblenden":"Zeig mir, wie es geht"}</button><button class="btn ghost" data-action="help-step-go">${icon("chevron","icon icon-sm")}${esc(step.button)}</button></div></div>`;
+  const answer=renderHelpAnswer(state.ui.helpAnswer);
+  const question=String(state.ui.helpQuestion||"");
+  return `${heading("Hilfe & Anleitung","Lerne Rechnio Schritt für Schritt kennen – auf Computer, Tablet und Smartphone.")}
+    <section class="help-hero"><div class="help-kicker">Dein Rechnio-Assistent</div><h2>Wir machen es Schritt für Schritt.</h2><p>Arbeite die geführte Anleitung durch. Bei jedem Schritt kannst du dir zeigen lassen, was zu tun ist, und danach auf „Ja, Schritt erledigt“ klicken. Unten kannst du außerdem Fragen zur Bedienung stellen.</p></section>
+    <div class="help-layout"><section class="help-card"><div class="between wrap"><div><div class="help-kicker">Geführte Anleitung</div><h2 class="card-title" style="margin:5px 0 0">Rechnio kennenlernen</h2></div><span class="muted small">${complete?steps.length: index} / ${steps.length} Schritte erledigt</span></div><div class="help-progress" role="progressbar" aria-label="Fortschritt der Anleitung" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><div class="help-progress-fill" style="width:${progress}%"></div></div>${wizard}</section>
+    <section class="help-card"><div class="help-kicker">Fragen und Antworten</div><h2 class="card-title" style="margin:5px 0 6px">Was möchtest du machen?</h2><p class="muted" style="margin:0 0 14px;line-height:1.7">Schreib zum Beispiel: „Ich will eine Rechnung erstellen. Wie?“ Der Assistent zeigt dir passende Schritte zur Bedienung.</p><form id="helpAskForm" class="help-question-form"><label class="sr-only" for="helpQuestion">Deine Frage</label><textarea id="helpQuestion" class="textarea" placeholder="Ich will eine Rechnung erstellen. Wie?" maxlength="500">${esc(question)}</textarea><button class="btn primary" type="submit">Frage beantworten ${icon("chevron","icon icon-sm")}</button></form><div class="help-suggestions"><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Ich will eine Rechnung erstellen. Wie?">Ich will eine Rechnung erstellen. Wie?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Warum fehlen Firmendaten auf meiner Rechnung?">Warum fehlen Firmendaten auf meiner Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie lege ich einen Kunden an?">Wie lege ich einen Kunden an?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie speichere ich eine Rechnung als PDF?">Wie speichere ich eine Rechnung als PDF?</button></div>${answer}</section></div>`;
+}
+function submitHelpQuestion(question){
+  const q=String(question||"").trim();
+  if(!q){toast("Frage fehlt","Schreib kurz, wobei du Hilfe brauchst.","warning");return;}
+  state.ui.helpQuestion=q;
+  state.ui.helpAnswer=getHelpAnswer(q);
+  saveState();
+  renderPage();
+}
+function openHelpTarget(target){
+  if(target==="company"){
+    state.ui.settingsTab="company";
+    saveState();
+    navigate("settings");
+  }else if(["customers","invoices","reports"].includes(target)){
+    navigate(target);
+  }else{
+    navigate("help");
+  }
+}
+
 /* ================================================================
 REPORTS AND SETTINGS
 ================================================================ */
@@ -2905,9 +3039,22 @@ switch(action){
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
   case "import-data":$("#importFile")?.click();break;case "dismiss-toast":button.closest(".toast")?.remove();break;
   case "settings-tab":state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
+  case "invoice-missing-company-settings":closeModal();state.ui.settingsTab="company";saveState();navigate("settings");break;
+  case "help-open-company":openHelpTarget("company");break;
+  case "help-step-next":state.ui.helpStep=Math.min((Number(state.ui.helpStep)||0)+1,helpSteps().length);state.ui.helpShowDetails=false;saveState();renderPage();if(state.ui.helpStep>=helpSteps().length)toast("Anleitung abgeschlossen","Du hast alle Schritte durchlaufen.");break;
+  case "help-step-details":state.ui.helpShowDetails=!state.ui.helpShowDetails;saveState();renderPage();break;
+  case "help-step-reset":state.ui.helpStep=0;state.ui.helpShowDetails=false;saveState();renderPage();break;
+  case "help-step-go":openHelpTarget(helpSteps()[Math.min(Number(state.ui.helpStep)||0,helpSteps().length-1)].target);break;
+  case "help-ask-suggestion":submitHelpQuestion(button.dataset.question||"");break;
   case "page-prev":changePage(button.dataset.type,-1);break;case "page-next":changePage(button.dataset.type,1);break;
   default:break;
 }
+});
+$("#pageContent").addEventListener("submit",e=>{
+  if(e.target && e.target.id==="helpAskForm"){
+    e.preventDefault();
+    submitHelpQuestion($("#helpQuestion")?.value||"");
+  }
 });
 $("#pageContent").addEventListener("input",e=>{
   if(e.target.id==="customerSearch"){
