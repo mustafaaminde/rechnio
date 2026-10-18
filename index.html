@@ -1332,9 +1332,9 @@ body{font-size:15px;line-height:1.6}
       <div id="loginError" class="login-error hidden" role="alert"></div>
       <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
-      <p class="auth-switch hidden"><span id="authSwitchText">Privater Testzugang</span> <button id="authModeToggle" class="link-button" type="button" tabindex="-1">Registrierung deaktiviert</button></p>
+      <p class="auth-switch"><span id="authSwitchText">Noch kein Konto?</span> <button id="authModeToggle" class="link-button" type="button">Konto erstellen</button></p>
     </form>
-    <div class="login-legal">Rechnio befindet sich in einer Testphase. Bitte verwende keine echten Kundendaten.</div>
+    <div class="login-legal">Schütze deine Zugangsdaten und prüfe Rechnungen vor dem Versand sorgfältig.</div>
   </div></div>
 </section>
 
@@ -1389,11 +1389,10 @@ const $$ = (selector, root=document) => Array.from(root.querySelectorAll(selecto
 let state = createInitialState();
 let authMode = "login";
 let authenticatedUser = null;
-let cloudPersistenceAvailable = false;
-let cloudHydrating = false;
+let cloudReady = false;
 let cloudSaveTimer = null;
-let cloudSaveQueue = Promise.resolve();
-let cloudSetupNotice = "";
+let cloudSaveInProgress = false;
+let cloudSavePending = false;
 let currentModal = null;
 let pendingDelete = null;
 let invoiceDraftItems = [];
@@ -1636,92 +1635,58 @@ function loadStateForUser(user){
     return loaded;
   }catch(error){console.error("Rechnio konnte gespeicherte Kontodaten nicht lesen.",error);return initial;}
 }
-function queueCloudStateSave(){
-  if(!cloudPersistenceAvailable||cloudHydrating||!authenticatedUser?.id)return;
+function queueCloudSave(){
+  if(!cloudReady||!authenticatedUser||!state.user||state.user.id!==authenticatedUser.id)return;
   if(cloudSaveTimer)clearTimeout(cloudSaveTimer);
-  cloudSaveTimer=setTimeout(()=>{
-    const snapshot=JSON.parse(JSON.stringify(state));
-    cloudSaveQueue=cloudSaveQueue.catch(()=>{}).then(async()=>{
-      if(!cloudPersistenceAvailable||!authenticatedUser?.id)return;
-      const response=await fetch("/api/state",{
-        method:"PUT",credentials:"same-origin",cache:"no-store",
-        headers:{"Content-Type":"application/json","Accept":"application/json"},
-        body:JSON.stringify({state:snapshot})
-      });
-      if(!response.ok){
-        const payload=await response.json().catch(()=>({}));
-        throw new Error(payload.error||"Cloud-Speicherung fehlgeschlagen.");
-      }
-    }).catch(error=>{
-      console.error("Rechnio Cloud-Speicherung fehlgeschlagen:",error);
-      cloudPersistenceAvailable=false;
-      if(!cloudSetupNotice)cloudSetupNotice="Deine Änderungen bleiben zunächst in diesem Browser gespeichert. Die Cloud-Speicherung konnte nicht abgeschlossen werden. Prüfe die Supabase-Tabelle und die RLS-Regeln.";
-    });
-  },700);
+  cloudSaveTimer=setTimeout(()=>{cloudSaveTimer=null;persistCloudState();},700);
 }
-async function activateAccount(user){
-  authenticatedUser=user;
-  cloudPersistenceAvailable=false;
-  cloudSetupNotice="";
-  let chosen=loadStateForUser(user);
-  let remoteStateFound=false;
+async function persistCloudState(){
+  if(!cloudReady||!authenticatedUser||!state.user||state.user.id!==authenticatedUser.id)return;
+  if(cloudSaveInProgress){cloudSavePending=true;return;}
+  cloudSaveInProgress=true;
   try{
-    const response=await fetch("/api/state",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+    const response=await fetch("/api/state",{method:"PUT",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({state})});
     const payload=await response.json().catch(()=>({}));
-    if(response.ok){
-      cloudPersistenceAvailable=true;
-      if(payload.state&&typeof payload.state==="object"){
-        chosen=normalizeSavedState(payload.state,emptyAccountState(user));
-        remoteStateFound=true;
-      }
-    }else{
-      cloudSetupNotice=payload.error||"Die Cloud-Speicherung ist noch nicht eingerichtet.";
-    }
+    if(!response.ok)throw new Error(payload.error||"Die Cloud-Speicherung ist fehlgeschlagen.");
   }catch(error){
-    console.warn("Rechnio Cloud-Speicherung ist derzeit nicht erreichbar:",error);
-    cloudSetupNotice="Die Cloud-Speicherung ist nicht erreichbar. Deine Daten bleiben vorerst in diesem Browser.";
+    console.error("Rechnio cloud save failed:",error);
+    toast("Cloud-Speicherung fehlgeschlagen",error.message||"Deine Änderungen sind vorerst nur in diesem Browser gespeichert.","error");
+  }finally{
+    cloudSaveInProgress=false;
+    if(cloudSavePending){cloudSavePending=false;queueCloudSave();}
   }
-  chosen.user={...(chosen.user||{}),...user};
-  cloudHydrating=true;
-  state=chosen;
+}
+async function loadCloudStateForUser(user){
+  cloudReady=false;
+  const response=await fetch("/api/state",{method:"GET",credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+  const payload=await response.json().catch(()=>({}));
+  if(!response.ok)throw new Error(payload.error||"Deine Rechnio-Daten konnten nicht aus der Cloud geladen werden.");
+  if(payload.state&&typeof payload.state==="object"&&!Array.isArray(payload.state)){
+    state=normalizeSavedState(payload.state,emptyAccountState(user));
+    state.user={...state.user,...user};
+    state.preferences={...state.preferences,showDemoData:false};
+  }else{
+    // First login for this account: migrate this account's local data, if any.
+    state=loadStateForUser(user);
+    state.user=user;
+  }
   validateState();
-  try{
-    localStorage.setItem(accountStorageKey(user.id),JSON.stringify(state));
-  }catch(error){
-    console.warn("Rechnio konnte den lokalen Cache nicht speichern:",error);
-  }
-  cloudHydrating=false;
-  if(cloudPersistenceAvailable&&!remoteStateFound){
-    try{
-      const response=await fetch("/api/state",{
-        method:"PUT",credentials:"same-origin",cache:"no-store",
-        headers:{"Content-Type":"application/json","Accept":"application/json"},
-        body:JSON.stringify({state})
-      });
-      if(!response.ok){
-        const payload=await response.json().catch(()=>({}));
-        throw new Error(payload.error||"Der erste Cloud-Speichervorgang ist fehlgeschlagen.");
-      }
-    }catch(error){
-      cloudPersistenceAvailable=false;
-      cloudSetupNotice=error.message||"Die Cloud-Speicherung ist noch nicht eingerichtet.";
-      console.warn("Rechnio konnte den ersten Cloud-Stand nicht speichern:",error);
-    }
-  }
+  cloudReady=true;
+  saveState();
 }
 function saveState(){
   try{
     state.version=VERSION;
     const key=state.user&&state.user.id?accountStorageKey(state.user.id):STORAGE_KEY;
     localStorage.setItem(key,JSON.stringify(state));
-    queueCloudStateSave();
+    queueCloudSave();
     return true;
   }
-catch(error){
-  console.error("Rechnio storage write failed",error);
-  toast("Speichern nicht möglich","Der Browser-Speicher ist eventuell voll oder blockiert.","error");
-  return false;
-}
+  catch(error){
+    console.error("Rechnio storage write failed",error);
+    toast("Speichern nicht möglich","Der Browser-Speicher ist eventuell voll oder blockiert.","error");
+    return false;
+  }
 }
 function uid(prefix){
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,7)}`;
@@ -1871,27 +1836,48 @@ state.activity=state.activity.slice(0,40);
 /* ================================================================
 STARTUP, AUTHENTICATION AND NAVIGATION
 ================================================================ */
+function handleAuthReturnNotice(){
+  // Supabase may return signup confirmation details in the URL fragment after verifying the email.
+  // Remove token-like values from the address bar immediately; the app uses its own server-side session.
+  const fragment = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+  const query = new URLSearchParams(String(window.location.search || "").replace(/^\?/, ""));
+  const errorCode = fragment.get("error_code") || fragment.get("error") || query.get("error_code") || query.get("error");
+  const errorDescription = fragment.get("error_description") || query.get("error_description");
+  const type = fragment.get("type") || query.get("type");
+  const hasAuthReturn = Boolean(window.location.hash || query.has("error_code") || query.has("error") || query.has("type") || query.has("code"));
+  if(!hasAuthReturn)return "";
+  try{window.history.replaceState({}, document.title, window.location.pathname);}catch(_){/* URL cleanup is best-effort. */}
+  if(errorCode || errorDescription){
+    const readable = String(errorDescription || errorCode || "Die E-Mail-Bestätigung ist fehlgeschlagen.").replace(/[+]/g," ");
+    return "E-Mail-Bestätigung nicht abgeschlossen: " + readable + ". Öffne bei Bedarf eine neue Bestätigungs-E-Mail.";
+  }
+  if(type === "signup" || fragment.has("access_token")){
+    return "E-Mail bestätigt! Dein Rechnio-Konto ist aktiviert. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.";
+  }
+  return "";
+}
 async function boot(){
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
   setAuthMode("login");
   showLogin();
+  const authReturnNotice=handleAuthReturnNotice();
   try{
     const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
-    if(response.status===401){showLogin();return;}
-    if(response.status===404){showLogin();showAuthSetupNotice("Der Anmeldeserver ist noch nicht bereit. Prüfe, ob die aktuelle server.js deployed wurde.");return;}
+    if(response.status===401){showLogin();if(authReturnNotice)showAuthSetupNotice(authReturnNotice);return;}
     const payload=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(payload.error||"Der Anmeldestatus konnte nicht geprüft werden.");
     const user=extractAuthUser(payload);
     if(!user){showLogin();return;}
-    await activateAccount(user);
+    authenticatedUser=user;
+    await loadCloudStateForUser(user);
     showApp();
-    if(cloudSetupNotice)toast("Cloud-Speicherung prüfen",cloudSetupNotice,"warning");
     if(!String(user.name||"").trim())askForName();
   }catch(error){
-    console.error("Rechnio auth status check failed:",error);
+    console.error("Rechnio auth/cloud initialization failed:",error);
+    cloudReady=false;
     showLogin();
-    showAuthSetupNotice("Die Anmeldung konnte den Server nicht erreichen. Prüfe den Render-Status und die Testzugang-Variablen.");
+    showAuthSetupNotice(authReturnNotice || error.message || "Die Anmeldung konnte den Server nicht erreichen. Prüfe die Render- und Supabase-Einstellungen.");
   }
 }
 function extractAuthUser(payload){
@@ -1899,8 +1885,9 @@ function extractAuthUser(payload){
   if(!raw||typeof raw!=="object"||!raw.id||!raw.email)return null;
   return {id:String(raw.id),email:String(raw.email),name:String(raw.name||"")};
 }
-function showAuthSetupNotice(_message){
-  // Der separate gelbe Einrichtungshinweis wurde auf Wunsch entfernt.
+function showAuthSetupNotice(message){
+  const box=$("#loginError");
+  if(box&&message){box.textContent=message;box.classList.remove("hidden");}
 }
 function showLogin(){
   $("#loginScreen")?.classList.remove("hidden");
@@ -1914,21 +1901,15 @@ function setAuthMode(mode){
   authMode=mode==="register"?"register":"login";
   const registering=authMode==="register";
   $("#authTitle").textContent=registering?"Konto erstellen":"Willkommen zurück";
-  $("#authSubtitle").textContent=registering?"Erstelle dein persönliches Rechnio-Konto.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
+  $("#authSubtitle").textContent=registering?"Erstelle dein Konto, um deinen eigenen Rechnio-Arbeitsbereich zu starten.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
   $("#authSubmit").innerHTML=registering?"Konto erstellen "+icon("chevron","icon icon-sm"):"Anmelden "+icon("chevron","icon icon-sm");
   $("#registerConfirmWrap").classList.toggle("hidden",!registering);
   $("#registerPasswordConfirm").required=registering;
-  $("#registerPasswordConfirm").minLength=8;
   $("#loginMeta").classList.toggle("hidden",registering);
-  $("#passwordHint").textContent=registering?"Verwende mindestens 8 Zeichen.":"Gib dein Passwort ein.";
+  $("#passwordHint").textContent=registering?"Mindestens 8 Zeichen verwenden.":"Gib dein Konto-Passwort ein.";
   $("#loginPassword").autocomplete=registering?"new-password":"current-password";
-  $("#loginPassword").minLength=registering?8:1;
-  const switchRow=$(".auth-switch");
-  switchRow?.classList.remove("hidden");
-  $("#authSwitchText").textContent=registering?"Bereits registriert?":"Noch kein Konto?";
-  $("#authModeToggle").textContent=registering?"Zur Anmeldung":"Konto erstellen";
-  $("#authModeToggle").tabIndex=0;
-  $("#authModeToggle").classList.remove("hidden");
+  $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
+  $("#authModeToggle").textContent=registering?"Anmelden":"Konto erstellen";
   $("#loginError").classList.add("hidden");
   $("#authSetupNotice")?.classList.add("hidden");
 }
@@ -1943,26 +1924,20 @@ async function submitAuth(){
   const endpoint=authMode==="register"?"/api/auth/register":"/api/auth/login";
   const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
   const payload=await response.json().catch(()=>({}));
-  if(authMode==="register"&&response.ok&&payload.needsEmailConfirmation){
+  if(response.status===202&&payload.needsEmailConfirmation){
     setAuthMode("login");
     $("#loginEmail").value=email;
-    $("#loginPassword").value="";
-    $("#loginError").classList.add("hidden");
-    toast("E-Mail bestätigen",payload.message||"Öffne die Bestätigungsnachricht von Supabase und bestätige deine E-Mail-Adresse.","info");
+    $("#loginError").textContent=payload.message||"Bitte bestätige deine E-Mail-Adresse, bevor du dich anmeldest.";
+    $("#loginError").classList.remove("hidden");
     return;
   }
-  if(response.status===401)throw new Error(payload.error||"E-Mail oder Passwort stimmt nicht.");
-  if(response.status===503)throw new Error(payload.error||"Der Anmeldedienst ist nicht vollständig konfiguriert.");
-  if(!response.ok)throw new Error(payload.error||(authMode==="register"?"Das Konto konnte nicht erstellt werden.":"Die Anmeldung ist fehlgeschlagen."));
+  if(!response.ok)throw new Error(payload.error||(authMode==="register"?"Das Konto konnte nicht erstellt werden.":"E-Mail oder Passwort stimmt nicht."));
   const user=extractAuthUser(payload);
   if(!user)throw new Error("Der Server hat kein gültiges Benutzerkonto zurückgegeben.");
-  await activateAccount(user);
-  state.user=user;
-  validateState();
-  $("#authSetupNotice")?.classList.add("hidden");
+  authenticatedUser=user;
+  await loadCloudStateForUser(user);
   showApp();
-  toast(authMode==="register"?"Konto erstellt":"Willkommen zurück",authMode==="register"?"Dein Rechnio-Konto ist bereit.":"Du bist erfolgreich angemeldet.");
-  if(cloudSetupNotice)toast("Cloud-Speicherung prüfen",cloudSetupNotice,"warning");
+  toast(authMode==="register"?"Konto erstellt":"Willkommen zurück",authMode==="register"?"Dein Rechnio-Arbeitsbereich ist bereit.":"Du bist erfolgreich angemeldet.");
   if(!String(user.name||"").trim())askForName();
 }
 async function logout(){
@@ -1970,6 +1945,8 @@ async function logout(){
     await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"Accept":"application/json"}});
   }catch(error){console.warn("Abmeldung konnte den Server nicht erreichen.",error);}
   authenticatedUser=null;
+  cloudReady=false;
+  if(cloudSaveTimer){clearTimeout(cloudSaveTimer);cloudSaveTimer=null;}
   closeSidebar();
   showLogin();
   setAuthMode("login");
@@ -2454,7 +2431,7 @@ function viewInvoice(id){
   const note=i.notes||state.company.footer||"";
   openModal({
     title:i.number,subtitle:i.title||"Rechnungsdetails",size:"wide",
-    body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap">${c?.email?`<button class="btn secondary btn-sm" data-action="send-invoice" data-id="${escAttr(i.id)}">${icon("send","icon icon-sm")} Per E-Mail senden</button>`:`<span class="hint">Hinterlege beim Kunden eine E-Mail-Adresse, um die Rechnung zu versenden.</span>`}<button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div>
+    body:`<div class="between wrap" style="margin-bottom:16px"><div>${badge(statusOf(i))}<div class="tiny faint" style="margin-top:7px">Erstellt am ${formatDate(i.issueDate)}</div></div><div class="row wrap"><button class="btn secondary btn-sm" data-action="edit-invoice" data-id="${escAttr(i.id)}">${icon("edit","icon icon-sm")} Bearbeiten</button></div></div>
       <div class="invoice-preview" id="invoicePreview">
         <div class="preview-head">
           <div>
@@ -2518,37 +2495,6 @@ function viewInvoice(id){
     footer:`<div class="row wrap">${statusOf(i)!=="paid"?`<button class="btn secondary btn-sm" data-action="mark-paid" data-id="${escAttr(i.id)}">${icon("check","icon icon-sm")} Als bezahlt markieren</button>`:""}</div><div class="foot-right"><button class="btn secondary" data-action="close-modal">Schließen</button><button class="btn primary" data-action="print-invoice" data-id="${escAttr(i.id)}">${icon("printer","icon icon-sm")} Drucken / PDF speichern</button></div>`
   });
 }
-async function sendInvoiceByEmail(id){
-  const invoice=invoiceById(id);
-  if(!invoice)return toast("Rechnung nicht gefunden","Der Eintrag existiert nicht mehr.","error");
-  const customer=customerById(invoice.customerId);
-  if(!customer?.email||!validEmail(customer.email))return toast("E-Mail-Adresse fehlt","Bitte hinterlege beim Rechnungsempfänger eine gültige E-Mail-Adresse.","warning");
-  if(!window.confirm(`Rechnung ${invoice.number} direkt per E-Mail an ${customer.email} senden? Die Rechnung wird als E-Mail-Inhalt verschickt, nicht als PDF-Anhang.`))return;
-  const button=$(`[data-action="send-invoice"][data-id="${CSS.escape(String(id))}"]`);
-  if(button){button.disabled=true;button.dataset.originalText=button.textContent;button.textContent="Wird gesendet…";}
-  try{
-    const response=await fetch("/api/send-invoice",{
-      method:"POST",credentials:"same-origin",cache:"no-store",
-      headers:{"Content-Type":"application/json","Accept":"application/json"},
-      body:JSON.stringify({invoice,customer,company:state.company})
-    });
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(payload.error||"Die E-Mail konnte nicht gesendet werden.");
-    state.invoices=state.invoices.map(item=>item.id===id?{...item,status:"sent"}:item);
-    addActivity("email","Rechnung per E-Mail versendet",`${invoice.number} · ${customer.email}`,amounts(invoice).gross);
-    saveState();
-    closeModal();
-    renderApp();
-    viewInvoice(id);
-    toast("E-Mail versendet",`Rechnung ${invoice.number} wurde an ${customer.email} übergeben.`);
-  }catch(error){
-    console.error("Rechnung-E-Mail konnte nicht versendet werden:",error);
-    toast("E-Mail nicht versendet",error.message||"Prüfe den E-Mail-Dienst und die Absenderdomain.","error");
-  }finally{
-    if(button&&button.isConnected){button.disabled=false;button.textContent=button.dataset.originalText||"Per E-Mail senden";}
-  }
-}
-
 function printInvoice(id){
   const invoice=invoiceById(id);
   if(!invoice){
@@ -2665,9 +2611,9 @@ function getHelpAnswer(question){
   if(!q)return {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu Rechnungen, Kunden, Exporten, Einstellungen oder zur Datenspeicherung. Die Antwort basiert auf der in dieser Version integrierten Rechnio-Anleitung.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?","Wo trage ich Firmendaten ein?","Wie exportiere ich Kunden?"],target:"help",button:"Hilfe ansehen"};
   if(/rechnung.{0,35}(erstell|anleg|neu)|(?:erstell|anleg).{0,35}rechnung|neue rechnung/.test(q))return {title:"Rechnung erstellen",intro:"So legst du eine neue Rechnung in Rechnio an.",steps:["Öffne links den Bereich „Rechnungen“.","Klicke auf „Neue Rechnung“.","Wähle den Rechnungsempfänger aus der Kundenliste aus.","Prüfe Rechnungsnummer, Rechnungsdatum und Zahlungsziel. Das Leistungsdatum oder der Leistungszeitraum kann ebenfalls ergänzt werden.","Füge eine Position hinzu und trage Beschreibung, Menge, Nettopreis und passenden Steuersatz ein.","Kontrolliere die berechneten Beträge und klicke auf „Rechnung speichern“.","Öffne die gespeicherte Rechnung zur Kontrolle. Über „Drucken / PDF speichern“ kannst du eine PDF-Datei erstellen."],target:"invoices",button:"Neue Rechnung öffnen"};
   if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b|mehrere benutzer/.test(q))return {title:"Mitarbeiterkonten",intro:"Mitarbeiterkonten sind in dieser Rechnio-Version noch nicht als fertige Funktion verfügbar.",steps:["Derzeit gibt es noch keine fertige Einlade- und Rollenverwaltung in der Oberfläche.","Dafür müssen echte Benutzerkonten eingerichtet und sicher mit einem Unternehmen verknüpft werden.","Danach braucht es serverseitige Datenbankregeln, damit Mitarbeiter nur erlaubte Daten ihres Unternehmens sehen.","Bis dahin solltest du keine vertraulichen echten Firmendaten in der Testversion speichern."],target:"help",button:"Hilfe ansehen"};
-  if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Wichtig: Mitarbeiterkonten sind noch nicht verfügbar. Cloud-Speicherung benötigt die eingerichtete Supabase-Tabelle; der E-Mail-Versand braucht einen verifizierten Absender bei Resend."],target:"dashboard",button:"Zum Dashboard"};
-  if(/mit login|anmelden|login|passwort|registrier|konto erstellen|zugang|zuruecksetzen|zurücksetzen/.test(q))return {title:"Anmelden und Zugang",intro:"Du kannst ein Rechnio-Konto mit deiner E-Mail-Adresse und einem Passwort erstellen. Je nach Supabase-Einstellung musst du anschließend deine E-Mail-Adresse bestätigen.",steps:["Gib die dir bereitgestellte E-Mail-Adresse manuell ein; sie wird nicht mehr automatisch ins Feld eingetragen.","Gib dein Passwort ein und klicke auf „Anmelden“.","Falls die Anmeldung fehlschlägt, überprüfe, ob der Dienst bei Render Live ist, und achte auf die Meldung unter dem Formular.","Es gibt in dieser Version keinen bestätigten Selbstbedienungs-Link zum Zurücksetzen des Passworts."],target:"help",button:"Hilfe ansehen"};
-  if(/e.?mail|email|versenden|versand|rechnung senden|rechnung per mail|mahnung|zahlungserinner/.test(q))return {title:"Rechnung per E-Mail versenden",intro:"Du kannst die Rechnung aus der Rechnungsansicht direkt per E-Mail versenden, sobald der E-Mail-Dienst und eine verifizierte Absenderadresse eingerichtet sind. Die Rechnung wird derzeit als formatierter E-Mail-Inhalt verschickt, nicht als PDF-Anhang.",steps:["Öffne „Rechnungen“ und klicke bei der passenden Rechnung auf „Ansehen“.","Prüfe die Rechnungsangaben und speichere über „Drucken / PDF speichern“ eine PDF-Datei.","Öffne dein E-Mail-Programm, wähle den Kunden als Empfänger und hänge das PDF an.","Der direkte E-Mail-Versand braucht einen konfigurierten Resend-API-Schlüssel und eine bei Resend verifizierte Absenderadresse. Automatische Mahnungen sind noch nicht eingerichtet."],target:"invoices",button:"Zu Rechnungen"};
+  if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Wichtig: Mitarbeiterkonten, automatische E-Mail-Zustellung und geräteübergreifende Cloud-Synchronisierung sind in dieser Version nicht als vollständig verfügbar bestätigt."],target:"dashboard",button:"Zum Dashboard"};
+  if(/mit login|anmelden|login|passwort|registrier|konto erstellen|zugang|zuruecksetzen|zurücksetzen/.test(q))return {title:"Anmelden und Zugang",intro:"Die aktuelle Oberfläche ist auf einen bereits eingerichteten Testzugang ausgelegt. Die Registrierung ist in diesem Build deaktiviert.",steps:["Gib die dir bereitgestellte E-Mail-Adresse manuell ein; sie wird nicht mehr automatisch ins Feld eingetragen.","Gib dein Passwort ein und klicke auf „Anmelden“.","Falls die Anmeldung fehlschlägt, überprüfe, ob der Dienst bei Render Live ist, und achte auf die Meldung unter dem Formular.","Es gibt in dieser Version keinen bestätigten Selbstbedienungs-Link zum Zurücksetzen des Passworts."],target:"help",button:"Hilfe ansehen"};
+  if(/e.?mail|email|versenden|versand|rechnung senden|rechnung per mail|mahnung|zahlungserinner/.test(q))return {title:"Rechnung per E-Mail versenden",intro:"In der aktuellen Oberfläche ist kein zuverlässig bestätigter Direktversand eingebaut. Die sichere Alternative ist, die Rechnung als PDF zu speichern und manuell über dein E-Mail-Programm zu senden.",steps:["Öffne „Rechnungen“ und klicke bei der passenden Rechnung auf „Ansehen“.","Prüfe die Rechnungsangaben und speichere über „Drucken / PDF speichern“ eine PDF-Datei.","Öffne dein E-Mail-Programm, wähle den Kunden als Empfänger und hänge das PDF an.","Automatische Mahnungen und ein integrierter E-Mail-Versand sollten erst genutzt werden, wenn der E-Mail-Dienst serverseitig eingerichtet und erfolgreich getestet wurde."],target:"invoices",button:"Zu Rechnungen"};
   if(/speicher|daten verloren|cloud|browser|geraet|gerät|backup|sicherung|importieren|import/.test(q))return {title:"Daten speichern und sichern",intro:"Laut Bereich „Einstellungen → Daten & Sicherung“ werden Kunden- und Rechnungsdaten in dieser Version lokal im Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.",steps:["Öffne „Einstellungen“ und den Bereich „Daten & Sicherung“.","Klicke auf „Exportieren“, um eine JSON-Sicherungsdatei herunterzuladen.","Bewahre diese Datei sicher auf. Sie kann Kundendaten enthalten.","Über „Daten importieren“ kannst du eine zuvor exportierte Rechnio-JSON-Datei wieder einlesen.","Lösche Browserdaten oder Website-Speicher nicht, bevor du eine Sicherung erstellt hast."],target:"data",button:"Daten & Sicherung öffnen"};
   if(/export|csv|download/.test(q))return {title:"Kunden und Rechnungen exportieren",intro:"Rechnio bietet Exporte direkt in den jeweiligen Übersichten.",steps:["Für Kunden: öffne „Kunden“ und klicke auf „Export“.","Wähle Monat, Jahr oder alle Kunden aus und bestätige mit „Exportieren“.","Für Rechnungen: öffne „Rechnungen“ und nutze die dortige Exportfunktion.","Die CSV-Datei kannst du in einem Tabellenprogramm öffnen. Prüfe beim Import in andere Programme die Spaltentrennung und das Datumsformat.","Für eine vollständige lokale Sicherung benutze zusätzlich „Einstellungen → Daten & Sicherung“ und exportiere die JSON-Datei."],target:"customers",button:"Zu Kunden"};
   if(/firmenname|firmendaten|steuernummer|ust.?id|iban|absender|rechnungssteller|unternehmensangaben|adresse vom unternehmen|warum fehlen firmendaten|fehlt der firmenname/.test(q))return {title:"Firmendaten fehlen in der Rechnung",intro:"Die Rechnung zeigt zwei verschiedene Datensätze: die Daten des Rechnungsstellers und die des Rechnungsempfängers. Kundendaten allein füllen die Unternehmensangaben nicht aus.",steps:["Öffne „Einstellungen“ und wähle den Tab „Unternehmen“.","Trage deinen tatsächlichen rechtlichen Namen bzw. Firmennamen ein.","Ergänze Straße und Hausnummer, PLZ und Ort.","Trage die für deine Situation passende Steuernummer oder USt-IdNr. ein. Verwende keine erfundenen Angaben.","Klicke auf „Änderungen speichern“ und öffne die Rechnung erneut.","Eine IBAN ist nur nötig, wenn du sie auf der Rechnung für Überweisungen angeben möchtest."],target:"company",button:"Firmendaten öffnen"};
@@ -3126,7 +3072,7 @@ const button=e.target.closest("[data-action]");if(!button)return;const action=bu
 switch(action){
   case "new-invoice":openInvoiceForm();break;case "new-customer":openCustomerForm();break;
   case "edit-invoice":closeModal(false);openInvoiceForm(id);break;case "edit-customer":closeModal(false);openCustomerForm(id);break;
-  case "view-invoice":viewInvoice(id);break;case "send-invoice":sendInvoiceByEmail(id);break;case "print-invoice":printInvoice(id);break;case "view-customer":viewCustomer(id);break;
+  case "view-invoice":viewInvoice(id);break;case "print-invoice":printInvoice(id);break;case "view-customer":viewCustomer(id);break;
   case "delete-invoice":requestDelete("invoice",id);break;case "delete-customer":requestDelete("customer",id);break;case "confirm-delete":confirmDelete();break;
   case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;
   case "mark-paid":markPaid(id);break;
