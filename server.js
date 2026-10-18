@@ -13,11 +13,11 @@ const HOST = "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 const INDEX_PATH = path.join(__dirname, "index.html");
 
-// Öffentliche URL für Supabase-Bestätigungslinks.
+// Public URL used in Supabase confirmation redirects. Render can override this via SITE_URL.
+// Never allow a localhost value to become the production confirmation destination.
 const PUBLIC_SITE_URL = (() => {
   const fallback = "https://rechnio.onrender.com";
   const configured = String(process.env.SITE_URL || "").trim();
-
   if (!configured) return fallback;
 
   try {
@@ -48,6 +48,7 @@ const RATE_WINDOW_MS = 15 * 60 * 1000;
 const MAX_AUTH_ATTEMPTS = 10;
 const MAX_EMAILS_PER_WINDOW = 10;
 
+// Sessions werden nur serverseitig gehalten. Nach einem Render-Neustart muss man sich erneut anmelden.
 const sessions = new Map();
 const authAttempts = new Map();
 const emailAttempts = new Map();
@@ -127,7 +128,6 @@ function readJson(req) {
       if (finished) return;
 
       if (!body.trim()) {
-        finished = true;
         return resolve({});
       }
 
@@ -240,7 +240,6 @@ function normalizeUser(user) {
   };
 }
 
-// Detailliertere Anmeldefehler, damit wir die tatsächliche Ursache erkennen.
 function safeAuthMessage(result, isSignup = false) {
   const data = result?.data || {};
 
@@ -275,7 +274,7 @@ function safeAuthMessage(result, isSignup = false) {
       detail
     )
   ) {
-    return "Supabase hat die Anmeldung abgelehnt. Prüfe, ob du dieselbe E-Mail-Adresse und dasselbe Passwort verwendest, mit denen du das Konto erstellt hast. Falls beides stimmt, prüfe in Supabase unter Authentication → Users, ob dieses Konto existiert und bestätigt ist.";
+    return "Anmeldung fehlgeschlagen.";
   }
 
   if (
@@ -295,17 +294,13 @@ function safeAuthMessage(result, isSignup = false) {
   }
 
   if (
-    /signup is disabled|signups not allowed|disable_signup/.test(
-      detail
-    )
+    /signup is disabled|signups not allowed|disable_signup/.test(detail)
   ) {
     return "Die Registrierung ist in Supabase deaktiviert. Aktiviere unter Authentication die Registrierung neuer Benutzer.";
   }
 
   if (
-    /rate limit|too many requests|over_request_rate_limit/.test(
-      detail
-    ) ||
+    /rate limit|too many requests|over_request_rate_limit/.test(detail) ||
     result?.status === 429
   ) {
     return "Zu viele Versuche. Bitte warte etwas und versuche es erneut.";
@@ -322,12 +317,12 @@ function safeAuthMessage(result, isSignup = false) {
   if (result?.status === 400 || result?.status === 422) {
     return isSignup
       ? "Das Konto konnte nicht erstellt werden. Prüfe die E-Mail-Adresse, das Passwort und die Supabase-Authentifizierungseinstellungen."
-      : "Supabase hat die Anmeldung abgelehnt. Prüfe E-Mail und Passwort und ob das Konto in Supabase → Authentication → Users existiert und bestätigt ist.";
+      : "Anmeldung fehlgeschlagen.";
   }
 
   return isSignup
     ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen in Render."
-    : "Die Anmeldung ist fehlgeschlagen. Prüfe die Supabase-Einstellungen in Render und versuche es erneut.";
+    : "Die Anmeldung ist fehlgeschlagen. Bitte versuche es erneut.";
 }
 
 function requestIp(req) {
@@ -386,12 +381,11 @@ function cookieHeader(req, token, maxAgeSeconds) {
 }
 
 function clearCookie(req) {
-  const secure =
-    req.headers["x-forwarded-proto"] === "https" ||
-    PUBLIC_SITE_URL.startsWith("https://");
-
   return `${COOKIE_NAME}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax${
-    secure ? "; Secure" : ""
+    req.headers["x-forwarded-proto"] === "https" ||
+    PUBLIC_SITE_URL.startsWith("https://")
+      ? "; Secure"
+      : ""
   }`;
 }
 
@@ -591,7 +585,6 @@ function emailHtml({
         <h1 style="font-size:25px;margin:8px 0 0">${h(invoice.number)}</h1>
         <div style="margin-top:8px;color:#dbeafe">${h(companyName)}</div>
       </div>
-
       <div style="padding:24px 26px">
         <div style="display:flex;flex-wrap:wrap;gap:28px;margin-bottom:24px">
           <div style="flex:1;min-width:220px">
@@ -607,7 +600,6 @@ function emailHtml({
             </p>
           </div>
         </div>
-
         <div style="background:#f8fafc;border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:20px;font-size:13px;margin-bottom:22px">
           <div><strong>Rechnungsdatum</strong><br>${displayDate(invoice.issueDate)}</div>
           <div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>
@@ -619,7 +611,6 @@ function emailHtml({
                 : ""
           }
         </div>
-
         <div style="overflow-x:auto">
           <table style="width:100%;border-collapse:collapse;font-size:13px">
             <thead>
@@ -634,7 +625,6 @@ function emailHtml({
             <tbody>${items}</tbody>
           </table>
         </div>
-
         <div style="max-width:310px;margin:22px 0 0 auto;font-size:14px">
           <div style="display:flex;justify-content:space-between;padding:5px 0">
             <span>Nettosumme</span><strong>${money(net)}</strong>
@@ -646,19 +636,16 @@ function emailHtml({
             <span>Gesamtbetrag</span><strong>${money(gross)}</strong>
           </div>
         </div>
-
         ${
           company.iban
             ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>`
             : ""
         }
-
         ${
           notes
             ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>`
             : ""
         }
-
         <p style="font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:26px">
           Diese E-Mail wurde über Rechnio versendet. Bitte bewahre die Nachricht für deine Unterlagen auf.
         </p>
@@ -837,7 +824,6 @@ async function handle(req, res) {
         process.env.RESEND_API_KEY && process.env.EMAIL_FROM
       ),
     });
-
     return;
   }
 
@@ -852,7 +838,6 @@ async function handle(req, res) {
       sendJson(res, 429, {
         error: "Zu viele Versuche. Bitte warte 15 Minuten und versuche es danach erneut.",
       });
-
       return;
     }
 
@@ -860,7 +845,6 @@ async function handle(req, res) {
       sendJson(res, 503, {
         error: "Die Anmeldung ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render.",
       });
-
       return;
     }
 
@@ -880,7 +864,6 @@ async function handle(req, res) {
       sendJson(res, 400, {
         error: "Bitte gib eine gültige E-Mail-Adresse ein.",
       });
-
       return;
     }
 
@@ -888,7 +871,6 @@ async function handle(req, res) {
       sendJson(res, 400, {
         error: "Das Passwort muss mindestens 8 Zeichen enthalten.",
       });
-
       return;
     }
 
@@ -896,7 +878,6 @@ async function handle(req, res) {
       sendJson(res, 400, {
         error: "Bitte gib ein gültiges Passwort ein.",
       });
-
       return;
     }
 
@@ -912,7 +893,7 @@ async function handle(req, res) {
     });
 
     if (!result.ok) {
-      // Keine E-Mail-Adresse, Passwörter oder Sitzungstokens protokollieren.
+      // Diagnostic only: do not log the user's email, password, or tokens.
       console.warn("Supabase auth request rejected", {
         action: signup ? "register" : "login",
         status: result.status,
@@ -937,35 +918,31 @@ async function handle(req, res) {
           error: safeAuthMessage(result, signup),
         }
       );
-
       return;
     }
 
-    // Supabase kann eine E-Mail-Bestätigung verlangen.
+    // Supabase can require email confirmation; in that case the user exists but no session is returned.
     if (
       signup &&
-      (!result.data?.access_token ||
+      (
+        !result.data?.access_token ||
         !result.data?.refresh_token ||
-        !result.data?.user?.id)
+        !result.data?.user?.id
+      )
     ) {
       sendJson(res, 202, {
         needsEmailConfirmation: true,
         message: "Dein Konto wurde angelegt. Öffne die Bestätigungs-E-Mail von Supabase. Danach kannst du dich anmelden.",
       });
-
       return;
     }
 
-    const opened = newSessionFromAuth(
-      result.data,
-      body.remember === true
-    );
+    const opened = newSessionFromAuth(result.data, body.remember === true);
 
     if (!opened) {
       sendJson(res, 502, {
         error: "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
       });
-
       return;
     }
 
@@ -983,7 +960,6 @@ async function handle(req, res) {
         ),
       }
     );
-
     return;
   }
 
@@ -995,14 +971,7 @@ async function handle(req, res) {
       return;
     }
 
-    authResponse(
-      res,
-      req,
-      200,
-      { user: found.session.user },
-      found
-    );
-
+    authResponse(res, req, 200, { user: found.session.user }, found);
     return;
   }
 
@@ -1013,7 +982,6 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
       });
-
       return;
     }
 
@@ -1036,7 +1004,6 @@ async function handle(req, res) {
         { error: "Bitte gib mindestens zwei Zeichen als Namen ein." },
         found
       );
-
       return;
     }
 
@@ -1054,7 +1021,6 @@ async function handle(req, res) {
         { error: "Dein Name konnte nicht im Benutzerkonto gespeichert werden." },
         found
       );
-
       return;
     }
 
@@ -1064,14 +1030,7 @@ async function handle(req, res) {
       found.session.user.name = name;
     }
 
-    authResponse(
-      res,
-      req,
-      200,
-      { user: found.session.user },
-      found
-    );
-
+    authResponse(res, req, 200, { user: found.session.user }, found);
     return;
   }
 
@@ -1079,6 +1038,7 @@ async function handle(req, res) {
     const found = await getSession(req);
 
     if (found) {
+      // The local session is invalidated even if the provider logout request has a temporary problem.
       sessions.delete(found.token);
 
       await supabaseRequest("/auth/v1/logout", {
@@ -1093,11 +1053,10 @@ async function handle(req, res) {
       { ok: true },
       { "Set-Cookie": clearCookie(req) }
     );
-
     return;
   }
 
-  // Benutzerspezifischer Cloudspeicher mit Supabase Row Level Security.
+  // Pro-Benutzer-Cloudspeicher mit Supabase Row Level Security.
   if (
     route === "/api/state" &&
     (req.method === "GET" || req.method === "PUT")
@@ -1137,13 +1096,10 @@ async function handle(req, res) {
           },
           found
         );
-
         return;
       }
 
-      const row = Array.isArray(result.data)
-        ? result.data[0]
-        : null;
+      const row = Array.isArray(result.data) ? result.data[0] : null;
 
       authResponse(
         res,
@@ -1152,7 +1108,6 @@ async function handle(req, res) {
         { state: row?.state || null },
         found
       );
-
       return;
     }
 
@@ -1177,7 +1132,6 @@ async function handle(req, res) {
         { error: "Der zu speichernde Rechnio-Datenstand ist ungültig." },
         found
       );
-
       return;
     }
 
@@ -1212,12 +1166,11 @@ async function handle(req, res) {
         missingTable ? 503 : 502,
         {
           error: missingTable
-            ? "Die Cloud-Tabelle fehlt noch. Führe die Datei rechnio_supabase_setup.sql im Supabase SQL Editor aus."
+            ? "Die Cloud-Tabelle fehlt noch. Führe rechnio_supabase_setup.sql im Supabase SQL Editor aus."
             : "Cloud-Speicherung fehlgeschlagen. Prüfe die RLS-Regeln in Supabase.",
         },
         found
       );
-
       return;
     }
 
@@ -1225,10 +1178,12 @@ async function handle(req, res) {
       res,
       req,
       200,
-      { ok: true, savedAt: new Date().toISOString() },
+      {
+        ok: true,
+        savedAt: new Date().toISOString(),
+      },
       found
     );
-
     return;
   }
 
@@ -1239,7 +1194,6 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Bitte melde dich erneut an.",
       });
-
       return;
     }
 
@@ -1253,7 +1207,6 @@ async function handle(req, res) {
         },
         found
       );
-
       return;
     }
 
@@ -1273,7 +1226,6 @@ async function handle(req, res) {
         },
         found
       );
-
       return;
     }
 
@@ -1289,14 +1241,7 @@ async function handle(req, res) {
     const checked = validateInvoicePayload(body);
 
     if (checked.error) {
-      authResponse(
-        res,
-        req,
-        400,
-        { error: checked.error },
-        found
-      );
-
+      authResponse(res, req, 400, { error: checked.error }, found);
       return;
     }
 
@@ -1371,7 +1316,6 @@ async function handle(req, res) {
         },
         found
       );
-
       return;
     }
 
@@ -1381,9 +1325,7 @@ async function handle(req, res) {
       console.error(
         "Resend hat eine E-Mail abgelehnt:",
         resendResponse.status,
-        String(
-          resendData.message || resendData.name || ""
-        ).slice(0, 300)
+        String(resendData.message || resendData.name || "").slice(0, 300)
       );
 
       if (resendResponse.status === 401) {
@@ -1396,7 +1338,6 @@ async function handle(req, res) {
           },
           found
         );
-
         return;
       }
 
@@ -1415,7 +1356,6 @@ async function handle(req, res) {
           },
           found
         );
-
         return;
       }
 
@@ -1428,7 +1368,6 @@ async function handle(req, res) {
         },
         found
       );
-
       return;
     }
 
@@ -1436,10 +1375,12 @@ async function handle(req, res) {
       res,
       req,
       200,
-      { ok: true, emailId: resendData.id || null },
+      {
+        ok: true,
+        emailId: resendData.id || null,
+      },
       found
     );
-
     return;
   }
 
@@ -1447,7 +1388,6 @@ async function handle(req, res) {
     sendJson(res, 404, {
       error: "Diese API-Funktion ist nicht eingerichtet.",
     });
-
     return;
   }
 
