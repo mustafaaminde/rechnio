@@ -1328,7 +1328,6 @@ body{font-size:15px;line-height:1.6}
     <form id="loginForm" class="login-form" novalidate>
       <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" maxlength="254" required></div></div>
       <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
-      <div id="registerConfirmWrap" class="field hidden"><label for="registerPasswordConfirm">Passwort wiederholen</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="registerPasswordConfirm" class="input" type="password" autocomplete="new-password" placeholder="Passwort erneut eingeben"></div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
       <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
@@ -1836,23 +1835,49 @@ state.activity=state.activity.slice(0,40);
 /* ================================================================
 STARTUP, AUTHENTICATION AND NAVIGATION
 ================================================================ */
-function handleAuthReturnNotice(){
-  // Supabase may return signup confirmation details in the URL fragment after verifying the email.
-  // Remove token-like values from the address bar immediately; the app uses its own server-side session.
+async function handleAuthReturnNotice(){
   const fragment = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
   const query = new URLSearchParams(String(window.location.search || "").replace(/^\?/, ""));
   const errorCode = fragment.get("error_code") || fragment.get("error") || query.get("error_code") || query.get("error");
   const errorDescription = fragment.get("error_description") || query.get("error_description");
-  const type = fragment.get("type") || query.get("type");
-  const hasAuthReturn = Boolean(window.location.hash || query.has("error_code") || query.has("error") || query.has("type") || query.has("code"));
-  if(!hasAuthReturn)return "";
-  try{window.history.replaceState({}, document.title, window.location.pathname);}catch(_){/* URL cleanup is best-effort. */}
+  const accessToken = fragment.get("access_token") || query.get("access_token");
+  const refreshToken = fragment.get("refresh_token") || query.get("refresh_token");
+  const expiresIn = Number(fragment.get("expires_in") || query.get("expires_in") || 3600);
+  const authReturn = Boolean(window.location.hash || query.has("error_code") || query.has("error") || query.has("type") || query.has("code") || query.has("access_token"));
+  if(!authReturn)return "";
+
+  // Remove OAuth/Auth tokens from the address bar before making any other request.
+  try{window.history.replaceState({}, document.title, "/");}catch(_){/* Best-effort URL cleanup. */}
+
   if(errorCode || errorDescription){
-    const readable = String(errorDescription || errorCode || "Die E-Mail-Bestätigung ist fehlgeschlagen.").replace(/[+]/g," ");
-    return "E-Mail-Bestätigung nicht abgeschlossen: " + readable + ". Öffne bei Bedarf eine neue Bestätigungs-E-Mail.";
+    const readable=String(errorDescription||errorCode||"Die E-Mail-Bestätigung ist fehlgeschlagen.").replace(/[+]/g," ");
+    return "E-Mail-Bestätigung nicht abgeschlossen: "+readable+". Fordere bei Bedarf einen neuen Bestätigungslink an.";
   }
-  if(type === "signup" || fragment.has("access_token")){
-    return "E-Mail bestätigt! Dein Rechnio-Konto ist aktiviert. Melde dich jetzt mit deiner E-Mail-Adresse und deinem Passwort an.";
+
+  if(accessToken && refreshToken){
+    try{
+      const remember = query.get("remember") !== "0";
+      const response=await fetch("/api/auth/session",{
+        method:"POST",
+        credentials:"same-origin",
+        cache:"no-store",
+        headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({accessToken,refreshToken,expiresIn,remember})
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Die Bestätigung konnte keine Sitzung erstellen.");
+      return "E-Mail bestätigt. Dein Rechnio-Konto wird geöffnet.";
+    }catch(error){
+      console.error("Email confirmation session exchange failed:",error);
+      return error.message||"Die E-Mail wurde bestätigt, aber die Anmeldung konnte nicht abgeschlossen werden. Bitte melde dich an.";
+    }
+  }
+
+  if(query.has("code")){
+    return "Der Bestätigungslink wurde geöffnet, aber Supabase hat keine Sitzungstoken zurückgegeben. Prüfe die Confirm-signup-E-Mail-Vorlage in Supabase und verwende dort {{ .ConfirmationURL }}.";
+  }
+  if(fragment.get("type")==="signup"){
+    return "Die E-Mail wurde bestätigt. Melde dich mit deiner E-Mail-Adresse und deinem Passwort an.";
   }
   return "";
 }
@@ -1861,7 +1886,7 @@ async function boot(){
   bindEvents();
   setAuthMode("login");
   showLogin();
-  const authReturnNotice=handleAuthReturnNotice();
+  const authReturnNotice=await handleAuthReturnNotice();
   try{
     const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
     if(response.status===401){showLogin();if(authReturnNotice)showAuthSetupNotice(authReturnNotice);return;}
@@ -1894,19 +1919,16 @@ function showLogin(){
   $("#appShell")?.classList.add("hidden");
   if($("#loginEmail"))$("#loginEmail").value="";
   if($("#loginPassword"))$("#loginPassword").value="";
-  if($("#registerPasswordConfirm"))$("#registerPasswordConfirm").value="";
   $("#loginError")?.classList.add("hidden");
 }
 function setAuthMode(mode){
   authMode=mode==="register"?"register":"login";
   const registering=authMode==="register";
   $("#authTitle").textContent=registering?"Konto erstellen":"Willkommen zurück";
-  $("#authSubtitle").textContent=registering?"Erstelle dein Konto, um deinen eigenen Rechnio-Arbeitsbereich zu starten.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
+  $("#authSubtitle").textContent=registering?"Erstelle dein Konto mit einer E-Mail-Adresse und einem Passwort. Wir senden dir einen Bestätigungslink.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
   $("#authSubmit").innerHTML=registering?"Konto erstellen "+icon("chevron","icon icon-sm"):"Anmelden "+icon("chevron","icon icon-sm");
-  $("#registerConfirmWrap").classList.toggle("hidden",!registering);
-  $("#registerPasswordConfirm").required=registering;
-  $("#loginMeta").classList.toggle("hidden",registering);
-  $("#passwordHint").textContent=registering?"Mindestens 8 Zeichen verwenden.":"Gib dein Konto-Passwort ein.";
+  $("#loginMeta").classList.remove("hidden");
+  $("#passwordHint").textContent=registering?"Verwende mindestens 8 Zeichen. Danach bestätigen wir deine E-Mail-Adresse.":"Gib dein Konto-Passwort ein.";
   $("#loginPassword").autocomplete=registering?"new-password":"current-password";
   $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
   $("#authModeToggle").textContent=registering?"Anmelden":"Konto erstellen";
@@ -1919,7 +1941,6 @@ async function submitAuth(){
   if(!validEmail(email))throw new Error("Bitte gib eine gültige E-Mail-Adresse ein.");
   if(authMode==="register"){
     if(password.length<8)throw new Error("Dein Passwort muss mindestens 8 Zeichen enthalten.");
-    if(password!==$("#registerPasswordConfirm").value)throw new Error("Die beiden Passwörter stimmen nicht überein.");
   }
   const endpoint=authMode==="register"?"/api/auth/register":"/api/auth/login";
   const response=await fetch(endpoint,{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({email,password,remember:$("#rememberLogin")?.checked===true})});
