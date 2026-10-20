@@ -955,6 +955,70 @@ async function handle(req, res) {
     return;
   }
 
+  if (req.method === "POST" && route === "/api/auth/password-reset") {
+    const limitKey = `${requestIp(req)}:password-reset`;
+    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
+      sendJson(res, 429, { error: "Zu viele Anfragen. Bitte warte 15 Minuten und versuche es erneut." });
+      return;
+    }
+    if (!supabaseConfig()) {
+      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render." });
+      return;
+    }
+    let body;
+    try { body = await readJson(req); }
+    catch (error) { sendJson(res, 400, { error: error.message }); return; }
+    const email = String(body.email || "").trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      sendJson(res, 400, { error: "Bitte gib eine gültige E-Mail-Adresse ein." });
+      return;
+    }
+    const redirectTo = `${PUBLIC_SITE_URL}/reset-password`;
+    const result = await supabaseRequest(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
+      method: "POST",
+      body: { email },
+    });
+    if (!result.ok) {
+      console.warn("Supabase password recovery request rejected", { status: result.status, code: String(result.data?.code || result.data?.error || "unknown").slice(0, 80) });
+      sendJson(res, result.status === 429 ? 429 : 502, { error: result.status === 429 ? "Zu viele Anfragen. Bitte warte etwas und versuche es erneut." : "Der Passwort-Link konnte gerade nicht angefordert werden. Prüfe die Supabase-E-Mail-Einstellungen und versuche es erneut." });
+      return;
+    }
+    sendJson(res, 200, { ok: true, message: "Falls ein Konto mit dieser E-Mail-Adresse existiert, erhältst du einen Link zum Zurücksetzen des Passworts." });
+    return;
+  }
+
+  if (req.method === "POST" && route === "/api/auth/password-update") {
+    if (!supabaseConfig()) {
+      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe die Supabase-Einstellungen in Render." });
+      return;
+    }
+    let body;
+    try { body = await readJson(req); }
+    catch (error) { sendJson(res, 400, { error: error.message }); return; }
+    const accessToken = String(body.accessToken || "").trim();
+    const password = String(body.password ?? "");
+    if (!accessToken || accessToken.length > 10000) {
+      sendJson(res, 400, { error: "Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an." });
+      return;
+    }
+    if (password.length < 8 || password.length > 256) {
+      sendJson(res, 400, { error: "Das Passwort muss mindestens 8 Zeichen enthalten." });
+      return;
+    }
+    const result = await supabaseRequest("/auth/v1/user", {
+      method: "PUT",
+      accessToken,
+      body: { password },
+    });
+    if (!result.ok) {
+      console.warn("Supabase password update rejected", { status: result.status, code: String(result.data?.code || result.data?.error || "unknown").slice(0, 80) });
+      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
+      return;
+    }
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
   if (
     req.method === "POST" &&
     (
@@ -1441,7 +1505,7 @@ async function handle(req, res) {
         missingTable ? 503 : 502,
         {
           error: missingTable
-            ? "Die Cloud-Tabelle fehlt noch. Führe rechnio_supabase_setup.sql im Supabase SQL Editor aus."
+            ? "Die Cloud-Tabelle fehlt noch. Führe die Datei rechnio_supabase_setup.sql im Supabase SQL Editor aus."
             : "Cloud-Speicherung fehlgeschlagen. Prüfe die RLS-Regeln in Supabase.",
         },
         found
