@@ -1280,6 +1280,17 @@ body{font-size:15px;line-height:1.6}
 @media(max-width:980px){.help-layout{grid-template-columns:minmax(0,1fr)}.help-hero{padding:20px}.help-card{padding:19px}}
 @media(max-width:600px){.help-card{padding:15px}.help-hero{padding:17px}.help-step-actions{display:grid;grid-template-columns:1fr}.help-step-actions .btn{width:100%;white-space:normal}.help-suggestions{display:grid;grid-template-columns:1fr}.help-chip{width:100%;padding:10px 12px}.invoice-missing-notice{flex-wrap:wrap}.invoice-missing-notice .btn{width:100%}}
 
+
+.password-reset-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,15,28,.72);backdrop-filter:blur(5px)}
+.password-reset-overlay.hidden{display:none!important}
+.password-reset-card{width:min(100%,440px);padding:28px;border:1px solid var(--line,#e5e7eb);border-radius:18px;background:var(--panel,#fff);color:var(--text,#172033);box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.password-reset-card h2{margin:0 0 8px;font-size:23px}
+.password-reset-card p{margin:0 0 20px;color:var(--muted,#64748b);line-height:1.55}
+.password-reset-card .field{margin-bottom:14px}
+.password-reset-actions{display:flex;gap:10px;margin-top:20px}
+.password-reset-actions .btn{flex:1}
+.forgot-password-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+
 </style>
 </head>
 <body>
@@ -1329,7 +1340,7 @@ body{font-size:15px;line-height:1.6}
       <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" maxlength="254" required></div></div>
       <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
-      <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
+      <div class="login-meta forgot-password-row" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label><button id="forgotPasswordButton" class="link-button" type="button">Passwort vergessen?</button></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
       <p class="auth-switch"><span id="authSwitchText">Noch kein Konto?</span> <button id="authModeToggle" class="link-button" type="button">Konto erstellen</button></p>
     </form>
@@ -1351,7 +1362,18 @@ body{font-size:15px;line-height:1.6}
     <div id="pageContent" class="content"></div>
   </main>
 </div>
-<div id="modalRoot"></div><div id="toastRegion" class="toast-region" aria-live="polite"></div>
+<div id="modalRoot"></div>
+<div id="passwordResetOverlay" class="password-reset-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+  <form id="passwordResetForm" class="password-reset-card" novalidate>
+    <h2 id="passwordResetTitle">Neues Passwort festlegen</h2>
+    <p>Wähle ein neues Passwort für dein Rechnio-Konto. Verwende mindestens 8 Zeichen.</p>
+    <div class="field"><label for="newPassword">Neues Passwort</label><input id="newPassword" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+    <div class="field"><label for="confirmNewPassword">Passwort wiederholen</label><input id="confirmNewPassword" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+    <div id="passwordResetError" class="login-error hidden" role="alert"></div>
+    <div class="password-reset-actions"><button id="cancelPasswordReset" class="btn secondary" type="button">Abbrechen</button><button id="saveNewPassword" class="btn primary" type="submit">Passwort speichern</button></div>
+  </form>
+</div>
+<div id="toastRegion" class="toast-region" aria-live="polite"></div>
 
 <script>
 "use strict";
@@ -1361,6 +1383,7 @@ APP CONFIGURATION AND STATE
 const VERSION = "2.0.0";
 const STORAGE_KEY = "rechnio_local_v2";
 const DEFAULT_USER = Object.freeze({ id:"", email:"", name:"" });
+let passwordRecoveryToken = "";
 const PAGE_META = {
   dashboard:{
     title:"Dashboard",subtitle:"Hier siehst du, was in deinem Unternehmen gerade wichtig ist."
@@ -1881,11 +1904,105 @@ async function handleAuthReturnNotice(){
   }
   return "";
 }
+async function requestPasswordReset(){
+  if(authMode!=="login")return;
+  let email=$("#loginEmail").value.trim().toLowerCase();
+  if(!validEmail(email)){
+    email=window.prompt("Gib die E-Mail-Adresse deines Rechnio-Kontos ein:","");
+    if(email===null)return;
+    email=String(email).trim().toLowerCase();
+  }
+  if(!validEmail(email)){
+    showAuthSetupNotice("Bitte gib eine gültige E-Mail-Adresse ein.");
+    return;
+  }
+  const button=$("#forgotPasswordButton");
+  if(button){button.disabled=true;button.textContent="Wird gesendet…";}
+  try{
+    const response=await fetch("/api/auth/password-reset",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({email})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Der Link konnte nicht angefordert werden.");
+    $("#loginEmail").value=email;
+    showAuthSetupNotice(payload.message||"Falls ein Konto mit dieser E-Mail-Adresse existiert, erhältst du einen Link zum Zurücksetzen des Passworts.");
+  }catch(error){
+    showAuthSetupNotice(error.message||"Der Passwort-Link konnte nicht angefordert werden.");
+  }finally{
+    if(button){button.disabled=false;button.textContent="Passwort vergessen?";}
+  }
+}
+function openPasswordReset(token){
+  passwordRecoveryToken=String(token||"");
+  if(!passwordRecoveryToken){showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");return;}
+  $("#passwordResetError")?.classList.add("hidden");
+  $("#newPassword").value="";
+  $("#confirmNewPassword").value="";
+  $("#passwordResetOverlay")?.classList.remove("hidden");
+  setTimeout(()=>$("#newPassword")?.focus(),0);
+}
+function closePasswordReset(){
+  passwordRecoveryToken="";
+  $("#passwordResetOverlay")?.classList.add("hidden");
+}
+async function handlePasswordRecoveryReturn(){
+  const fragment=new URLSearchParams(String(window.location.hash||"").replace(/^#/,""));
+  const query=new URLSearchParams(String(window.location.search||"").replace(/^\?/,""));
+  const type=fragment.get("type")||query.get("type");
+  const accessToken=fragment.get("access_token")||query.get("access_token");
+  const errorCode=fragment.get("error_code")||fragment.get("error")||query.get("error_code")||query.get("error");
+  if(type!=="recovery"&&!errorCode)return false;
+  try{window.history.replaceState({},document.title,"/reset-password");}catch(_){/* Best-effort URL cleanup. */}
+  showLogin();
+  setAuthMode("login");
+  if(errorCode){
+    showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
+    return true;
+  }
+  if(!accessToken){
+    showAuthSetupNotice("Der Passwort-Link enthält kein gültiges Token. Fordere bitte einen neuen Link an.");
+    return true;
+  }
+  openPasswordReset(accessToken);
+  return true;
+}
+async function saveNewPassword(event){
+  event.preventDefault();
+  const password=$("#newPassword").value;
+  const confirmation=$("#confirmNewPassword").value;
+  const errorBox=$("#passwordResetError");
+  const button=$("#saveNewPassword");
+  errorBox.classList.add("hidden");
+  if(password.length<8){errorBox.textContent="Das Passwort muss mindestens 8 Zeichen enthalten.";errorBox.classList.remove("hidden");return;}
+  if(password!==confirmation){errorBox.textContent="Die Passwörter stimmen nicht überein.";errorBox.classList.remove("hidden");return;}
+  if(!passwordRecoveryToken){errorBox.textContent="Der Link ist nicht mehr gültig. Fordere bitte einen neuen Link an.";errorBox.classList.remove("hidden");return;}
+  button.disabled=true;button.textContent="Wird gespeichert…";
+  try{
+    const response=await fetch("/api/auth/password-update",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({accessToken:passwordRecoveryToken,password})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Das Passwort konnte nicht geändert werden.");
+    closePasswordReset();
+    showLogin();setAuthMode("login");
+    showAuthSetupNotice("Dein Passwort wurde geändert. Melde dich jetzt mit deinem neuen Passwort an.");
+  }catch(error){
+    errorBox.textContent=error.message||"Das Passwort konnte nicht geändert werden.";
+    errorBox.classList.remove("hidden");
+  }finally{
+    button.disabled=false;button.textContent="Passwort speichern";
+  }
+}
 async function boot(){
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
   setAuthMode("login");
   showLogin();
+  if(await handlePasswordRecoveryReturn())return;
   const authReturnNotice=await handleAuthReturnNotice();
   try{
     const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
@@ -1928,6 +2045,7 @@ function setAuthMode(mode){
   $("#authSubtitle").textContent=registering?"Erstelle dein Konto mit einer E-Mail-Adresse und einem Passwort. Wir senden dir einen Bestätigungslink.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
   $("#authSubmit").innerHTML=registering?"Konto erstellen "+icon("chevron","icon icon-sm"):"Anmelden "+icon("chevron","icon icon-sm");
   $("#loginMeta").classList.remove("hidden");
+  $("#forgotPasswordButton")?.classList.toggle("hidden",registering);
   $("#passwordHint").textContent=registering?"Verwende mindestens 8 Zeichen. Danach bestätigen wir deine E-Mail-Adresse.":"Gib dein Konto-Passwort ein.";
   $("#loginPassword").autocomplete=registering?"new-password":"current-password";
   $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
@@ -3084,6 +3202,9 @@ function bindEvents(){
       }
     });
     $("#authModeToggle")?.addEventListener("click",()=>setAuthMode(authMode==="login"?"register":"login"));
+    $("#forgotPasswordButton")?.addEventListener("click",requestPasswordReset);
+    $("#passwordResetForm")?.addEventListener("submit",saveNewPassword);
+    $("#cancelPasswordReset")?.addEventListener("click",()=>{closePasswordReset();showLogin();setAuthMode("login");});
   }
 document.addEventListener("click",e=>{
   const page=e.target.closest("[data-page]");if(page){
