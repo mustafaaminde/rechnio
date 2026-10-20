@@ -1,0 +1,23 @@
+RECHNIO – E-MAIL-FIX: PRÜFBERICHT
+
+Geprüft am 20.10.2026 anhand des bereitgestellten Bundles.
+
+BESTANDEN
+- server.js besteht `node --check`.
+- Das JavaScript im index.html besteht `node --check`.
+- Die Dateien index.html und server.js stimmen mit den ZIP-Kopien überein.
+- Lokaler Smoke-Test: GET /api/health -> HTTP 200.
+- Lokaler Smoke-Test: GET / -> HTTP 200 und HTML wird ausgeliefert.
+- POST /api/send-invoice ist aktiv; ohne Anmeldung antwortet die Route erwartungsgemäß HTTP 401 statt eines deaktivierten Test-Build-Fehlers.
+- Das Frontend sendet invoice/customer/company in dem Format, das server.js erwartet.
+
+NICHT BESTÄTIGT
+- Ein echter Versand über Resend wurde NICHT durchgeführt, weil dafür ein gültiger echter API-Key und ein autorisierter Live-Zugriff erforderlich sind.
+- GitHub wurde NICHT geändert und Render wurde NICHT neu deployed; in dieser Sitzung liegt keine authentifizierte Schreibverbindung zum Repository vor.
+
+WICHTIGE GRENZE
+- Für einen Test mit `EMAIL_FROM=onboarding@resend.dev` muss der Empfänger die E-Mail-Adresse sein, mit der das Resend-Konto registriert ist. Für echte Kunden-Empfänger braucht Resend einen Absender aus einer verifizierten eigenen Domain.
+- `package.json` bleibt unverändert, weil server.js die eingebaute `fetch`-Funktion von Node.js 18+ nutzt und keine neue Bibliothek benötigt.
+- Rechnungsdetails werden als HTML/Text-E-Mail versendet; dieses Bundle hängt kein PDF an.
+
+Bitte API-Schlüssel, Passwörter und Session-Secrets niemals in GitHub committen oder öffentlich posten.
