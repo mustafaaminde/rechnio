@@ -13,8 +13,6 @@ const HOST = "0.0.0.0";
 const PORT = Number(process.env.PORT || 3000);
 const INDEX_PATH = path.join(__dirname, "index.html");
 
-// Public URL used in Supabase confirmation redirects. Render can override this via SITE_URL.
-// Never allow a localhost value to become the production confirmation destination.
 const PUBLIC_SITE_URL = (() => {
   const fallback = "https://rechnio.onrender.com";
   const configured = String(process.env.SITE_URL || "").trim();
@@ -53,8 +51,6 @@ const SESSION_COOKIE_MAX_AGE_SECONDS = Math.floor(
   REMEMBER_SESSION_TTL_MS / 1000
 );
 
-// Non-remembered sessions live in memory. Remembered sessions are encrypted into an HttpOnly cookie,
-// allowing them to survive Render restarts/spin-downs when SESSION_SECRET is configured.
 const sessions = new Map();
 const authAttempts = new Map();
 const emailAttempts = new Map();
@@ -63,6 +59,7 @@ function supabaseConfig() {
   const url = String(process.env.SUPABASE_URL || "")
     .trim()
     .replace(/\/+$/, "");
+
   const key = String(process.env.SUPABASE_ANON_KEY || "").trim();
 
   return url && key ? { url, key } : null;
@@ -84,9 +81,11 @@ function serveIndex(res) {
   fs.readFile(INDEX_PATH, (error, contents) => {
     if (error) {
       console.error("index.html konnte nicht gelesen werden:", error.message);
+
       sendJson(res, 500, {
         error: "Rechnio konnte nicht geladen werden.",
       });
+
       return;
     }
 
@@ -115,15 +114,23 @@ function readJson(req) {
           finished = true;
           reject(new Error("Die Anfrage ist zu groß."));
         }
+
         return;
       }
 
-      if (!finished) body += chunk.toString("utf8");
+      if (!finished) {
+        body += chunk.toString("utf8");
+      }
     });
 
     req.on("end", () => {
       if (finished) return;
-      if (!body.trim()) return resolve({});
+
+      if (!body.trim()) {
+        finished = true;
+        resolve({});
+        return;
+      }
 
       try {
         const value = JSON.parse(body);
@@ -187,9 +194,6 @@ async function supabaseRequest(
     };
   }
 
-  // Public Auth endpoints need the API key,
-  // but no Authorization: Bearer API-key header.
-  // Only send a Bearer token when a real authenticated user's access token is available.
   const headers = {
     apikey: config.key,
     Accept: "application/json",
@@ -242,6 +246,7 @@ function normalizeUser(user) {
 
 function safeAuthMessage(result, isSignup = false) {
   const data = result?.data || {};
+
   const code = String(
     data.code || data.error_code || data.error || ""
   ).toLowerCase();
@@ -257,7 +262,7 @@ function safeAuthMessage(result, isSignup = false) {
       detail
     )
   ) {
-    return "Rechnio kann Supabase nicht authentifizieren. Prüfe in Render unter Environment, ob SUPABASE_URL und SUPABASE_ANON_KEY exakt aus deinem Supabase-Projekt stammen. Speichere keine Schlüssel im HTML-Code.";
+    return "Rechnio kann Supabase nicht authentifizieren. Prüfe in Render unter Environment, ob SUPABASE_URL und SUPABASE_ANON_KEY exakt aus deinem Supabase-Projekt stammen.";
   }
 
   if (
@@ -265,7 +270,7 @@ function safeAuthMessage(result, isSignup = false) {
       detail
     )
   ) {
-    return "Dieses bestehende Konto ist noch nicht bestätigt. Das Abschalten von Confirm email gilt für neue Registrierungen. Bestätige dieses Konto einmal in Supabase → Authentication → Users oder erstelle nach dem Speichern der Einstellung ein neues Konto.";
+    return "Dieses Konto ist noch nicht bestätigt. Bestätige das Konto in Supabase → Authentication → Users oder registriere ein neues Konto.";
   }
 
   if (
@@ -295,7 +300,7 @@ function safeAuthMessage(result, isSignup = false) {
   if (
     /signup is disabled|signups not allowed|disable_signup/.test(detail)
   ) {
-    return "Die Registrierung ist in Supabase deaktiviert. Aktiviere unter Authentication die Registrierung neuer Benutzer.";
+    return "Die Registrierung ist in Supabase deaktiviert. Aktiviere die Registrierung neuer Benutzer.";
   }
 
   if (
@@ -306,22 +311,22 @@ function safeAuthMessage(result, isSignup = false) {
   }
 
   if (result?.status === 401 || result?.status === 403) {
-    return "Supabase hat die Anfrage abgelehnt. Prüfe die Supabase-Schlüssel in Render unter Environment und kontrolliere, ob das Benutzerkonto in Supabase → Authentication → Users vorhanden ist.";
+    return "Supabase hat die Anfrage abgelehnt. Prüfe die Supabase-Schlüssel in Render.";
   }
 
   if (result?.status >= 500) {
-    return "Supabase hat gerade einen Serverfehler zurückgegeben. Bitte versuche es später erneut und prüfe bei Bedarf den Supabase-Status.";
+    return "Supabase hat einen Serverfehler zurückgegeben. Bitte versuche es später erneut.";
   }
 
   if (result?.status === 400 || result?.status === 422) {
     return isSignup
-      ? "Das Konto konnte nicht erstellt werden. Prüfe die E-Mail-Adresse, das Passwort und die Supabase-Authentifizierungseinstellungen."
-      : "Supabase hat die Anmeldung abgelehnt. Prüfe E-Mail und Passwort und ob das Konto in Supabase → Authentication → Users existiert und bestätigt ist.";
+      ? "Das Konto konnte nicht erstellt werden. Prüfe die E-Mail-Adresse, das Passwort und die Supabase-Einstellungen."
+      : "Supabase hat die Anmeldung abgelehnt. Prüfe E-Mail und Passwort.";
   }
 
   return isSignup
     ? "Das Konto konnte nicht erstellt werden. Prüfe die Supabase-Einstellungen in Render."
-    : "Die Anmeldung ist fehlgeschlagen. Prüfe die Supabase-Einstellungen in Render und versuche es erneut.";
+    : "Die Anmeldung ist fehlgeschlagen. Prüfe die Supabase-Einstellungen in Render.";
 }
 
 function requestIp(req) {
@@ -337,10 +342,12 @@ function isRateLimited(map, key, maxCount) {
       count: 1,
       resetAt: now + RATE_WINDOW_MS,
     });
+
     return false;
   }
 
   current.count += 1;
+
   return current.count > maxCount;
 }
 
@@ -387,10 +394,12 @@ function sealPersistentSession(session) {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
   const plaintext = Buffer.from(JSON.stringify(session), "utf8");
+
   const encrypted = Buffer.concat([
     cipher.update(plaintext),
     cipher.final(),
   ]);
+
   const tag = cipher.getAuthTag();
 
   return `p.${iv.toString("base64url")}.${tag.toString(
@@ -482,7 +491,9 @@ function createSessionCookie(req, session, remember, existingId = null) {
 
   sessions.set(id, session);
 
-  return `${COOKIE_NAME}=${encodeURIComponent(`s.${id}`)}; ${flags}`;
+  return `${COOKIE_NAME}=${encodeURIComponent(
+    `s.${id}`
+  )}; ${flags}`;
 }
 
 function clearCookie(req) {
@@ -536,19 +547,13 @@ async function getSession(req) {
     token = cookieValue.slice(2);
     session = sessions.get(token) || null;
   } else {
-    // Invalidate cookies made by older versions that used a different format.
     return null;
   }
 
-  if (
-    !session ||
-    Number(session.cookieExpiresAt) <= Date.now()
-  ) {
+  if (!session || Number(session.cookieExpiresAt) <= Date.now()) {
     if (!remember && token) sessions.delete(token);
     return null;
   }
-
-  let refreshed = false;
 
   if (session.accessExpiresAt <= Date.now() + 45_000) {
     const result = await supabaseRequest(
@@ -584,29 +589,19 @@ async function getSession(req) {
     if (!remember && token) {
       sessions.set(token, session);
     }
-
-    refreshed = true;
   }
 
   return {
     token,
     session,
-    refreshed,
+    refreshed: true,
     remember,
   };
 }
 
-function authResponse(
-  res,
-  req,
-  status,
-  data,
-  found = null,
-  extraHeaders = {}
-) {
+function authResponse(res, req, status, data, found = null, extraHeaders = {}) {
   const headers = { ...extraHeaders };
 
-  // Re-seal remembered sessions so rotated refresh tokens and profile changes survive restarts.
   if (found?.remember) {
     headers["Set-Cookie"] = createSessionCookie(
       req,
@@ -646,15 +641,7 @@ function displayDate(value) {
     : h(value || "—");
 }
 
-function emailHtml({
-  invoice,
-  customer,
-  company,
-  rows,
-  net,
-  vat,
-  gross,
-}) {
+function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
   const companyName = String(company.name || "Rechnio");
 
   const issuerAddress = [
@@ -667,21 +654,11 @@ function emailHtml({
   const items = rows
     .map(
       (row) => `<tr>
-        <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(
-          row.description
-        )}</td>
-        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(
-          row.quantity
-        )}</td>
-        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(
-          row.price
-        )}</td>
-        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(
-          row.vat
-        )} %</td>
-        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(
-          row.net
-        )}</td>
+        <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(row.description)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.quantity)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.price)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.vat)} %</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.net)}</td>
       </tr>`
     )
     .join("");
@@ -743,13 +720,9 @@ function emailHtml({
           <div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>
           ${
             invoice.serviceDate
-              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(
-                  invoice.serviceDate
-                )}</div>`
+              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(invoice.serviceDate)}</div>`
               : invoice.servicePeriod
-                ? `<div><strong>Leistungszeitraum</strong><br>${h(
-                    invoice.servicePeriod
-                  )}</div>`
+                ? `<div><strong>Leistungszeitraum</strong><br>${h(invoice.servicePeriod)}</div>`
                 : ""
           }
         </div>
@@ -780,16 +753,12 @@ function emailHtml({
         </div>
         ${
           company.iban
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(
-                company.iban
-              )}</p>`
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>`
             : ""
         }
         ${
           notes
-            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(
-                notes
-              ).replace(/\n/g, "<br>")}</p>`
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>`
             : ""
         }
         <p style="font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:26px">
@@ -843,8 +812,7 @@ function validateInvoicePayload(body) {
     invoice.items.length > 100
   ) {
     return {
-      error:
-        "Die Rechnung muss zwischen 1 und 100 Positionen enthalten.",
+      error: "Die Rechnung muss zwischen 1 und 100 Positionen enthalten.",
     };
   }
 
@@ -983,6 +951,7 @@ async function handle(req, res) {
       ),
       persistentLoginConfigured: hasPersistentSessionSecret(),
     });
+
     return;
   }
 
@@ -1071,7 +1040,6 @@ async function handle(req, res) {
     });
 
     if (!result.ok) {
-      // Diagnostic only: do not log the user's email, password, or tokens.
       console.warn("Supabase auth request rejected", {
         action: signup ? "register" : "login",
         status: result.status,
@@ -1102,10 +1070,10 @@ async function handle(req, res) {
           error: safeAuthMessage(result, signup),
         }
       );
+
       return;
     }
 
-    // Supabase can require email confirmation; in that case the user exists but no session is returned.
     if (
       signup &&
       (
@@ -1119,6 +1087,7 @@ async function handle(req, res) {
         message:
           "Wir haben dir einen Bestätigungslink per E-Mail geschickt. Öffne die E-Mail und klicke auf den Link. Danach wirst du automatisch zu Rechnio zurückgeleitet und wir fragen dich nach deinem Namen.",
       });
+
       return;
     }
 
@@ -1129,6 +1098,7 @@ async function handle(req, res) {
         error:
           "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
       });
+
       return;
     }
 
@@ -1146,6 +1116,7 @@ async function handle(req, res) {
           error.message ||
           "Die Sitzung konnte nicht sicher gespeichert werden.",
       });
+
       return;
     }
 
@@ -1157,10 +1128,10 @@ async function handle(req, res) {
       { user: opened.session.user },
       { "Set-Cookie": setCookie }
     );
+
     return;
   }
 
-  // Exchange the tokens returned after a Supabase email confirmation for an HttpOnly session cookie.
   if (req.method === "POST" && route === "/api/auth/session") {
     let body;
 
@@ -1186,6 +1157,7 @@ async function handle(req, res) {
         error:
           "Der Bestätigungslink enthält keine gültige Sitzung. Fordere einen neuen Link an.",
       });
+
       return;
     }
 
@@ -1194,10 +1166,10 @@ async function handle(req, res) {
         error:
           "SESSION_SECRET fehlt in Render. Bitte füge sie unter Environment hinzu und öffne danach einen neuen Bestätigungslink.",
       });
+
       return;
     }
 
-    // Verify the access token with Supabase before accepting it as a new session.
     const verified = await supabaseRequest("/auth/v1/user", {
       accessToken,
     });
@@ -1211,6 +1183,7 @@ async function handle(req, res) {
         error:
           "Der Bestätigungslink ist ungültig oder abgelaufen. Bitte fordere einen neuen Link an.",
       });
+
       return;
     }
 
@@ -1232,6 +1205,7 @@ async function handle(req, res) {
         error:
           "Die Bestätigung konnte keine gültige Rechnio-Sitzung erstellen.",
       });
+
       return;
     }
 
@@ -1266,16 +1240,11 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Bitte melde dich an.",
       });
+
       return;
     }
 
-    authResponse(
-      res,
-      req,
-      200,
-      { user: found.session.user },
-      found
-    );
+    authResponse(res, req, 200, { user: found.session.user }, found);
     return;
   }
 
@@ -1286,6 +1255,7 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Deine Sitzung ist abgelaufen. Bitte melde dich erneut an.",
       });
+
       return;
     }
 
@@ -1294,28 +1264,17 @@ async function handle(req, res) {
     try {
       body = await readJson(req);
     } catch (error) {
-      authResponse(
-        res,
-        req,
-        400,
-        { error: error.message },
-        found
-      );
+      authResponse(res, req, 400, { error: error.message }, found);
       return;
     }
 
     const name = String(body.name || "").trim().slice(0, 80);
 
     if (name.length < 2) {
-      authResponse(
-        res,
-        req,
-        400,
-        {
-          error: "Bitte gib mindestens zwei Zeichen als Namen ein.",
-        },
-        found
-      );
+      authResponse(res, req, 400, {
+        error: "Bitte gib mindestens zwei Zeichen als Namen ein.",
+      }, found);
+
       return;
     }
 
@@ -1328,16 +1287,10 @@ async function handle(req, res) {
     });
 
     if (!updated.ok) {
-      authResponse(
-        res,
-        req,
-        502,
-        {
-          error:
-            "Dein Name konnte nicht im Benutzerkonto gespeichert werden.",
-        },
-        found
-      );
+      authResponse(res, req, 502, {
+        error: "Dein Name konnte nicht im Benutzerkonto gespeichert werden.",
+      }, found);
+
       return;
     }
 
@@ -1347,13 +1300,7 @@ async function handle(req, res) {
       found.session.user.name = name;
     }
 
-    authResponse(
-      res,
-      req,
-      200,
-      { user: found.session.user },
-      found
-    );
+    authResponse(res, req, 200, { user: found.session.user }, found);
     return;
   }
 
@@ -1361,7 +1308,6 @@ async function handle(req, res) {
     const found = await getSession(req);
 
     if (found) {
-      // The local session is invalidated even if the provider logout request has a temporary problem.
       sessions.delete(found.token);
 
       await supabaseRequest("/auth/v1/logout", {
@@ -1376,10 +1322,10 @@ async function handle(req, res) {
       { ok: true },
       { "Set-Cookie": clearCookie(req) }
     );
+
     return;
   }
 
-  // Pro-Benutzer-Cloudspeicher mit Supabase Row Level Security.
   if (
     route === "/api/state" &&
     (req.method === "GET" || req.method === "PUT")
@@ -1390,6 +1336,7 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Bitte melde dich an.",
       });
+
       return;
     }
 
@@ -1410,9 +1357,7 @@ async function handle(req, res) {
 
         const missingTable =
           result.status === 404 ||
-          /rechnio_user_state|schema cache|does not exist/i.test(
-            message
-          );
+          /rechnio_user_state|schema cache|does not exist/i.test(message);
 
         authResponse(
           res,
@@ -1425,6 +1370,7 @@ async function handle(req, res) {
           },
           found
         );
+
         return;
       }
 
@@ -1439,6 +1385,7 @@ async function handle(req, res) {
         { state: row?.state || null },
         found
       );
+
       return;
     }
 
@@ -1447,13 +1394,7 @@ async function handle(req, res) {
     try {
       body = await readJson(req);
     } catch (error) {
-      authResponse(
-        res,
-        req,
-        400,
-        { error: error.message },
-        found
-      );
+      authResponse(res, req, 400, { error: error.message }, found);
       return;
     }
 
@@ -1462,16 +1403,10 @@ async function handle(req, res) {
       typeof body.state !== "object" ||
       Array.isArray(body.state)
     ) {
-      authResponse(
-        res,
-        req,
-        400,
-        {
-          error:
-            "Der zu speichernde Rechnio-Datenstand ist ungültig.",
-        },
-        found
-      );
+      authResponse(res, req, 400, {
+        error: "Der zu speichernde Rechnio-Datenstand ist ungültig.",
+      }, found);
+
       return;
     }
 
@@ -1498,9 +1433,7 @@ async function handle(req, res) {
 
       const missingTable =
         result.status === 404 ||
-        /rechnio_user_state|schema cache|does not exist/i.test(
-          message
-        );
+        /rechnio_user_state|schema cache|does not exist/i.test(message);
 
       authResponse(
         res,
@@ -1513,6 +1446,7 @@ async function handle(req, res) {
         },
         found
       );
+
       return;
     }
 
@@ -1526,6 +1460,7 @@ async function handle(req, res) {
       },
       found
     );
+
     return;
   }
 
@@ -1536,23 +1471,16 @@ async function handle(req, res) {
       sendJson(res, 401, {
         error: "Bitte melde dich erneut an.",
       });
+
       return;
     }
 
-    if (
-      !process.env.RESEND_API_KEY ||
-      !process.env.EMAIL_FROM
-    ) {
-      authResponse(
-        res,
-        req,
-        503,
-        {
-          error:
-            "Der E-Mail-Dienst ist nicht vollständig eingerichtet. Prüfe RESEND_API_KEY und EMAIL_FROM in Render.",
-        },
-        found
-      );
+    if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+      authResponse(res, req, 503, {
+        error:
+          "Der E-Mail-Dienst ist nicht vollständig eingerichtet. Prüfe RESEND_API_KEY und EMAIL_FROM in Render.",
+      }, found);
+
       return;
     }
 
@@ -1563,16 +1491,11 @@ async function handle(req, res) {
         MAX_EMAILS_PER_WINDOW
       )
     ) {
-      authResponse(
-        res,
-        req,
-        429,
-        {
-          error:
-            "Du hast gerade viele E-Mails gesendet. Bitte versuche es später erneut.",
-        },
-        found
-      );
+      authResponse(res, req, 429, {
+        error:
+          "Du hast gerade viele E-Mails gesendet. Bitte versuche es später erneut.",
+      }, found);
+
       return;
     }
 
@@ -1581,26 +1504,14 @@ async function handle(req, res) {
     try {
       body = await readJson(req);
     } catch (error) {
-      authResponse(
-        res,
-        req,
-        400,
-        { error: error.message },
-        found
-      );
+      authResponse(res, req, 400, { error: error.message }, found);
       return;
     }
 
     const checked = validateInvoicePayload(body);
 
     if (checked.error) {
-      authResponse(
-        res,
-        req,
-        400,
-        { error: checked.error },
-        found
-      );
+      authResponse(res, req, 400, { error: checked.error }, found);
       return;
     }
 
@@ -1675,16 +1586,10 @@ async function handle(req, res) {
     } catch (error) {
       console.error("Resend ist nicht erreichbar:", error.message);
 
-      authResponse(
-        res,
-        req,
-        502,
-        {
-          error:
-            "Der E-Mail-Dienst ist nicht erreichbar. Versuche es erneut.",
-        },
-        found
-      );
+      authResponse(res, req, 502, {
+        error: "Der E-Mail-Dienst ist nicht erreichbar. Versuche es erneut.",
+      }, found);
+
       return;
     }
 
@@ -1700,16 +1605,11 @@ async function handle(req, res) {
       );
 
       if (resendResponse.status === 401) {
-        authResponse(
-          res,
-          req,
-          502,
-          {
-            error:
-              "Der Resend-API-Schlüssel ist ungültig. Prüfe RESEND_API_KEY in Render.",
-          },
-          found
-        );
+        authResponse(res, req, 502, {
+          error:
+            "Der Resend-API-Schlüssel ist ungültig. Prüfe RESEND_API_KEY in Render.",
+        }, found);
+
         return;
       }
 
@@ -1719,42 +1619,27 @@ async function handle(req, res) {
           String(resendData.message || "")
         )
       ) {
-        authResponse(
-          res,
-          req,
-          502,
-          {
-            error:
-              "Resend lehnt den Absender ab. EMAIL_FROM muss von einer bei Resend verifizierten Domain stammen. Eine Gmail-Adresse allein reicht dafür nicht.",
-          },
-          found
-        );
+        authResponse(res, req, 502, {
+          error:
+            "Resend lehnt den Absender ab. EMAIL_FROM muss von einer bei Resend verifizierten Domain stammen. Eine Gmail-Adresse allein reicht dafür nicht.",
+        }, found);
+
         return;
       }
 
-      authResponse(
-        res,
-        req,
-        502,
-        {
-          error:
-            "Resend konnte die E-Mail nicht senden. Prüfe API-Key, Absender und Empfänger im Resend-Dashboard.",
-        },
-        found
-      );
+      authResponse(res, req, 502, {
+        error:
+          "Resend konnte die E-Mail nicht senden. Prüfe API-Key, Absender und Empfänger im Resend-Dashboard.",
+      }, found);
+
       return;
     }
 
-    authResponse(
-      res,
-      req,
-      200,
-      {
-        ok: true,
-        emailId: resendData.id || null,
-      },
-      found
-    );
+    authResponse(res, req, 200, {
+      ok: true,
+      emailId: resendData.id || null,
+    }, found);
+
     return;
   }
 
@@ -1762,6 +1647,7 @@ async function handle(req, res) {
     sendJson(res, 404, {
       error: "Diese API-Funktion ist nicht eingerichtet.",
     });
+
     return;
   }
 
@@ -1776,8 +1662,7 @@ const server = http.createServer((req, res) => {
 
     if (!res.headersSent) {
       sendJson(res, 500, {
-        error:
-          "Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.",
+        error: "Ein interner Fehler ist aufgetreten. Bitte versuche es erneut.",
       });
     } else {
       res.end();
