@@ -833,7 +833,6 @@ async function getSession(req) {
     remember,
   };
 }
-
 function authResponse(res, req, status, data, found = null, extraHeaders = {}) {
   const headers = { ...extraHeaders };
 
@@ -1510,8 +1509,7 @@ async function handle(req, res) {
     const verified = await supabaseRequest("/auth/v1/user", {
       accessToken,
     });
-
-    if (
+        if (
       !verified.ok ||
       !verified.data?.id ||
       !verified.data?.email
@@ -1918,7 +1916,19 @@ async function handle(req, res) {
         }
         let stateToSave = body.state;
         const existingRow = await getOrganizationState(context.organization.id);
-        if (context.membership.role === "employee" && existingRow?.state && typeof existingRow.state === "object") {
+       if (context.membership.role === "employee") {
+  const existingState = existingRow?.state;
+
+  if (
+    !existingState ||
+    typeof existingState !== "object" ||
+    Array.isArray(existingState)
+  ) {
+    authResponse(res, req, 409, {
+      error: "Der gemeinsame Datenstand fehlt noch. Bitte den Inhaber bitten, Rechnio zu öffnen und die Daten einmal zu speichern."
+    }, found);
+    return;
+  }
           const previous = existingRow.state;
           const previousCompany = previous.company && typeof previous.company === "object" ? previous.company : {};
           const submittedCompany = body.state.company && typeof body.state.company === "object" ? body.state.company : {};
