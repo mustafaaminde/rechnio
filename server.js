@@ -292,6 +292,15 @@ function isMissingDatabaseObject(result, name) {
 function readableDatabaseError(result, fallback) {
   const code = String(result?.data?.code || "");
   if (isMissingDatabaseObject(result, "rechnio_organization_state|rechnio_memberships|rechnio_organizations|rechnio_invitations")) {
+    // Diagnosewerte helfen, den echten PostgREST-Fehler in Render zu finden.
+    // Niemals Schlüssel, Tokens oder Anfrage-Header protokollieren.
+    console.warn("Rechnio team database API response:", JSON.stringify({
+      status: Number(result?.status || 0),
+      code: code || null,
+      message: String(result?.data?.message || "").slice(0, 300) || null,
+      details: String(result?.data?.details || "").slice(0, 300) || null,
+      hint: String(result?.data?.hint || "").slice(0, 300) || null,
+    }));
     return "Die Mitarbeiterkonto-Datenbank ist noch nicht vollständig eingerichtet. Führe das aktualisierte Mitarbeiterkonto-SQL in Supabase aus.";
   }
   if (code === "23505") return "Dieser Eintrag existiert bereits.";
@@ -419,6 +428,7 @@ async function ensureOrganizationMembership(user) {
   } else if (!isMissingDatabaseObject(legacy, "rechnio_user_state")) {
     console.warn("Rechnio legacy state migration skipped because the old data could not be read.");
   }
+
   return { membership, organization };
 }
 
@@ -617,7 +627,6 @@ function parseCookies(req) {
 function hasPersistentSessionSecret() {
   return SESSION_SECRET.length >= 32;
 }
-
 function sessionEncryptionKey() {
   if (!hasPersistentSessionSecret()) return null;
 
@@ -893,8 +902,7 @@ function emailHtml({ invoice, customer, company, rows, net, vat, gross }) {
   ]
     .filter(Boolean)
     .join(", ");
-
-  const items = rows
+      const items = rows
     .map(
       (row) => `<tr>
         <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(row.description)}</td>
@@ -1189,333 +1197,302 @@ async function handle(req, res) {
       service: "Rechnio",
       authConfigured: Boolean(supabaseConfig()),
       cloudConfigured: Boolean(supabaseConfig()),
-      emailConfigured: Boolean(
-        process.env.RESEND_API_KEY && process.env.EMAIL_FROM
-      ),
-      persistentLoginConfigured: hasPersistentSessionSecret(),
-      teamConfigured: Boolean(supabaseAdminConfig()),
-    });
+        const items = rows
+    .map(
+      (row) => `<tr>
+        <td style="padding:10px;border-bottom:1px solid #e5e7eb">${h(row.description)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.quantity)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.price)}</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${h(row.vat)} %</td>
+        <td style="padding:10px;text-align:right;border-bottom:1px solid #e5e7eb">${money(row.net)}</td>
+      </tr>`
+    )
+    .join("");
 
-    return;
+  const taxInfo = [
+    company.taxId ? `Steuernummer: ${h(company.taxId)}` : "",
+    company.vatNumber ? `USt-IdNr.: ${h(company.vatNumber)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  const companyInfo = [
+    h(companyName),
+    h(issuerAddress),
+    h(company.email || ""),
+    taxInfo,
+  ]
+    .filter(Boolean)
+    .join("<br>");
+
+  const customerAddress = [
+    customer.street,
+    [customer.postalCode, customer.city].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .map(h)
+    .join("<br>");
+
+  const notes = String(invoice.notes || company.footer || "");
+
+  return `<!doctype html>
+<html lang="de">
+<head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f5f7fb;font-family:Arial,Helvetica,sans-serif;color:#172033">
+  <div style="max-width:760px;margin:0 auto;padding:28px 14px">
+    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
+      <div style="padding:24px 26px;background:#172033;color:#fff">
+        <div style="font-size:12px;letter-spacing:2px;text-transform:uppercase;opacity:.8">Rechnung</div>
+        <h1 style="font-size:25px;margin:8px 0 0">${h(invoice.number)}</h1>
+        <div style="margin-top:8px;color:#dbeafe">${h(companyName)}</div>
+      </div>
+      <div style="padding:24px 26px">
+        <div style="display:flex;flex-wrap:wrap;gap:28px;margin-bottom:24px">
+          <div style="flex:1;min-width:220px">
+            <strong>Rechnungssteller</strong>
+            <p style="font-size:13px;line-height:1.7">${companyInfo || "Angaben zum Rechnungssteller fehlen."}</p>
+          </div>
+          <div style="flex:1;min-width:220px">
+            <strong>Rechnungsempfänger</strong>
+            <p style="font-size:13px;line-height:1.7">
+              <b>${h(customer.name || "")}</b><br>
+              ${customerAddress}
+              ${customer.email ? `<br>${h(customer.email)}` : ""}
+            </p>
+          </div>
+        </div>
+        <div style="background:#f8fafc;border-radius:8px;padding:14px;display:flex;flex-wrap:wrap;gap:20px;font-size:13px;margin-bottom:22px">
+          <div><strong>Rechnungsdatum</strong><br>${displayDate(invoice.issueDate)}</div>
+          <div><strong>Fällig am</strong><br>${displayDate(invoice.dueDate)}</div>
+          ${
+            invoice.serviceDate
+              ? `<div><strong>Leistungsdatum</strong><br>${displayDate(invoice.serviceDate)}</div>`
+              : invoice.servicePeriod
+                ? `<div><strong>Leistungszeitraum</strong><br>${h(invoice.servicePeriod)}</div>`
+                : ""
+          }
+        </div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="text-align:left;background:#f8fafc">
+                <th style="padding:10px">Beschreibung</th>
+                <th style="padding:10px;text-align:right">Menge</th>
+                <th style="padding:10px;text-align:right">Einzelpreis netto</th>
+                <th style="padding:10px;text-align:right">MwSt.</th>
+                <th style="padding:10px;text-align:right">Netto</th>
+              </tr>
+            </thead>
+            <tbody>${items}</tbody>
+          </table>
+        </div>
+        <div style="max-width:310px;margin:22px 0 0 auto;font-size:14px">
+          <div style="display:flex;justify-content:space-between;padding:5px 0">
+            <span>Nettosumme</span><strong>${money(net)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:5px 0">
+            <span>Umsatzsteuer</span><strong>${money(vat)}</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px 0;border-top:2px solid #172033;font-size:18px">
+            <span>Gesamtbetrag</span><strong>${money(gross)}</strong>
+          </div>
+        </div>
+        ${
+          company.iban
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:24px"><strong>Bankverbindung:</strong> ${h(company.iban)}</p>`
+            : ""
+        }
+        ${
+          notes
+            ? `<p style="font-size:13px;line-height:1.6;margin-top:18px"><strong>Hinweis:</strong><br>${h(notes).replace(/\n/g, "<br>")}</p>`
+            : ""
+        }
+        <p style="font-size:12px;color:#64748b;border-top:1px solid #e5e7eb;padding-top:16px;margin-top:26px">
+          Diese E-Mail wurde über Rechnio versendet. Bitte bewahre die Nachricht für deine Unterlagen auf.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function validateInvoicePayload(body) {
+  const invoice =
+    body.invoice && typeof body.invoice === "object"
+      ? body.invoice
+      : null;
+
+  const customer =
+    body.customer && typeof body.customer === "object"
+      ? body.customer
+      : null;
+
+  const company =
+    body.company && typeof body.company === "object"
+      ? body.company
+      : {};
+
+  if (!invoice || !customer) {
+    return { error: "Rechnungs- oder Kundendaten fehlen." };
   }
 
-  // Öffentliche Einladungsvorschau: Der zufällige Token ist der Nachweis der Einladung.
-  if (req.method === "GET" && route === "/api/team/invitation") {
-    if (!supabaseAdminConfig()) {
-      sendJson(res, 503, { error: "Die Mitarbeiterkonto-Funktion ist noch nicht vollständig eingerichtet." });
-      return;
-    }
-    const token = String(url.searchParams.get("token") || "");
-    if (!validInviteToken(token)) {
-      sendJson(res, 400, { error: "Der Einladungslink ist ungültig." });
-      return;
-    }
-    try {
-      const invitation = await findInvitationByToken(token);
-      if (!invitation || invitation.status !== "pending") {
-        sendJson(res, 410, { error: "Diese Einladung ist nicht mehr gültig. Bitte den Inhaber um eine neue Einladung." });
-        return;
-      }
-      if (Date.parse(invitation.expires_at) <= Date.now()) {
-        await supabaseAdminRequest(
-          `/rest/v1/rechnio_invitations?id=eq.${restFilter(invitation.id)}`,
-          { method: "PATCH", body: { status: "expired" }, extraHeaders: { Prefer: "return=minimal" } }
-        );
-        sendJson(res, 410, { error: "Diese Einladung ist abgelaufen. Bitte den Inhaber um eine neue Einladung." });
-        return;
-      }
-      const organization = await getOrganization(invitation.organization_id);
-      sendJson(res, 200, { email: invitation.email, organizationName: organization?.name || "Rechnio-Unternehmen", expiresAt: invitation.expires_at });
-    } catch (error) {
-      sendJson(res, error.statusCode || 503, { error: error.message || "Die Einladung konnte nicht geprüft werden." });
-    }
-    return;
+  const to = String(customer.email || "").trim().toLowerCase();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+    return {
+      error:
+        "Beim Rechnungsempfänger ist keine gültige E-Mail-Adresse hinterlegt.",
+    };
   }
 
-  if (req.method === "POST" && route === "/api/auth/password-reset") {
-    const limitKey = `${requestIp(req)}:password-reset`;
-    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
-      sendJson(res, 429, { error: "Zu viele Anfragen. Bitte warte 15 Minuten und versuche es erneut." });
-      return;
-    }
-    if (!supabaseConfig()) {
-      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render." });
-      return;
-    }
-    let body;
-    try { body = await readJson(req); }
-    catch (error) { sendJson(res, 400, { error: error.message }); return; }
-    const email = String(body.email || "").trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
-      sendJson(res, 400, { error: "Bitte gib eine gültige E-Mail-Adresse ein." });
-      return;
-    }
-    const redirectTo = `${PUBLIC_SITE_URL}/reset-password`;
-    const result = await supabaseRequest(`/auth/v1/recover?redirect_to=${encodeURIComponent(redirectTo)}`, {
-      method: "POST",
-      body: { email },
-    });
-    if (!result.ok) {
-      console.warn("Supabase password recovery request rejected", { status: result.status, code: String(result.data?.code || result.data?.error || "unknown").slice(0, 80) });
-      sendJson(res, result.status === 429 ? 429 : 502, { error: result.status === 429 ? "Zu viele Anfragen. Bitte warte etwas und versuche es erneut." : "Der Passwort-Link konnte gerade nicht angefordert werden. Prüfe die Supabase-E-Mail-Einstellungen und versuche es erneut." });
-      return;
-    }
-    sendJson(res, 200, { ok: true, message: "Falls ein Konto mit dieser E-Mail-Adresse existiert, erhältst du einen Link zum Zurücksetzen des Passworts." });
-    return;
-  }
+  const number = String(invoice.number || "").trim().slice(0, 100);
 
-  if (req.method === "POST" && route === "/api/auth/password-recovery-verify") {
-    const limitKey = `${requestIp(req)}:password-recovery-verify`;
-    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
-      sendJson(res, 429, { error: "Zu viele Versuche. Bitte fordere einen neuen Passwort-Link an." });
-      return;
-    }
-    if (!supabaseConfig()) {
-      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render." });
-      return;
-    }
-    let body;
-    try { body = await readJson(req); }
-    catch (error) { sendJson(res, 400, { error: error.message }); return; }
-    const tokenHash = String(body.tokenHash || "").trim();
-    if (!/^[A-Za-z0-9_-]{20,200}$/.test(tokenHash)) {
-      sendJson(res, 400, { error: "Der Passwort-Link konnte nicht verarbeitet werden." });
-      return;
-    }
-    const result = await supabaseRequest("/auth/v1/verify", {
-      method: "POST",
-      body: { token_hash: tokenHash, type: "recovery" },
-    });
-    if (!result.ok || !result.data?.access_token) {
-      console.warn("Supabase recovery token verification rejected", {
-        status: result.status,
-        code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
-        reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
-      });
-      sendJson(res, result.status === 429 ? 429 : 400, {
-        error: result.status === 429
-          ? "Zu viele Versuche. Bitte warte etwas und fordere danach einen neuen Link an."
-          : "Der Passwort-Link konnte nicht verarbeitet werden.",
-      });
-      return;
-    }
-    sendJson(res, 200, { accessToken: result.data.access_token });
-    return;
-  }
-
-  if (req.method === "POST" && route === "/api/auth/password-update") {
-    if (!supabaseConfig()) {
-      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe die Supabase-Einstellungen in Render." });
-      return;
-    }
-    let body;
-    try { body = await readJson(req); }
-    catch (error) { sendJson(res, 400, { error: error.message }); return; }
-    const accessToken = String(body.accessToken || "").trim();
-    const password = String(body.password ?? "");
-    if (!accessToken || accessToken.length > 10000) {
-      sendJson(res, 400, { error: "Der Passwort-Link konnte nicht verarbeitet werden." });
-      return;
-    }
-    if (password.length < 8 || password.length > 256) {
-      sendJson(res, 400, { error: "Das Passwort muss mindestens 8 Zeichen enthalten." });
-      return;
-    }
-    const result = await supabaseRequest("/auth/v1/user", {
-      method: "PUT",
-      accessToken,
-      body: { password },
-    });
-    if (!result.ok) {
-      console.warn("Supabase password update rejected", {
-        status: result.status,
-        code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
-        reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
-      });
-      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
-      return;
-    }
-    sendJson(res, 200, { ok: true });
-    return;
+  if (!number) {
+    return { error: "Die Rechnungsnummer fehlt." };
   }
 
   if (
-    req.method === "POST" &&
-    (
-      route === "/api/auth/login" ||
-      route === "/api/auth/register"
-    )
+    !Array.isArray(invoice.items) ||
+    invoice.items.length < 1 ||
+    invoice.items.length > 100
   ) {
-    const signup = route.endsWith("/register");
-    const limitKey = `${requestIp(req)}:${signup ? "register" : "login"}`;
+    return {
+      error: "Die Rechnung muss zwischen 1 und 100 Positionen enthalten.",
+    };
+  }
 
-    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
-      sendJson(res, 429, {
-        error:
-          "Zu viele Versuche. Bitte warte 15 Minuten und versuche es danach erneut.",
-      });
-      return;
-    }
+  let net = 0;
+  let vat = 0;
+  const rows = [];
 
-    if (!supabaseConfig()) {
-      sendJson(res, 503, {
-        error:
-          "Die Anmeldung ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render.",
-      });
-      return;
-    }
-
-    let body;
-
-    try {
-      body = await readJson(req);
-    } catch (error) {
-      sendJson(res, 400, { error: error.message });
-      return;
-    }
-
-    const email = String(body.email || "").trim().toLowerCase();
-    const password = String(body.password ?? "");
-    const rememberRequested = body.remember === true;
-    // Persistent cookies need SESSION_SECRET. If it is missing, use a normal session instead
-    // of rejecting an otherwise valid login or registration.
-    const remember = rememberRequested && hasPersistentSessionSecret();
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      sendJson(res, 400, {
-        error: "Bitte gib eine gültige E-Mail-Adresse ein.",
-      });
-      return;
-    }
-
-    if (signup && password.length < 8) {
-      sendJson(res, 400, {
-        error: "Das Passwort muss mindestens 8 Zeichen enthalten.",
-      });
-      return;
-    }
-
-    if (!password || password.length > 256) {
-      sendJson(res, 400, {
-        error: "Bitte gib ein gültiges Passwort ein.",
-      });
-      return;
-    }
-
-    const inviteToken = signup && validInviteToken(String(body.inviteToken || ""))
-      ? String(body.inviteToken)
-      : "";
-    const inviteRedirectParam = inviteToken ? `&invite=${encodeURIComponent(inviteToken)}` : "";
-    const confirmationDestination =
-      `${PUBLIC_SITE_URL}/auth/confirmed?remember=${remember ? "1" : "0"}${inviteRedirectParam}`;
-
-    const endpoint = signup
-      ? `/auth/v1/signup?redirect_to=${encodeURIComponent(
-          confirmationDestination
-        )}`
-      : "/auth/v1/token?grant_type=password";
-
-    const result = await supabaseRequest(endpoint, {
-      method: "POST",
-      body: signup
-        ? { email, password, data: {} }
-        : { email, password },
-    });
-
-    if (!result.ok) {
-      console.warn("Supabase auth request rejected", {
-        action: signup ? "register" : "login",
-        status: result.status,
-        code: String(
-          result.data?.code ||
-          result.data?.error_code ||
-          result.data?.error ||
-          "unknown"
-        ).slice(0, 80),
-        reason: String(
-          result.data?.error_description ||
-          result.data?.msg ||
-          result.data?.message ||
-          ""
-        ).slice(0, 160),
-      });
-
-      sendJson(
-        res,
-        result.status === 429
-          ? 429
-          : result.status >= 500
-            ? 502
-            : signup
-              ? 400
-              : 401,
-        {
-          error: safeAuthMessage(result, signup),
-        }
-      );
-
-      return;
-    }
-
-    if (
-      signup &&
-      (
-        !result.data?.access_token ||
-        !result.data?.refresh_token ||
-        !result.data?.user?.id
-      )
-    ) {
-      sendJson(res, 202, {
-        needsEmailConfirmation: true,
-        message:
-          "Wir haben dir einen Bestätigungslink per E-Mail geschickt. Öffne die E-Mail und klicke auf den Link. Danach wirst du automatisch zu Rechnio zurückgeleitet und wir fragen dich nach deinem Namen.",
-      });
-
-      return;
-    }
-
-    const opened = newSessionFromAuth(result.data, remember);
-
-    if (!opened) {
-      sendJson(res, 502, {
-        error:
-          "Supabase hat kein vollständiges Sitzungstoken zurückgegeben. Prüfe die E-Mail-Bestätigungseinstellungen.",
-      });
-
-      return;
-    }
-
-    let setCookie;
-
-    try {
-      setCookie = createSessionCookie(
-        req,
-        opened.session,
-        opened.remember
-      );
-    } catch (error) {
-      sendJson(res, 503, {
-        error:
-          error.message ||
-          "Die Sitzung konnte nicht sicher gespeichert werden.",
-      });
-
-      return;
-    }
-
-    authAttempts.delete(limitKey);
-
-    sendJson(
-      res,
-      signup ? 201 : 200,
-      { user: opened.session.user, rememberUnavailable: rememberRequested && !remember },
-      { "Set-Cookie": setCookie }
+  for (const item of invoice.items) {
+    const quantity = Number(item.quantity);
+    const price = Number(item.price);
+    const rate = Number(item.vat ?? 0);
+    const description = String(item.description || "Leistung").slice(
+      0,
+      300
     );
 
+    if (
+      !Number.isFinite(quantity) ||
+      quantity <= 0 ||
+      !Number.isFinite(price) ||
+      price < 0 ||
+      !Number.isFinite(rate) ||
+      rate < 0 ||
+      rate > 100
+    ) {
+      return {
+        error:
+          "Eine Rechnungsposition enthält ungültige Mengen, Preise oder Steuersätze.",
+      };
+    }
+
+    const rowNet = Math.round(quantity * price * 100) / 100;
+    const rowVat = Math.round(rowNet * rate) / 100;
+
+    net += rowNet;
+    vat += rowVat;
+
+    rows.push({
+      description,
+      quantity: quantity.toLocaleString("de-DE"),
+      price,
+      vat: rate,
+      net: rowNet,
+    });
+  }
+
+  net = Math.round(net * 100) / 100;
+  vat = Math.round(vat * 100) / 100;
+
+  const safeCompany = {
+    name: String(company.name || "").slice(0, 200),
+    owner: String(company.owner || "").slice(0, 160),
+    email: String(company.email || "").slice(0, 254),
+    phone: String(company.phone || "").slice(0, 80),
+    street: String(company.street || "").slice(0, 200),
+    postalCode: String(company.postalCode || "").slice(0, 40),
+    city: String(company.city || "").slice(0, 160),
+    taxId: String(company.taxId || "").slice(0, 100),
+    vatNumber: String(company.vatNumber || "").slice(0, 100),
+    iban: String(company.iban || "").slice(0, 60),
+    footer: String(company.footer || "").slice(0, 1000),
+  };
+
+  const safeInvoice = {
+    number,
+    title: String(invoice.title || "").slice(0, 200),
+    issueDate: String(invoice.issueDate || "").slice(0, 10),
+    serviceDate: String(invoice.serviceDate || "").slice(0, 10),
+    servicePeriod: String(invoice.servicePeriod || "").slice(0, 100),
+    dueDate: String(invoice.dueDate || "").slice(0, 10),
+    notes: String(invoice.notes || "").slice(0, 1000),
+  };
+
+  const safeCustomer = {
+    name: String(customer.name || "").slice(0, 200),
+    email: to,
+    street: String(customer.street || "").slice(0, 200),
+    postalCode: String(customer.postalCode || "").slice(0, 40),
+    city: String(customer.city || "").slice(0, 160),
+  };
+
+  return {
+    invoice: safeInvoice,
+    customer: safeCustomer,
+    company: safeCompany,
+    rows,
+    net,
+    vat,
+    gross: Math.round((net + vat) * 100) / 100,
+  };
+}
+
+async function handle(req, res) {
+  let url;
+
+  try {
+    url = new URL(
+      req.url || "/",
+      `http://${req.headers.host || "localhost"}`
+    );
+  } catch {
+    sendJson(res, 400, {
+      error: "Ungültige Anfrageadresse.",
+    });
     return;
   }
 
-  if (req.method === "POST" && route === "/api/auth/session") {
+  const route = url.pathname;
+
+  if (
+    req.method === "GET" &&
+    (
+      route === "/" ||
+      route === "/reset-password" ||
+      route === "/auth/confirmed"
+    )
+  ) {
+    serveIndex(res);
+    return;
+  }
+
+  if (req.method === "GET" && route === "/favicon.ico") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  if (req.method === "GET" && route === "/api/health") {
+    sendJson(res, 200, {
+      ok: true,
+      service: "Rechnio",
+      authConfigured: Boolean(supabaseConfig()),
+      cloudConfigured: Boolean(supabaseConfig()),
+        if (req.method === "POST" && route === "/api/auth/session") {
     let body;
 
     try {
@@ -1858,8 +1835,7 @@ async function handle(req, res) {
       }
       return;
     }
-
-    if (req.method === "POST" && route === "/api/team/accept") {
+        if (req.method === "POST" && route === "/api/team/accept") {
       let body;
       try { body = await readJson(req); }
       catch (error) { authResponse(res, req, 400, { error: error.message }, found); return; }
@@ -1984,7 +1960,7 @@ async function handle(req, res) {
         // installed yet, use the authenticated per-user table so owners can still log in.
         // Team sharing stays unavailable until the employee SQL is installed.
         if (/Mitarbeiterkonto-Datenbank ist noch nicht vollständig eingerichtet/i.test(String(error.message || ""))) {
-         console.warn("Rechnio team tables are missing:", error.message);
+          console.warn("Rechnio team tables are missing; falling back to per-user cloud storage.");
         } else {
           const status = error.statusCode || 503;
           authResponse(res, req, status, { error: error.message || "Die gemeinsamen Unternehmensdaten konnten nicht verarbeitet werden." }, found);
