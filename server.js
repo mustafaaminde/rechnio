@@ -833,6 +833,7 @@ async function getSession(req) {
     remember,
   };
 }
+
 function authResponse(res, req, status, data, found = null, extraHeaders = {}) {
   const headers = { ...extraHeaders };
 
@@ -1255,6 +1256,44 @@ async function handle(req, res) {
     return;
   }
 
+  if (req.method === "POST" && route === "/api/auth/password-recovery-verify") {
+    const limitKey = `${requestIp(req)}:password-recovery-verify`;
+    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
+      sendJson(res, 429, { error: "Zu viele Versuche. Bitte fordere einen neuen Passwort-Link an." });
+      return;
+    }
+    if (!supabaseConfig()) {
+      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe SUPABASE_URL und SUPABASE_ANON_KEY in Render." });
+      return;
+    }
+    let body;
+    try { body = await readJson(req); }
+    catch (error) { sendJson(res, 400, { error: error.message }); return; }
+    const tokenHash = String(body.tokenHash || "").trim();
+    if (!/^[A-Za-z0-9_-]{20,200}$/.test(tokenHash)) {
+      sendJson(res, 400, { error: "Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an." });
+      return;
+    }
+    const result = await supabaseRequest("/auth/v1/verify", {
+      method: "POST",
+      body: { token_hash: tokenHash, type: "recovery" },
+    });
+    if (!result.ok || !result.data?.access_token) {
+      console.warn("Supabase recovery token verification rejected", {
+        status: result.status,
+        code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
+      });
+      sendJson(res, result.status === 429 ? 429 : 400, {
+        error: result.status === 429
+          ? "Zu viele Versuche. Bitte warte etwas und fordere danach einen neuen Link an."
+          : "Der Passwort-Link ist ungültig, wurde bereits verwendet oder ist abgelaufen. Fordere bitte einen neuen Link an.",
+      });
+      return;
+    }
+    sendJson(res, 200, { accessToken: result.data.access_token });
+    return;
+  }
+
   if (req.method === "POST" && route === "/api/auth/password-update") {
     if (!supabaseConfig()) {
       sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe die Supabase-Einstellungen in Render." });
@@ -1324,7 +1363,10 @@ async function handle(req, res) {
 
     const email = String(body.email || "").trim().toLowerCase();
     const password = String(body.password ?? "");
-    const remember = body.remember === true;
+    const rememberRequested = body.remember === true;
+    // Persistent cookies need SESSION_SECRET. If it is missing, use a normal session instead
+    // of rejecting an otherwise valid login or registration.
+    const remember = rememberRequested && hasPersistentSessionSecret();
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       sendJson(res, 400, {
@@ -1343,14 +1385,6 @@ async function handle(req, res) {
     if (!password || password.length > 256) {
       sendJson(res, 400, {
         error: "Bitte gib ein gültiges Passwort ein.",
-      });
-      return;
-    }
-
-    if (remember && !hasPersistentSessionSecret()) {
-      sendJson(res, 503, {
-        error:
-          "Damit Rechnio dich dauerhaft angemeldet hält, fehlt SESSION_SECRET in Render → Environment. Füge eine geheime Zeichenfolge mit mindestens 32 Zeichen hinzu und deploye erneut.",
       });
       return;
     }
@@ -1461,7 +1495,7 @@ async function handle(req, res) {
     sendJson(
       res,
       signup ? 201 : 200,
-      { user: opened.session.user },
+      { user: opened.session.user, rememberUnavailable: rememberRequested && !remember },
       { "Set-Cookie": setCookie }
     );
 
@@ -1481,7 +1515,8 @@ async function handle(req, res) {
     const accessToken = String(body.accessToken || "").trim();
     const refreshToken = String(body.refreshToken || "").trim();
     const expiresIn = Number(body.expiresIn || 3600);
-    const remember = body.remember === true;
+    const rememberRequested = body.remember === true;
+    const remember = rememberRequested && hasPersistentSessionSecret();
 
     if (
       !accessToken ||
@@ -1497,19 +1532,12 @@ async function handle(req, res) {
       return;
     }
 
-    if (remember && !hasPersistentSessionSecret()) {
-      sendJson(res, 503, {
-        error:
-          "SESSION_SECRET fehlt in Render. Bitte füge sie unter Environment hinzu und öffne danach einen neuen Bestätigungslink.",
-      });
-
-      return;
-    }
 
     const verified = await supabaseRequest("/auth/v1/user", {
       accessToken,
     });
-        if (
+
+    if (
       !verified.ok ||
       !verified.data?.id ||
       !verified.data?.email
@@ -1554,7 +1582,7 @@ async function handle(req, res) {
       sendJson(
         res,
         200,
-        { ok: true, user: opened.session.user },
+        { ok: true, user: opened.session.user, rememberUnavailable: rememberRequested && !remember },
         { "Set-Cookie": setCookie }
       );
     } catch (error) {
@@ -1916,19 +1944,7 @@ async function handle(req, res) {
         }
         let stateToSave = body.state;
         const existingRow = await getOrganizationState(context.organization.id);
-       if (context.membership.role === "employee") {
-  const existingState = existingRow?.state;
-
-  if (
-    !existingState ||
-    typeof existingState !== "object" ||
-    Array.isArray(existingState)
-  ) {
-    authResponse(res, req, 409, {
-      error: "Der gemeinsame Datenstand fehlt noch. Bitte den Inhaber bitten, Rechnio zu öffnen und die Daten einmal zu speichern."
-    }, found);
-    return;
-  }
+        if (context.membership.role === "employee" && existingRow?.state && typeof existingRow.state === "object") {
           const previous = existingRow.state;
           const previousCompany = previous.company && typeof previous.company === "object" ? previous.company : {};
           const submittedCompany = body.state.company && typeof body.state.company === "object" ? body.state.company : {};
@@ -1951,10 +1967,20 @@ async function handle(req, res) {
         await upsertOrganizationState(context.organization.id, found.session.user.id, stateToSave);
         authResponse(res, req, 200, { ok: true, savedAt: new Date().toISOString(), membership: membershipResponse }, found);
       } catch (error) {
-        const status = error.statusCode || 503;
-        authResponse(res, req, status, { error: error.message || "Die gemeinsamen Unternehmensdaten konnten nicht verarbeitet werden." }, found);
+        // A configured secret key selects team storage. If the team tables have not been
+        // installed yet, use the authenticated per-user table so owners can still log in.
+        // Team sharing stays unavailable until the employee SQL is installed.
+        if (/Mitarbeiterkonto-Datenbank ist noch nicht vollständig eingerichtet/i.test(String(error.message || ""))) {
+          console.warn("Rechnio team tables are missing; falling back to per-user cloud storage.");
+        } else {
+          const status = error.statusCode || 503;
+          authResponse(res, req, status, { error: error.message || "Die gemeinsamen Unternehmensdaten konnten nicht verarbeitet werden." }, found);
+          return;
+        }
       }
-      return;
+      // Any successful organization-state action returns from inside the try block.
+      // A missing team-table schema falls through to the legacy personal storage below.
+      if (!supabaseAdminConfig()) return;
     }
 
     // Bisheriges persönliches Speichern für Installationen, die noch nicht für Mitarbeiterkonten konfiguriert sind.
