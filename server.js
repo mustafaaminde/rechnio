@@ -1984,7 +1984,7 @@ async function handle(req, res) {
         // installed yet, use the authenticated per-user table so owners can still log in.
         // Team sharing stays unavailable until the employee SQL is installed.
         if (/Mitarbeiterkonto-Datenbank ist noch nicht vollständig eingerichtet/i.test(String(error.message || ""))) {
-          console.warn("Rechnio team tables are missing; falling back to per-user cloud storage.");
+         console.warn("Rechnio team tables are missing:", error.message);
         } else {
           const status = error.statusCode || 503;
           authResponse(res, req, status, { error: error.message || "Die gemeinsamen Unternehmensdaten konnten nicht verarbeitet werden." }, found);
