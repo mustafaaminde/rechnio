@@ -1723,7 +1723,7 @@ async function loadCloudStateForUser(user){
   if(pendingInviteToken)await acceptPendingInvitation(user);
   const response=await fetch("/api/state",{method:"GET",credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
   const payload=await response.json().catch(()=>({}));
-  if(!response.ok)throw new Error(payload.error||"Deine Rechnio-Daten konnten nicht aus der Cloud geladen werden.");
+  if(!response.ok){const error=new Error(payload.error||"Deine Rechnio-Daten konnten nicht aus der Cloud geladen werden.");error.status=response.status;throw error;}
   teamInfo=payload.membership||{enabled:false,role:"owner",organizationId:"",organizationName:""};
   if(payload.state&&typeof payload.state==="object"&&!Array.isArray(payload.state)){
     state=normalizeSavedState(payload.state,emptyAccountState(user));
@@ -1739,6 +1739,25 @@ async function loadCloudStateForUser(user){
   cloudReady=true;
   saveState();
 }
+async function initializeUserWorkspace(user){
+  authenticatedUser=user;
+  try{
+    await loadCloudStateForUser(user);
+    return {cloudReady:true,error:null};
+  }catch(error){
+    // A 401 indicates that the actual login session is invalid and must not be hidden.
+    if(Number(error?.status)===401){authenticatedUser=null;throw error;}
+    console.error("Rechnio cloud workspace unavailable; using local account storage:",error);
+    cloudReady=false;
+    teamInfo={enabled:false,role:"owner",organizationId:"",organizationName:""};
+    state=loadStateForUser(user);
+    state.user={...(state.user||{}),...user};
+    validateState();
+    saveState();
+    return {cloudReady:false,error:error?.message||"Cloud-Speicherung ist momentan nicht verfügbar."};
+  }
+}
+
 function saveState(){
   try{
     state.version=VERSION;
@@ -1932,7 +1951,9 @@ async function handleAuthReturnNotice(){
       });
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(payload.error||"Die Bestätigung konnte keine Sitzung erstellen.");
-      return "E-Mail bestätigt. Dein Rechnio-Konto wird geöffnet.";
+      return payload.rememberUnavailable
+        ? "E-Mail bestätigt. Du bist angemeldet; für dauerhaftes Angemeldetbleiben fehlt noch SESSION_SECRET in Render."
+        : "E-Mail bestätigt. Dein Rechnio-Konto wird geöffnet.";
     }catch(error){
       console.error("Email confirmation session exchange failed:",error);
       return error.message||"Die E-Mail wurde bestätigt, aber die Anmeldung konnte nicht abgeschlossen werden. Bitte melde dich an.";
@@ -1995,13 +2016,31 @@ async function handlePasswordRecoveryReturn(){
   const query=new URLSearchParams(String(window.location.search||"").replace(/^\?/,""));
   const type=fragment.get("type")||query.get("type");
   const accessToken=fragment.get("access_token")||query.get("access_token");
+  const tokenHash=query.get("token_hash")||fragment.get("token_hash");
   const errorCode=fragment.get("error_code")||fragment.get("error")||query.get("error_code")||query.get("error");
-  if(type!=="recovery"&&!errorCode)return false;
+  if(type!=="recovery"&&!errorCode&&!tokenHash)return false;
   try{window.history.replaceState({},document.title,"/reset-password");}catch(_){/* Best-effort URL cleanup. */}
   showLogin();
   setAuthMode("login");
   if(errorCode){
     showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
+    return true;
+  }
+  if(tokenHash&&type==="recovery"){
+    try{
+      const response=await fetch("/api/auth/password-recovery-verify",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({tokenHash})
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Der Passwort-Link konnte nicht bestätigt werden.");
+      if(!payload.accessToken)throw new Error("Supabase hat kein gültiges Passwort-Token zurückgegeben.");
+      openPasswordReset(payload.accessToken);
+    }catch(error){
+      console.error("Password recovery link verification failed:",error);
+      showAuthSetupNotice(error.message||"Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
+    }
     return true;
   }
   if(!accessToken){
@@ -2059,9 +2098,9 @@ async function boot(){
     if(!response.ok)throw new Error(payload.error||"Der Anmeldestatus konnte nicht geprüft werden.");
     const user=extractAuthUser(payload);
     if(!user){showLogin();return;}
-    authenticatedUser=user;
-    await loadCloudStateForUser(user);
+    const workspace=await initializeUserWorkspace(user);
     showApp();
+    if(!workspace.cloudReady)toast("Cloud-Speicherung nicht bereit","Du bist angemeldet, aber Änderungen werden vorerst nur in diesem Browser gespeichert. Prüfe die Supabase-Tabellen und Render-Einstellungen.","warning");
     if(!String(user.name||"").trim())askForName();
   }catch(error){
     console.error("Rechnio auth/cloud initialization failed:",error);
@@ -2126,10 +2165,11 @@ async function submitAuth(){
   if(!response.ok)throw new Error(payload.error||(authMode==="register"?"Das Konto konnte nicht erstellt werden.":"E-Mail oder Passwort stimmt nicht."));
   const user=extractAuthUser(payload);
   if(!user)throw new Error("Der Server hat kein gültiges Benutzerkonto zurückgegeben.");
-  authenticatedUser=user;
-  await loadCloudStateForUser(user);
+  const workspace=await initializeUserWorkspace(user);
   showApp();
   toast(authMode==="register"?"Konto erstellt":"Willkommen zurück",authMode==="register"?"Dein Rechnio-Arbeitsbereich ist bereit.":"Du bist erfolgreich angemeldet.");
+  if(payload.rememberUnavailable)toast("Sitzung nur vorübergehend","Füge später SESSION_SECRET in Render hinzu, damit „Angemeldet bleiben“ funktioniert.","warning");
+  if(!workspace.cloudReady)toast("Cloud-Speicherung nicht bereit","Du bist angemeldet, aber Änderungen werden vorerst nur in diesem Browser gespeichert. Prüfe die Supabase-Tabellen und Render-Einstellungen.","warning");
   if(!String(user.name||"").trim())askForName();
 }
 async function logout(){
