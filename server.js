@@ -1271,7 +1271,7 @@ async function handle(req, res) {
     catch (error) { sendJson(res, 400, { error: error.message }); return; }
     const tokenHash = String(body.tokenHash || "").trim();
     if (!/^[A-Za-z0-9_-]{20,200}$/.test(tokenHash)) {
-      sendJson(res, 400, { error: "Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an." });
+      sendJson(res, 400, { error: "Der Passwort-Link konnte nicht verarbeitet werden." });
       return;
     }
     const result = await supabaseRequest("/auth/v1/verify", {
@@ -1287,7 +1287,7 @@ async function handle(req, res) {
       sendJson(res, result.status === 429 ? 429 : 400, {
         error: result.status === 429
           ? "Zu viele Versuche. Bitte warte etwas und fordere danach einen neuen Link an."
-          : "Der Passwort-Link ist ungültig, wurde bereits verwendet oder ist abgelaufen. Fordere bitte einen neuen Link an.",
+          : "Der Passwort-Link konnte nicht verarbeitet werden.",
       });
       return;
     }
@@ -1306,7 +1306,7 @@ async function handle(req, res) {
     const accessToken = String(body.accessToken || "").trim();
     const password = String(body.password ?? "");
     if (!accessToken || accessToken.length > 10000) {
-      sendJson(res, 400, { error: "Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an." });
+      sendJson(res, 400, { error: "Der Passwort-Link konnte nicht verarbeitet werden." });
       return;
     }
     if (password.length < 8 || password.length > 256) {
@@ -1324,7 +1324,7 @@ async function handle(req, res) {
         code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
         reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
       });
-      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
+      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Das Passwort konnte nicht geändert werden. Bitte versuche es erneut." });
       return;
     }
     sendJson(res, 200, { ok: true });
