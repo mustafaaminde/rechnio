@@ -1282,6 +1282,7 @@ async function handle(req, res) {
       console.warn("Supabase recovery token verification rejected", {
         status: result.status,
         code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
+        reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
       });
       sendJson(res, result.status === 429 ? 429 : 400, {
         error: result.status === 429
@@ -1318,7 +1319,11 @@ async function handle(req, res) {
       body: { password },
     });
     if (!result.ok) {
-      console.warn("Supabase password update rejected", { status: result.status, code: String(result.data?.code || result.data?.error || "unknown").slice(0, 80) });
+      console.warn("Supabase password update rejected", {
+        status: result.status,
+        code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
+        reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
+      });
       sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
       return;
     }
