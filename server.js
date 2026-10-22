@@ -241,7 +241,15 @@ function supabaseAdminConfig() {
   const key = String(
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ""
   ).trim();
-  return base && key ? { url: base.url, key } : null;
+  if (!base || !key) return null;
+
+  // Neue sb_secret_ Schlüssel sind keine JWTs und dürfen daher nicht als Bearer-Token gesendet werden.
+  // Der alte service_role-Schlüssel ist ein JWT und benötigt weiterhin Authorization: Bearer.
+  return {
+    url: base.url,
+    key,
+    isNewSecretKey: key.startsWith("sb_secret_"),
+  };
 }
 
 async function supabaseAdminRequest(endpoint, { method = "GET", body, extraHeaders = {} } = {}) {
@@ -251,8 +259,8 @@ async function supabaseAdminRequest(endpoint, { method = "GET", body, extraHeade
   }
   const headers = {
     apikey: config.key,
-    Authorization: `Bearer ${config.key}`,
     Accept: "application/json",
+    ...(config.isNewSecretKey ? {} : { Authorization: `Bearer ${config.key}` }),
     ...extraHeaders,
   };
   if (body !== undefined) headers["Content-Type"] = "application/json";
@@ -1324,7 +1332,7 @@ async function handle(req, res) {
         code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
         reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
       });
-      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Das Passwort konnte nicht geändert werden. Bitte versuche es erneut." });
+      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
       return;
     }
     sendJson(res, 200, { ok: true });
