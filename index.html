@@ -351,6 +351,20 @@ svg{
 .employee-workspace-banner strong{
   color:#223a6d
 }
+.employee-account-card{margin:0 0 18px;border:1px solid #dce7ff;background:linear-gradient(135deg,#f7f9ff,#ffffff)}
+.employee-account-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
+.employee-account-cell{padding:12px;border:1px solid #e5eaf7;background:#fff;border-radius:12px;min-width:0}
+.employee-account-cell small{display:block;color:var(--faint);font-size:11px;margin-bottom:5px}
+.employee-account-cell strong{display:block;overflow-wrap:anywhere;font-size:13px}
+.dashboard-team-card{margin:0 0 18px}
+.dashboard-team-list{display:grid;gap:0}
+.dashboard-team-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+.dashboard-team-item:last-child{border-bottom:0}
+.dashboard-team-email{font-weight:700;font-size:13px;overflow-wrap:anywhere}
+.dashboard-team-meta{color:var(--faint);font-size:11px;margin-top:3px}
+.dashboard-team-tag{font-size:10px;font-weight:800;border-radius:999px;padding:5px 9px;background:#edf4ff;color:#35588e;white-space:nowrap}
+.dashboard-team-tag.pending{background:#fff4db;color:#8a5a00}
+@media(max-width:700px){.employee-account-grid{grid-template-columns:1fr}.dashboard-team-item{align-items:flex-start}}
 .user-logout{
   margin-left:auto; border:0; background:transparent; color:#8c9ab0; padding:4px
 }
@@ -2290,6 +2304,7 @@ if(state.currentPage==="dashboard"){
     drawBars($("#dashboardChart"),monthBuckets());
     drawDonut($("#statusDonut"));
   });
+  if(teamInfo.enabled&&teamInfo.role==="owner")refreshDashboardTeamPanel();
 }
 if(state.currentPage==="reports") requestAnimationFrame(() => drawBars($("#reportChart"),monthBuckets()));
 if(state.currentPage==="settings"){
@@ -2328,7 +2343,9 @@ function emptyState(iconName,title,description,action=""){
 DASHBOARD AND CHARTS
 ================================================================ */
 function renderDashboard(){
-  const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Du siehst die gemeinsam gespeicherten Rechnungen und Kunden. Neue Änderungen werden mit dem Unternehmensbereich synchronisiert.</span></div>`:"";
+  const employeeAccountCard=teamInfo.role==="employee"&&teamInfo.enabled?`<section class="card employee-account-card" aria-label="Mein Mitarbeiterkonto"><div class="card-body"><div class="row" style="gap:10px;align-items:center"><span class="quick-icon">${icon("users","icon icon-lg")}</span><div><h2 class="card-title" style="margin:0">Mein Mitarbeiterbereich</h2><div class="card-subtitle">Dein eigenes Login · gemeinsamer Unternehmensarbeitsbereich</div></div></div><div class="employee-account-grid"><div class="employee-account-cell"><small>Angemeldet als</small><strong>${esc(state.user?.name||"Mitarbeiter")}</strong></div><div class="employee-account-cell"><small>Konto-E-Mail</small><strong>${esc(state.user?.email||"Nicht hinterlegt")}</strong></div><div class="employee-account-cell"><small>Unternehmen</small><strong>${esc(teamInfo.organizationName||"Gemeinsamer Arbeitsbereich")}</strong></div></div><p class="hint" style="margin:12px 0 0">Du verwendest dein eigenes Rechnio-Konto. Rechnungen und Kunden gehören zum Unternehmensbereich und werden mit dem Inhaber geteilt. Unternehmenseinstellungen und Mitarbeiterverwaltung bleiben dem Inhaber vorbehalten.</p></div></section>`:"";
+  const ownerTeamCard=teamInfo.role==="owner"&&teamInfo.enabled?`<section class="card dashboard-team-card" aria-label="Mitarbeiter im Unternehmen"><div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Wer Zugriff auf deinen Unternehmensbereich hat</div></div><button class="btn secondary btn-sm" type="button" data-action="dashboard-team-settings">Team verwalten ${icon("chevron","icon icon-sm")}</button></div><div class="card-body" id="dashboardTeamSummary"><p class="muted">Team wird geladen…</p></div></section>`:"";
+  const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Deine Anmeldung ist getrennt. Die angezeigten Rechnungen und Kunden stammen aus dem Unternehmensbereich.</span></div>`:"";
   const list=state.invoices.map(invoice=>({
     ...invoice,...amounts(invoice),computedStatus:statusOf(invoice)
   }));
@@ -2340,8 +2357,9 @@ const monthlyRevenue=sum(list.filter(i=>i.computedStatus==="paid"&&String(i.paid
 const paidThisMonth=list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).length;
 const recent=[...state.invoices].sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))).slice(0,5);
 const actions=`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
-return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Hier ist die gemeinsame Übersicht deines Unternehmens.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
+return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Dein persönlicher Zugang zur gemeinsamen Unternehmensübersicht.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
 <section class="stats" aria-label="Kennzahlen">${statCard("Monatsumsatz",money(monthlyRevenue),"chart","blue",`${paidThisMonth} bezahlte Rechnungen diesen Monat`)}${statCard("Bezahlte Rechnungen",money(paid),"wallet","green",`${list.filter(i=>i.computedStatus==="paid").length} bezahlt insgesamt`)}${statCard("Offene Beträge",money(open),"clock","amber",`${list.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).length} offen`)}${statCard("Überfällig",money(overdue),"calendar","red",`${list.filter(i=>i.computedStatus==="overdue").length} überfällig`)}${statCard("Kunden",String(state.customers.length),"users","purple","Gespeicherte Kontakte")}</section>
+${employeeAccountCard}${ownerTeamCard}
 <div class="dashboard"><div class="dash-left"><section class="card"><div class="card-head"><div><h2 class="card-title">Rechnungsvolumen</h2><div class="card-subtitle">Bruttobeträge der letzten sechs Monate</div></div><div class="legend"><span class="legend-item"><span class="legend-dot"></span>Bezahlt</span><span class="legend-item"><span class="legend-dot light"></span>Offen</span></div></div><div id="dashboardChart" class="chart-area"><div class="chart-empty">Diagramm wird geladen…</div></div></section>
 <section class="card table-card"><div class="card-head"><div><h2 class="card-title">Letzte Rechnungen</h2><div class="card-subtitle">Die zuletzt erstellten Rechnungen</div></div><button class="link-button" data-page="invoices">Alle anzeigen ${icon("chevron","icon icon-sm")}</button></div>${recent.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
     recent.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button><div class="tiny faint">${esc(i.title||"Rechnung")}</div></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.dueDate)}</td><td>${badge(statusOf(i))}</td><td class="right strong mono">${money(amounts(i).gross)}</td></tr>`).join("")
@@ -2981,6 +2999,31 @@ function settingsTab(tab){
   if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Sicherung</h2><p>Verwalte deine Rechnio-Daten und erstelle bei Bedarf eine lokale Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Hinweis zur Speicherung:</strong> Rechnungs- und Kundendaten werden derzeit in diesem Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div></div>`;
 }
+function renderDashboardTeamSummary(data){
+  const members=Array.isArray(data.members)?data.members:[];
+  const invitations=Array.isArray(data.invitations)?data.invitations:[];
+  const employees=members.filter(member=>member.role==="employee");
+  const employeeRows=employees.map(member=>`<div class="dashboard-team-item"><div><div class="dashboard-team-email">${esc(String(member.email||"Mitarbeiterkonto"))}</div><div class="dashboard-team-meta">Mitarbeiter · Konto verbunden</div></div><span class="dashboard-team-tag">Aktiv</span></div>`).join("");
+  const inviteRows=invitations.map(invite=>{const expired=Date.parse(invite.expires_at)<=Date.now();return `<div class="dashboard-team-item"><div><div class="dashboard-team-email">${esc(String(invite.email||"Eingeladene Person"))}</div><div class="dashboard-team-meta">${expired?"Einladung abgelaufen":"Einladung noch nicht angenommen"}</div></div><span class="dashboard-team-tag pending">${expired?"Abgelaufen":"Ausstehend"}</span></div>`;}).join("");
+  const people=employees.length+invitations.length;
+  const summary=`<div class="between wrap" style="margin-bottom:8px"><span class="hint">${employees.length} aktive Mitarbeiter${employees.length===1?"":"konten"} · ${invitations.length} offene Einladung${invitations.length===1?"":"en"}</span><span class="status ${employees.length?"paid":"open"}">${people} Eintrag${people===1?"":"e"}</span></div>`;
+  return `${summary}<div class="dashboard-team-list">${employeeRows}${inviteRows}</div>${!employees.length&&!invitations.length?'<p class="muted" style="margin:8px 0 0">Noch keine Mitarbeiter hinzugefügt. Über „Team verwalten“ kannst du jemanden einladen.</p>':""}`;
+}
+async function refreshDashboardTeamPanel(){
+  const target=$("#dashboardTeamSummary");
+  if(!target||teamInfo.role!=="owner"||!teamInfo.enabled)return;
+  try{
+    const response=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Teamübersicht konnte nicht geladen werden.");
+    teamInfo=payload.membership||teamInfo;
+    const current=$("#dashboardTeamSummary");
+    if(current)current.innerHTML=renderDashboardTeamSummary(payload);
+  }catch(error){
+    const current=$("#dashboardTeamSummary");
+    if(current)current.innerHTML=`<p class="muted">${esc(error.message||"Teamübersicht vorübergehend nicht verfügbar.")} Öffne „Einstellungen → Mitarbeiterkonten“, um die Mitgliederliste zu prüfen.</p>`;
+  }
+}
 function teamEscape(value){return esc(String(value??""));}
 function renderTeamPanel(data){
   const members=Array.isArray(data.members)?data.members:[];
@@ -3442,6 +3485,7 @@ switch(action){
   case "team-remove-member":removeTeamMember(button.dataset.id);break;
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
   case "team-copy-invite-link":copyTeamInviteLink();break;
+  case "dashboard-team-settings":state.ui.settingsTab="team";saveState();navigate("settings");break;
   case "invoice-missing-company-settings":closeModal();state.ui.settingsTab="company";saveState();navigate("settings");break;
   case "help-open-company":openHelpTarget("company");break;
   case "help-open-data":openHelpTarget("data");break;
