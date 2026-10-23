@@ -342,6 +342,15 @@ svg{
 .user-email{
   color:#8290a5; font-size:9px; margin-top:2px
 }
+.user-role{
+  display:block; max-width:190px; margin-top:5px; color:#93b5ff; font-size:8px; font-weight:800; line-height:1.4; overflow-wrap:anywhere
+}
+.employee-workspace-banner{
+  margin:0 0 18px; border:1px solid #dce7ff; background:#f4f7ff; color:#3e5686
+}
+.employee-workspace-banner strong{
+  color:#223a6d
+}
 .user-logout{
   margin-left:auto; border:0; background:transparent; color:#8c9ab0; padding:4px
 }
@@ -1355,7 +1364,7 @@ body{font-size:15px;line-height:1.6}
     <div class="nav-label">Arbeitsbereich</div>
     <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button><button class="nav-item" data-page="help"><svg class="icon"><use href="#i-info"/></svg>Hilfe & Anleitung</button></nav>
     <div class="nav-label" id="managementNavLabel">Verwaltung</div><nav class="nav" id="managementNav" aria-label="Verwaltung"><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
-    <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
+    <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div><div id="sidebarWorkspaceRole" class="user-role hidden"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
   <main class="main">
     <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Kunden oder Rechnungen suchen…" aria-label="Globale Suche"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
@@ -1719,6 +1728,8 @@ async function prepareInvitationLogin(){
 }
 async function loadCloudStateForUser(user){
   cloudReady=false;
+  // Ansichtsoptionen bleiben pro Benutzer lokal. Die Geschäftsdaten selbst kommen unten aus dem gemeinsamen Unternehmensbereich.
+  const localWorkspaceView=loadStateForUser(user);
   // Erst die Einladung annehmen; so wird nicht versehentlich ein eigener Firmenbereich angelegt.
   if(pendingInviteToken)await acceptPendingInvitation(user);
   const response=await fetch("/api/state",{method:"GET",credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
@@ -1726,12 +1737,16 @@ async function loadCloudStateForUser(user){
   if(!response.ok){const error=new Error(payload.error||"Deine Rechnio-Daten konnten nicht aus der Cloud geladen werden.");error.status=response.status;throw error;}
   teamInfo=payload.membership||{enabled:false,role:"owner",organizationId:"",organizationName:""};
   if(payload.state&&typeof payload.state==="object"&&!Array.isArray(payload.state)){
+    // Kunden, Rechnungen und Firmendaten stammen aus dem gemeinsamen Unternehmensbereich.
     state=normalizeSavedState(payload.state,emptyAccountState(user));
     state.user={...state.user,...user};
     state.preferences={...state.preferences,showDemoData:false};
+    // Ansicht, Suche und Pagination gehören zum einzelnen Konto und sollen nicht zwischen Teammitgliedern springen.
+    state.currentPage=PAGE_META[localWorkspaceView.currentPage]?localWorkspaceView.currentPage:"dashboard";
+    state.ui={...state.ui,...(localWorkspaceView.ui||{})};
   }else{
     // First login for this account: migrate this account's local data, if any.
-    state=loadStateForUser(user);
+    state=localWorkspaceView;
     state.user=user;
   }
   validateState();
@@ -2000,7 +2015,7 @@ async function requestPasswordReset(){
 }
 function openPasswordReset(token){
   passwordRecoveryToken=String(token||"");
-  if(!passwordRecoveryToken){showAuthSetupNotice("Der Passwort-Link konnte nicht verarbeitet werden.");return;}
+  if(!passwordRecoveryToken){showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");return;}
   $("#passwordResetError")?.classList.add("hidden");
   $("#newPassword").value="";
   $("#confirmNewPassword").value="";
@@ -2023,7 +2038,7 @@ async function handlePasswordRecoveryReturn(){
   showLogin();
   setAuthMode("login");
   if(errorCode){
-    showAuthSetupNotice("Der Passwort-Link konnte nicht verarbeitet werden.");
+    showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
     return true;
   }
   if(tokenHash&&type==="recovery"){
@@ -2039,12 +2054,12 @@ async function handlePasswordRecoveryReturn(){
       openPasswordReset(payload.accessToken);
     }catch(error){
       console.error("Password recovery link verification failed:",error);
-      showAuthSetupNotice(error.message||"Der Passwort-Link konnte nicht verarbeitet werden.");
+      showAuthSetupNotice(error.message||"Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
     }
     return true;
   }
   if(!accessToken){
-    showAuthSetupNotice("Der Passwort-Link konnte nicht verarbeitet werden.");
+    showAuthSetupNotice("Der Passwort-Link enthält kein gültiges Token. Fordere bitte einen neuen Link an.");
     return true;
   }
   openPasswordReset(accessToken);
@@ -2059,7 +2074,7 @@ async function saveNewPassword(event){
   errorBox.classList.add("hidden");
   if(password.length<8){errorBox.textContent="Das Passwort muss mindestens 8 Zeichen enthalten.";errorBox.classList.remove("hidden");return;}
   if(password!==confirmation){errorBox.textContent="Die Passwörter stimmen nicht überein.";errorBox.classList.remove("hidden");return;}
-  if(!passwordRecoveryToken){errorBox.textContent="Der Passwort-Link konnte nicht verarbeitet werden.";errorBox.classList.remove("hidden");return;}
+  if(!passwordRecoveryToken){errorBox.textContent="Der Link ist nicht mehr gültig. Fordere bitte einen neuen Link an.";errorBox.classList.remove("hidden");return;}
   button.disabled=true;button.textContent="Wird gespeichert…";
   try{
     const response=await fetch("/api/auth/password-update",{
@@ -2248,6 +2263,14 @@ function updateChrome(){
   $("#topbarAvatar").textContent=initialsText;
   $("#sidebarUserName").textContent=user.name||"";
   $("#sidebarUserEmail").textContent=user.email||"";
+  const workspaceRole=$("#sidebarWorkspaceRole");
+  if(workspaceRole){
+    const teamEnabled=teamInfo.enabled===true;
+    const roleLabel=teamInfo.role==="employee"?"Mitarbeiter":"Inhaber";
+    workspaceRole.textContent=teamEnabled?`${roleLabel} · ${teamInfo.organizationName||"Gemeinsamer Arbeitsbereich"}`:"Persönlicher Arbeitsbereich";
+    workspaceRole.title=teamInfo.organizationName||workspaceRole.textContent;
+    workspaceRole.classList.remove("hidden");
+  }
   $("#breadcrumbCurrent").textContent=PAGE_META[state.currentPage]?.title||"Dashboard";
   $("#navInvoiceCount").textContent=state.invoices.length;
   $("#navCustomerCount").textContent=state.customers.length;
@@ -2305,6 +2328,7 @@ function emptyState(iconName,title,description,action=""){
 DASHBOARD AND CHARTS
 ================================================================ */
 function renderDashboard(){
+  const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Du siehst die gemeinsam gespeicherten Rechnungen und Kunden. Neue Änderungen werden mit dem Unternehmensbereich synchronisiert.</span></div>`:"";
   const list=state.invoices.map(invoice=>({
     ...invoice,...amounts(invoice),computedStatus:statusOf(invoice)
   }));
@@ -2316,7 +2340,7 @@ const monthlyRevenue=sum(list.filter(i=>i.computedStatus==="paid"&&String(i.paid
 const paidThisMonth=list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).length;
 const recent=[...state.invoices].sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))).slice(0,5);
 const actions=`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
-return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${demoBanner()}
+return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Hier ist die gemeinsame Übersicht deines Unternehmens.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
 <section class="stats" aria-label="Kennzahlen">${statCard("Monatsumsatz",money(monthlyRevenue),"chart","blue",`${paidThisMonth} bezahlte Rechnungen diesen Monat`)}${statCard("Bezahlte Rechnungen",money(paid),"wallet","green",`${list.filter(i=>i.computedStatus==="paid").length} bezahlt insgesamt`)}${statCard("Offene Beträge",money(open),"clock","amber",`${list.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).length} offen`)}${statCard("Überfällig",money(overdue),"calendar","red",`${list.filter(i=>i.computedStatus==="overdue").length} überfällig`)}${statCard("Kunden",String(state.customers.length),"users","purple","Gespeicherte Kontakte")}</section>
 <div class="dashboard"><div class="dash-left"><section class="card"><div class="card-head"><div><h2 class="card-title">Rechnungsvolumen</h2><div class="card-subtitle">Bruttobeträge der letzten sechs Monate</div></div><div class="legend"><span class="legend-item"><span class="legend-dot"></span>Bezahlt</span><span class="legend-item"><span class="legend-dot light"></span>Offen</span></div></div><div id="dashboardChart" class="chart-area"><div class="chart-empty">Diagramm wird geladen…</div></div></section>
 <section class="card table-card"><div class="card-head"><div><h2 class="card-title">Letzte Rechnungen</h2><div class="card-subtitle">Die zuletzt erstellten Rechnungen</div></div><button class="link-button" data-page="invoices">Alle anzeigen ${icon("chevron","icon icon-sm")}</button></div>${recent.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
