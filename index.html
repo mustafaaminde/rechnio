@@ -151,7 +151,7 @@ svg{
   min-height:90px; resize:vertical
 }
 .input::placeholder,.textarea::placeholder{
-  color:#a5afbd
+  color:#c4ccd8
 }
 .input:focus,.select:focus,.textarea:focus{
   border-color:var(--brand); box-shadow:0 0 0 4px #3867f41b
@@ -351,20 +351,6 @@ svg{
 .employee-workspace-banner strong{
   color:#223a6d
 }
-.employee-account-card{margin:0 0 18px;border:1px solid #dce7ff;background:linear-gradient(135deg,#f7f9ff,#ffffff)}
-.employee-account-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:14px}
-.employee-account-cell{padding:12px;border:1px solid #e5eaf7;background:#fff;border-radius:12px;min-width:0}
-.employee-account-cell small{display:block;color:var(--faint);font-size:11px;margin-bottom:5px}
-.employee-account-cell strong{display:block;overflow-wrap:anywhere;font-size:13px}
-.dashboard-team-card{margin:0 0 18px}
-.dashboard-team-list{display:grid;gap:0}
-.dashboard-team-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
-.dashboard-team-item:last-child{border-bottom:0}
-.dashboard-team-email{font-weight:700;font-size:13px;overflow-wrap:anywhere}
-.dashboard-team-meta{color:var(--faint);font-size:11px;margin-top:3px}
-.dashboard-team-tag{font-size:10px;font-weight:800;border-radius:999px;padding:5px 9px;background:#edf4ff;color:#35588e;white-space:nowrap}
-.dashboard-team-tag.pending{background:#fff4db;color:#8a5a00}
-@media(max-width:700px){.employee-account-grid{grid-template-columns:1fr}.dashboard-team-item{align-items:flex-start}}
 .user-logout{
   margin-left:auto; border:0; background:transparent; color:#8c9ab0; padding:4px
 }
@@ -381,23 +367,8 @@ svg{
   color:var(--ink)
 }
 .top-search{
-  width:min(330px,32vw); position:relative; flex-shrink:0
+  width:min(330px,32vw)
 }
-.global-search-results{
-  position:absolute; top:calc(100% + 8px); right:0; z-index:1000;
-  width:min(500px,calc(100vw - 28px)); max-height:min(65vh,520px); overflow:auto;
-  padding:7px; border:1px solid var(--line); border-radius:14px; background:#fff;
-  box-shadow:0 18px 48px rgba(15,23,42,.18)
-}
-.global-search-results.hidden{display:none}
-.global-search-label{padding:8px 10px 5px;color:var(--faint);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em}
-.global-search-result{display:flex;align-items:flex-start;gap:10px;width:100%;padding:10px;border:0;border-radius:9px;background:transparent;text-align:left;color:var(--ink);cursor:pointer}
-.global-search-result:hover,.global-search-result:focus-visible{background:#f3f6fb;outline:none}
-.global-search-result-icon{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:8px;background:#eef3fc;color:#35578a}
-.global-search-result-copy{display:block;min-width:0;flex:1}
-.global-search-result-title{display:block;font-size:12px;font-weight:750;overflow-wrap:anywhere}
-.global-search-result-meta{display:block;margin-top:3px;font-size:10px;color:var(--faint);line-height:1.45;overflow-wrap:anywhere}
-.global-search-empty{padding:16px 12px;color:var(--faint);font-size:12px;line-height:1.5}
 .top-search .input{
   min-height:38px; background:#f8fafc; border-color:#edf0f5; font-size:11px
 }
@@ -1329,6 +1300,18 @@ body{font-size:15px;line-height:1.6}
 .password-reset-actions .btn{flex:1}
 .forgot-password-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
+
+/* Fälligkeitserinnerung: auffällig, aber im bestehenden Rechnio-Design. */
+.due-reminder{
+  display:flex;align-items:center;gap:16px;margin:0 0 18px;padding:18px 20px;border:2px solid #e7a33e;border-radius:14px;background:#fff8e8;box-shadow:0 8px 24px #9a670d12
+}
+.due-reminder-mark{display:grid;place-items:center;flex:none;width:58px;height:58px;border-radius:14px;background:#ffe5b5;color:#8c4e00;font-size:44px;font-weight:950;line-height:1}
+.due-reminder-copy{flex:1;min-width:0}
+.due-reminder-title{display:block;margin:0 0 4px;color:#713d00;font-size:clamp(18px,2vw,24px);font-weight:900;line-height:1.25}
+.due-reminder-detail{margin:0;color:#76572d;font-size:13px;line-height:1.5}
+.due-reminder .btn{flex:none;min-width:78px}
+@media(max-width:560px){.due-reminder{align-items:flex-start;gap:11px;padding:14px}.due-reminder-mark{width:42px;height:42px;border-radius:10px;font-size:32px}.due-reminder{flex-wrap:wrap}.due-reminder-copy{width:calc(100% - 55px)}.due-reminder .btn{margin-left:53px}}
+
 </style>
 </head>
 <body>
@@ -1392,11 +1375,11 @@ body{font-size:15px;line-height:1.6}
     <div class="sidebar-brand brand"><span class="brand-mark"><svg class="icon icon-lg"><use href="#i-file"/></svg></span><div><div class="brand-name">rechnio</div><div class="brand-sub">Einfach. Klar. Organisiert.</div></div></div>
     <div class="nav-label">Arbeitsbereich</div>
     <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button><button class="nav-item" data-page="help"><svg class="icon"><use href="#i-info"/></svg>Hilfe & Anleitung</button></nav>
-    <div class="nav-label" id="managementNavLabel">Verwaltung</div><nav class="nav" id="managementNav" aria-label="Verwaltung"><button class="nav-item" data-page="team"><svg class="icon"><use href="#i-users"/></svg>Mitarbeiter</button><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
+    <div class="nav-label" id="managementNavLabel">Verwaltung</div><nav class="nav" id="managementNav" aria-label="Verwaltung"><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
     <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div><div id="sidebarWorkspaceRole" class="user-role hidden"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
   <main class="main">
-    <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Alles in Rechnio suchen…" aria-label="Globale Suche" autocomplete="off" aria-controls="globalSearchResults" aria-expanded="false"></div><div id="globalSearchResults" class="global-search-results hidden" role="listbox" aria-label="Suchergebnisse"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
+    <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Kunden oder Rechnungen suchen…" aria-label="Globale Suche"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
     <div id="pageContent" class="content"></div>
   </main>
 </div>
@@ -1435,9 +1418,6 @@ customers:{
 reports:{
   title:"Auswertungen",subtitle:"Behalte deine Rechnungsbeträge und Zahlungseingänge im Blick."
 },
-team:{
-  title:"Mitarbeiter",subtitle:"Verwalte Teammitglieder, Einladungen und den Zugriff auf deinen Unternehmensbereich."
-},
 settings:{
   title:"Einstellungen",subtitle:"Passe deine Unternehmensangaben an."
 },
@@ -1455,7 +1435,6 @@ let authenticatedUser = null;
 let cloudReady = false;
 let teamInfo = { enabled:false, role:"owner", organizationId:"", organizationName:"" };
 let teamLastInviteUrl = "";
-let teamLastInviteMode = "";
 let pendingInviteToken = "";
 let invitePreview = null;
 try {
@@ -1538,7 +1517,8 @@ preferences:{
 },
 ui:{
   invoiceSearch:"",customerSearch:"",invoiceStatus:"all",customerPage:1,invoicePage:1,pageSize:8,settingsTab:"company",
-  helpStep:0,helpShowDetails:false,helpQuestion:"",helpAnswer:null
+  helpStep:0,helpShowDetails:false,helpQuestion:"",helpAnswer:null,
+  dueReminderDismissed:{},analyticsMonth:new Date().getMonth()+1,analyticsYear:new Date().getFullYear()
 }
 };
 }
@@ -1753,9 +1733,7 @@ async function prepareInvitationLogin(){
     invitePreview=payload;
     if($("#loginEmail"))$("#loginEmail").value=payload.email||"";
     setAuthMode("register");
-    showAuthSetupNotice(payload.linkOnly
-      ? `Du hast eine Link-Einladung zu „${payload.organizationName}“. Erstelle ein Rechnio-Konto oder melde dich mit deinem bestehenden Konto an. Wer diesen privaten Link besitzt, kann ihn annehmen.`
-      : `Einladung für ${payload.email} zu „${payload.organizationName}“. Erstelle das Konto mit genau dieser E-Mail-Adresse.`);
+    showAuthSetupNotice(`Einladung für ${payload.email} zu „${payload.organizationName}“. Erstelle das Konto mit genau dieser E-Mail-Adresse.`);
   }catch(error){
     setAuthMode("register");
     showAuthSetupNotice(error.message||"Der Einladungslink ist ungültig oder abgelaufen.");
@@ -1785,7 +1763,7 @@ async function loadCloudStateForUser(user){
     state.user=user;
   }
   validateState();
-  if(teamInfo.role==="employee"&&["settings","team"].includes(state.currentPage))state.currentPage="dashboard";
+  if(teamInfo.role==="employee"&&state.currentPage==="settings")state.currentPage="dashboard";
   cloudReady=true;
   saveState();
 }
@@ -2277,10 +2255,6 @@ function navigate(page){
     toast("Keine Berechtigung","Die Einstellungen werden vom Inhaber verwaltet.","warning");
     return;
   }
-  if(page==="team"&&teamInfo.role==="employee"){
-    toast("Keine Berechtigung","Die Mitarbeiterverwaltung ist nur für den Inhaber verfügbar.","warning");
-    return;
-  }
   state.currentPage=page;
   saveState();
   closeSidebar();
@@ -2319,24 +2293,46 @@ function updateChrome(){
   $("#managementNav")?.classList.toggle("hidden",employee);
   $$('[data-page="settings"]').forEach(el=>el.classList.toggle("hidden",employee));
 }
+function dueReminderBannerHTML(){
+  const today=parseDate(todayISO());
+  if(!today||!Array.isArray(state.invoices))return "";
+  const dismissed=state.ui.dueReminderDismissed&&typeof state.ui.dueReminderDismissed==="object"?state.ui.dueReminderDismissed:{};
+  const active=state.ui.dueReminderActive&&typeof state.ui.dueReminderActive==="object"?{...state.ui.dueReminderActive}:{};
+  let newlyActivated=false;
+  // Start the reminder once a genuinely unpaid invoice enters its five-day window.
+  // It remains active after the due date until OK is clicked, unless marked paid.
+  state.invoices.forEach(invoice=>{
+    if(!invoice||!invoice.id||invoice.status==="paid"||invoice.status==="draft"||dismissed[invoice.id]||active[invoice.id])return;
+    const due=parseDate(invoice.dueDate);
+    if(!due)return;
+    const days=Math.round((due.getTime()-today.getTime())/86400000);
+    if(days>=0&&days<=5&&["open","sent","overdue"].includes(statusOf(invoice))){active[invoice.id]=true;newlyActivated=true;}
+  });
+  if(newlyActivated){state.ui.dueReminderActive=active;saveState();}
+  const candidates=state.invoices.filter(invoice=>invoice&&invoice.id&&active[invoice.id]&&!dismissed[invoice.id]&&invoice.status!=="paid"&&invoice.status!=="draft"&&["open","sent","overdue"].includes(statusOf(invoice))).sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
+  const invoice=candidates[0];
+  if(!invoice)return "";
+  const due=parseDate(invoice.dueDate);
+  const days=due?Math.round((due.getTime()-today.getTime())/86400000):0;
+  const when=days<0?`Seit ${Math.abs(days)} ${Math.abs(days)===1?"Tag":"Tagen"} überfällig`:days===0?"Heute fällig":`Fällig am ${formatDate(invoice.dueDate)} · noch ${days} ${days===1?"Tag":"Tage"}`;
+  return `<section class="due-reminder" role="alert" aria-live="assertive" aria-labelledby="dueReminderTitle"><div class="due-reminder-mark" aria-hidden="true">!</div><div class="due-reminder-copy"><strong class="due-reminder-title" id="dueReminderTitle">Sie müssen noch diese Rechnung zahlen!</strong><p class="due-reminder-detail"><strong>${esc(invoice.number||"Rechnung")}</strong> · ${esc(customerName(invoice.customerId))} · ${esc(when)} · ${money(amounts(invoice).gross)}</p></div><button class="btn primary" type="button" data-action="dismiss-due-reminder" data-id="${escAttr(invoice.id)}">OK</button></section>`;
+}
 function renderPage(){
   const renderers={
-    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,team:renderTeamPage,settings:renderSettings,help:renderHelp
+    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,settings:renderSettings,help:renderHelp
   };
-$("#pageContent").innerHTML=(renderers[state.currentPage]||renderDashboard)();
+$("#pageContent").innerHTML=dueReminderBannerHTML()+(renderers[state.currentPage]||renderDashboard)();
 if(state.currentPage==="dashboard"){
   requestAnimationFrame(() => {
     drawBars($("#dashboardChart"),monthBuckets());
     drawDonut($("#statusDonut"));
   });
-  if(teamInfo.role==="owner")refreshDashboardTeamPanel();
 }
-if(state.currentPage==="reports") requestAnimationFrame(() => drawBars($("#reportChart"),monthBuckets()));
+if(state.currentPage==="reports") requestAnimationFrame(() => drawBars($("#reportChart"),reportMonthBuckets(Number(state.ui.analyticsYear)||new Date().getFullYear(),Number(state.ui.analyticsMonth)||0)));
 if(state.currentPage==="settings"){
   bindSettingsForms();
   if(state.ui.settingsTab==="team"&&teamInfo.role!=="employee")refreshTeamPanel();
 }
-if(state.currentPage==="team"&&teamInfo.role!=="employee")refreshTeamPanel();
 }
 function closeSidebar(){
   $("#sidebar").classList.remove("open");
@@ -2369,9 +2365,7 @@ function emptyState(iconName,title,description,action=""){
 DASHBOARD AND CHARTS
 ================================================================ */
 function renderDashboard(){
-  const employeeAccountCard=teamInfo.role==="employee"&&teamInfo.enabled?`<section class="card employee-account-card" aria-label="Mein Mitarbeiterkonto"><div class="card-body"><div class="row" style="gap:10px;align-items:center"><span class="quick-icon">${icon("users","icon icon-lg")}</span><div><h2 class="card-title" style="margin:0">Mein Mitarbeiterbereich</h2><div class="card-subtitle">Dein eigenes Login · gemeinsamer Unternehmensarbeitsbereich</div></div></div><div class="employee-account-grid"><div class="employee-account-cell"><small>Angemeldet als</small><strong>${esc(state.user?.name||"Mitarbeiter")}</strong></div><div class="employee-account-cell"><small>Konto-E-Mail</small><strong>${esc(state.user?.email||"Nicht hinterlegt")}</strong></div><div class="employee-account-cell"><small>Unternehmen</small><strong>${esc(teamInfo.organizationName||"Gemeinsamer Arbeitsbereich")}</strong></div></div><p class="hint" style="margin:12px 0 0">Du verwendest dein eigenes Rechnio-Konto. Rechnungen und Kunden gehören zum Unternehmensbereich und werden mit dem Inhaber geteilt. Unternehmenseinstellungen und Mitarbeiterverwaltung bleiben dem Inhaber vorbehalten.</p></div></section>`:"";
-  const ownerTeamCard=teamInfo.role==="owner"?`<section class="card dashboard-team-card" aria-label="Mitarbeiter im Unternehmen"><div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Wer Zugriff auf deinen Unternehmensbereich hat</div></div><button class="btn secondary btn-sm" type="button" data-action="dashboard-team-settings">Team verwalten ${icon("chevron","icon icon-sm")}</button></div><div class="card-body" id="dashboardTeamSummary"><p class="muted">Team wird geladen…</p></div></section>`:"";
-  const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Deine Anmeldung ist getrennt. Die angezeigten Rechnungen und Kunden stammen aus dem Unternehmensbereich.</span></div>`:"";
+  const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Du siehst die gemeinsam gespeicherten Rechnungen und Kunden. Neue Änderungen werden mit dem Unternehmensbereich synchronisiert.</span></div>`:"";
   const list=state.invoices.map(invoice=>({
     ...invoice,...amounts(invoice),computedStatus:statusOf(invoice)
   }));
@@ -2383,9 +2377,8 @@ const monthlyRevenue=sum(list.filter(i=>i.computedStatus==="paid"&&String(i.paid
 const paidThisMonth=list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).length;
 const recent=[...state.invoices].sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))).slice(0,5);
 const actions=`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
-return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Dein persönlicher Zugang zur gemeinsamen Unternehmensübersicht.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
+return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Hier ist die gemeinsame Übersicht deines Unternehmens.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
 <section class="stats" aria-label="Kennzahlen">${statCard("Monatsumsatz",money(monthlyRevenue),"chart","blue",`${paidThisMonth} bezahlte Rechnungen diesen Monat`)}${statCard("Bezahlte Rechnungen",money(paid),"wallet","green",`${list.filter(i=>i.computedStatus==="paid").length} bezahlt insgesamt`)}${statCard("Offene Beträge",money(open),"clock","amber",`${list.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).length} offen`)}${statCard("Überfällig",money(overdue),"calendar","red",`${list.filter(i=>i.computedStatus==="overdue").length} überfällig`)}${statCard("Kunden",String(state.customers.length),"users","purple","Gespeicherte Kontakte")}</section>
-${employeeAccountCard}${ownerTeamCard}
 <div class="dashboard"><div class="dash-left"><section class="card"><div class="card-head"><div><h2 class="card-title">Rechnungsvolumen</h2><div class="card-subtitle">Bruttobeträge der letzten sechs Monate</div></div><div class="legend"><span class="legend-item"><span class="legend-dot"></span>Bezahlt</span><span class="legend-item"><span class="legend-dot light"></span>Offen</span></div></div><div id="dashboardChart" class="chart-area"><div class="chart-empty">Diagramm wird geladen…</div></div></section>
 <section class="card table-card"><div class="card-head"><div><h2 class="card-title">Letzte Rechnungen</h2><div class="card-subtitle">Die zuletzt erstellten Rechnungen</div></div><button class="link-button" data-page="invoices">Alle anzeigen ${icon("chevron","icon icon-sm")}</button></div>${recent.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
     recent.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button><div class="tiny faint">${esc(i.title||"Rechnung")}</div></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.dueDate)}</td><td>${badge(statusOf(i))}</td><td class="right strong mono">${money(amounts(i).gross)}</td></tr>`).join("")
@@ -2423,6 +2416,15 @@ function monthBuckets(){
   });
 }
 return buckets;
+}
+function reportMonthBuckets(year,selectedMonth=0){
+  const buckets=[];
+  for(let month=0;month<12;month++){
+    if(selectedMonth>0&&month+1!==selectedMonth)continue;
+    const items=state.invoices.filter(i=>{const d=parseDate(i.issueDate);return d&&d.getFullYear()===year&&d.getMonth()===month;});
+    buckets.push({label:SHORT_MONTHS[month],paid:sum(items.filter(i=>statusOf(i)==="paid").map(i=>amounts(i).gross)),open:sum(items.filter(i=>["open","sent","overdue","draft"].includes(statusOf(i))).map(i=>amounts(i).gross))});
+  }
+  return buckets;
 }
 function drawBars(container,buckets){
   if(!container)return;
@@ -2645,6 +2647,8 @@ function bindInvoiceForm(){
   });
 form.addEventListener("change",e=>{
   if(e.target.matches(".line-vat"))calculateDraft();
+  if(e.target.matches(".line-qty")){e.target.value=String(Math.max(1,Math.round(num(e.target.value,1))));calculateDraft();}
+  if(e.target.matches(".line-price")){e.target.value=String(Math.max(0,Math.round(num(e.target.value,0))));calculateDraft();}
 });
 form.addEventListener("submit",e=>{
   e.preventDefault();saveInvoiceForm();
@@ -2655,12 +2659,12 @@ calculateDraft();
 function renderInvoiceLines(){
   const body=$("#invoiceLines");
   if(!body)return;
-  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="0.01" step="0.01" value="${escAttr(item.quantity??1)}"></td><td><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="0.01" value="${escAttr(item.price??0)}"></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
+  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="1" step="1" inputmode="numeric" value="${escAttr(Math.max(1,Math.round(num(item.quantity??1))))}"></td><td><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="1" inputmode="numeric" value="${escAttr(Math.max(0,Math.round(num(item.price??0))))}"></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
 }
 function calculateDraft(){
   const rows=$$("#invoiceLines tr");
   rows.forEach(row=>{
-    const i=Number(row.dataset.line);if(!invoiceDraftItems[i])return;invoiceDraftItems[i].description=$(".line-description",row).value;invoiceDraftItems[i].quantity=Math.max(0,num($(".line-qty",row).value));invoiceDraftItems[i].price=Math.max(0,num($(".line-price",row).value));invoiceDraftItems[i].vat=clamp(num($(".line-vat",row).value),0,100);$(".line-total",row).textContent=money(invoiceDraftItems[i].quantity*invoiceDraftItems[i].price);
+    const i=Number(row.dataset.line);if(!invoiceDraftItems[i])return;invoiceDraftItems[i].description=$(".line-description",row).value;invoiceDraftItems[i].quantity=Math.max(1,Math.round(num($(".line-qty",row).value,1)));invoiceDraftItems[i].price=Math.max(0,Math.round(num($(".line-price",row).value,0)));invoiceDraftItems[i].vat=clamp(num($(".line-vat",row).value),0,100);$(".line-total",row).textContent=money(invoiceDraftItems[i].quantity*invoiceDraftItems[i].price);
   });
 const net=sum(invoiceDraftItems.map(i=>num(i.quantity)*num(i.price)));
 const vat=sum(invoiceDraftItems.map(i=>num(i.quantity)*num(i.price)*num(i.vat)/100));
@@ -2694,7 +2698,7 @@ function saveInvoiceForm(){
   if(!dueDate) dueDate=addDays(issueDate,Number(state.company.paymentDays)||14);
   if(!customerId) customerId=state.customers[0]?.id||"";
   const items=invoiceDraftItems.map(i=>({
-    description:String(i.description||"").trim(),quantity:num(i.quantity),price:num(i.price),vat:clamp(num(i.vat),0,100)
+    description:String(i.description||"").trim(),quantity:Math.max(1,Math.round(num(i.quantity,1))),price:Math.max(0,Math.round(num(i.price,0))),vat:clamp(num(i.vat),0,100)
   }));
 if(!parseDate(issueDate)||(serviceDate&&!parseDate(serviceDate))||!parseDate(dueDate)||parseDate(dueDate)<parseDate(issueDate)){
   toast("Datum prüfen","Das Fälligkeitsdatum darf nicht vor dem Rechnungsdatum liegen.","error");
@@ -2921,7 +2925,6 @@ function getHelpAnswer(question){
   const q=norm(question);
   if(!q)return {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu Rechnungen, Kunden, Exporten, Einstellungen oder zur Datenspeicherung. Die Antwort basiert auf der in dieser Version integrierten Rechnio-Anleitung.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?","Wo trage ich Firmendaten ein?","Wie exportiere ich Kunden?"],target:"help",button:"Hilfe ansehen"};
   if(/rechnung.{0,35}(erstell|anleg|neu)|(?:erstell|anleg).{0,35}rechnung|neue rechnung/.test(q))return {title:"Rechnung erstellen",intro:"So legst du eine neue Rechnung in Rechnio an.",steps:["Öffne links den Bereich „Rechnungen“.","Klicke auf „Neue Rechnung“.","Wähle den Rechnungsempfänger aus der Kundenliste aus.","Prüfe Rechnungsnummer, Rechnungsdatum und Zahlungsziel. Das Leistungsdatum oder der Leistungszeitraum kann ebenfalls ergänzt werden.","Füge eine Position hinzu und trage Beschreibung, Menge, Nettopreis und passenden Steuersatz ein.","Kontrolliere die berechneten Beträge und klicke auf „Rechnung speichern“.","Öffne die gespeicherte Rechnung zur Kontrolle. Über „Drucken / PDF speichern“ kannst du eine PDF-Datei erstellen."],target:"invoices",button:"Neue Rechnung öffnen"};
-  if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b|mehrere benutzer/.test(q))return {title:"Mitarbeiterkonten",intro:"Der Inhaber kann Mitarbeiter über Einstellungen → Mitarbeiter einladen. Beide Konten verwenden danach denselben Unternehmensbereich.",steps:["Öffne Einstellungen und wähle den Tab Mitarbeiter.","Trage die E-Mail-Adresse des Mitarbeiters ein und erstelle eine Einladung.","Der Mitarbeiter öffnet den Link und erstellt bei Bedarf ein Konto mit genau dieser E-Mail-Adresse.","Mitarbeiter können Kunden und Rechnungen bearbeiten, aber keine Firmeneinstellungen oder Mitgliederverwaltung ändern.","Die Funktion benötigt die aktualisierte Supabase-Tabelle und einen geheimen Schlüssel nur in Render. Ohne verifizierten Resend-Absender kann der angezeigte Einladungslink manuell geteilt werden."],target:"settings",button:"Mitarbeiterverwaltung öffnen"};
   if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Mitarbeiterkonten nutzen nach der Einrichtung einen gemeinsamen Unternehmensbereich. Die Einladungs-E-Mail benötigt einen verifizierten Resend-Absender; andernfalls kann der sichere Link manuell geteilt werden."],target:"dashboard",button:"Zum Dashboard"};
   if(/mit login|anmelden|login|passwort|registrier|konto erstellen|zugang|zuruecksetzen|zurücksetzen/.test(q))return {title:"Anmelden und Zugang",intro:"Die aktuelle Oberfläche ist auf einen bereits eingerichteten Testzugang ausgelegt. Die Registrierung ist in diesem Build deaktiviert.",steps:["Gib die dir bereitgestellte E-Mail-Adresse manuell ein; sie wird nicht mehr automatisch ins Feld eingetragen.","Gib dein Passwort ein und klicke auf „Anmelden“.","Falls die Anmeldung fehlschlägt, überprüfe, ob der Dienst bei Render Live ist, und achte auf die Meldung unter dem Formular.","Es gibt in dieser Version keinen bestätigten Selbstbedienungs-Link zum Zurücksetzen des Passworts."],target:"help",button:"Hilfe ansehen"};
   if(/e.?mail|email|versenden|versand|rechnung senden|rechnung per mail|mahnung|zahlungserinner/.test(q))return {title:"Rechnung per E-Mail versenden",intro:"In der aktuellen Oberfläche ist kein zuverlässig bestätigter Direktversand eingebaut. Die sichere Alternative ist, die Rechnung als PDF zu speichern und manuell über dein E-Mail-Programm zu senden.",steps:["Öffne „Rechnungen“ und klicke bei der passenden Rechnung auf „Ansehen“.","Prüfe die Rechnungsangaben und speichere über „Drucken / PDF speichern“ eine PDF-Datei.","Öffne dein E-Mail-Programm, wähle den Kunden als Empfänger und hänge das PDF an.","Automatische Mahnungen und ein integrierter E-Mail-Versand sollten erst genutzt werden, wenn der E-Mail-Dienst serverseitig eingerichtet und erfolgreich getestet wurde."],target:"invoices",button:"Zu Rechnungen"};
@@ -2935,7 +2938,7 @@ function getHelpAnswer(question){
   if(/umsatz|auswertung|statistik|diagramm|dashboard|gewinn|kosten|ausgaben/.test(q))return {title:"Dashboard und Auswertungen",intro:"Diese Bereiche fassen vorhandene Rechnungen und deren Zahlungsstatus zusammen.",steps:["Das Dashboard zeigt wichtige Kennzahlen und aktuelle Rechnungen.","Öffne „Auswertungen“, um Rechnungsvolumen, bezahlte, offene und überfällige Beträge zu sehen.","Die Summen beruhen auf den in Rechnio gespeicherten Rechnungen und Statusangaben.","Ein vollständiger Unternehmensgewinn lässt sich daraus allein nicht sicher bestimmen, solange Kosten/Ausgaben nicht lückenlos erfasst werden.","Prüfe Daten und Status vor geschäftlichen Entscheidungen."],target:/dashboard/.test(q)?"dashboard":"reports",button:/dashboard/.test(q)?"Zum Dashboard":"Zu Auswertungen"};
   if(/mwst|mehrwertsteuer|umsatzsteuer|steuersatz|7 ?%|19 ?%|steuer/.test(q))return {title:"Umsatzsteuer und Steuersätze",intro:"Rechnio berechnet die Steuer anhand des ausgewählten Steuersatzes. Die App entscheidet nicht, welcher Steuersatz rechtlich für deine Leistung gilt.",steps:["Öffne die Rechnung und bearbeite die betroffene Position.","Prüfe Menge, Nettopreis und den zugeordneten Steuersatz.","Wähle nur einen Steuersatz, der tatsächlich auf die Leistung anwendbar ist.","Wenn du dir unsicher bist, kläre es mit einer qualifizierten Steuerberatung oder einer verlässlichen offiziellen Quelle."],target:"invoices",button:"Zu Rechnungen"};
   if(/abo|preis|bezahlen|zahlungsmethode|subscription|kosten von rechnio/.test(q))return {title:"Abo und Preise",intro:"In der aktuellen Oberfläche ist keine bestätigte Abonnement- oder Zahlungsverwaltung integriert.",steps:["Die Preisstufen sind noch kein aktiver Checkout.","Vor dem Verkauf müssen Preis, Bedingungen, Datenschutz und Zahlungsabwicklung eingerichtet werden.","Bis dahin solltest du keine Zahlung über Rechnio versprechen oder behaupten, ein Abo werde automatisch verwaltet."],target:"help",button:"Hilfe ansehen"};
-  return {title:"Ich helfe dir bei Rechnio",intro:"Ich kenne die wichtigsten Bereiche und Abläufe dieser Rechnio-Version. Deine Frage lässt sich noch keinem Thema eindeutig zuordnen. Formuliere sie genauer oder wähle eine der Beispiel-Fragen.",steps:["Wie erstelle ich eine Rechnung?","Warum fehlen Firmendaten in der Rechnung?","Wie verwalte oder exportiere ich Kunden?","Wo werden meine Daten gespeichert?","Kann ich eine Rechnung automatisch per E-Mail senden?"],target:"help",button:"Hilfe ansehen"};
+  return {title:"Ich helfe dir bei Rechnio",intro:"Ich kenne die wichtigsten Bereiche und Abläufe dieser Rechnio-Version. Deine Frage lässt sich noch keinem Thema eindeutig zuordnen. Formuliere sie genauer oder wähle eine der Beispiel-Fragen.",steps:["Wie erstelle ich eine Rechnung?","Warum fehlen Firmendaten in der Rechnung?","Wie verwalte oder exportiere ich Kunden?","Wo werden meine Daten gespeichert?","Wie prüfe ich offene Rechnungen?"],target:"help",button:"Hilfe ansehen"};
 }
 function renderHelpAnswer(answer){
   if(!answer)return "";
@@ -2959,7 +2962,7 @@ function renderHelp(){
   return `${heading("Hilfe & Anleitung","Lerne Rechnio Schritt für Schritt kennen – auf Computer, Tablet und Smartphone.")}
     <section class="help-hero"><div class="help-kicker">Dein Rechnio-Assistent</div><h2>Wir machen es Schritt für Schritt.</h2><p>Der Assistent erläutert die Funktionen und Grenzen dieser Rechnio-Version. Stelle Fragen zu Rechnungen, Kunden, Exporten, Einstellungen, Datensicherung oder Anmeldung. Die Antworten stammen aus einer integrierten Wissensbasis; ein externes generatives KI-Modell ist derzeit nicht angeschlossen. Du kannst dir jeden Schritt erklären lassen und anschließend bestätigen, dass du ihn erledigt hast.</p></section>
     <div class="help-layout"><section class="help-card"><div class="between wrap"><div><div class="help-kicker">Geführte Anleitung</div><h2 class="card-title" style="margin:5px 0 0">Rechnio kennenlernen</h2></div><span class="muted small">${complete?steps.length: index} / ${steps.length} Schritte erledigt</span></div><div class="help-progress" role="progressbar" aria-label="Fortschritt der Anleitung" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><div class="help-progress-fill" style="width:${progress}%"></div></div>${wizard}</section>
-    <section class="help-card"><div class="help-kicker">Fragen und Antworten</div><h2 class="card-title" style="margin:5px 0 6px">Was möchtest du machen?</h2><p class="muted" style="margin:0 0 14px;line-height:1.7">Formuliere deine Frage in normalem Deutsch. Die Antworten beruhen auf der integrierten Rechnio-Wissensbasis und beschreiben die vorhandenen Funktionen sowie deren bekannte Grenzen.</p><form id="helpAskForm" class="help-question-form"><label class="sr-only" for="helpQuestion">Deine Frage</label><textarea id="helpQuestion" class="textarea" placeholder="Wie erstelle ich eine Rechnung?" maxlength="500">${esc(question)}</textarea><button class="btn primary" type="submit">Frage beantworten ${icon("chevron","icon icon-sm")}</button></form><div class="help-suggestions"><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie erstelle ich eine Rechnung?">Wie erstelle ich eine Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Warum fehlen Firmendaten auf meiner Rechnung?">Warum fehlen Firmendaten auf meiner Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie lege ich einen Kunden an?">Wie lege ich einen Kunden an?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie speichere ich eine Rechnung als PDF?">Wie speichere ich eine Rechnung als PDF?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wo werden meine Daten gespeichert und wie mache ich eine Sicherung?">Wo werden meine Daten gespeichert?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Welche Funktionen hat Rechnio?">Welche Funktionen hat Rechnio?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Kann ich eine Rechnung automatisch per E-Mail senden?">Kann ich per E-Mail senden?</button></div>${answer}</section></div>`;
+    <section class="help-card"><div class="help-kicker">Fragen und Antworten</div><h2 class="card-title" style="margin:5px 0 6px">Was möchtest du machen?</h2><p class="muted" style="margin:0 0 14px;line-height:1.7">Formuliere deine Frage in normalem Deutsch. Die Antworten beruhen auf der integrierten Rechnio-Wissensbasis und beschreiben die vorhandenen Funktionen sowie deren bekannte Grenzen.</p><form id="helpAskForm" class="help-question-form"><label class="sr-only" for="helpQuestion">Deine Frage</label><textarea id="helpQuestion" class="textarea" placeholder="Wie erstelle ich eine Rechnung?" maxlength="500">${esc(question)}</textarea><button class="btn primary" type="submit">Frage beantworten ${icon("chevron","icon icon-sm")}</button></form><div class="help-suggestions"><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie erstelle ich eine Rechnung?">Wie erstelle ich eine Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Warum fehlen Firmendaten auf meiner Rechnung?">Warum fehlen Firmendaten auf meiner Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie lege ich einen Kunden an?">Wie lege ich einen Kunden an?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wo werden meine Daten gespeichert und wie mache ich eine Sicherung?">Wo werden meine Daten gespeichert?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Welche Funktionen hat Rechnio?">Welche Funktionen hat Rechnio?</button></div>${answer}</section></div>`;
 }
 function submitHelpQuestion(question){
   const q=String(question||"").trim();
@@ -2987,31 +2990,32 @@ function openHelpTarget(target){
 REPORTS AND SETTINGS
 ================================================================ */
 function renderReports(){
-  const all=state.invoices.map(i=>({
-    ...i,...amounts(i),computedStatus:statusOf(i)
-  }));
-const paid=sum(all.filter(i=>i.computedStatus==="paid").map(i=>i.gross));
-const open=sum(all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).map(i=>i.gross));
-const overdue=sum(all.filter(i=>i.computedStatus==="overdue").map(i=>i.gross));
-const average=all.length?sum(all.map(i=>i.gross))/all.length:0;
-const openInvoices=all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
-return `${heading("Auswertungen","Ein einfacher Überblick über Rechnungsbeträge und Zahlungsstatus.",`<button class="btn secondary" data-action="export-data">${
-    icon("download","icon icon-sm")
-  }
-Daten exportieren</button>`)}${demoBanner()}<div class="report-grid"><div class="card report-stat"><span>Bezahlt</span><strong style="color:var(--green)">${money(paid)}</strong><small>Rechnungen mit Status „Bezahlt“</small></div><div class="card report-stat"><span>Offen / ausstehend</span><strong>${money(open)}</strong><small>Ohne Entwürfe</small></div><div class="card report-stat"><span>Überfällig</span><strong style="color:var(--red)">${money(overdue)}</strong><small>Fälligkeit liegt in der Vergangenheit</small></div></div><div class="dashboard"><section class="card"><div class="card-head"><div><h2 class="card-title">Monatlicher Überblick</h2><div class="card-subtitle">Erstellte Rechnungen nach Monat</div></div></div><div id="reportChart" class="chart-area"></div></section><section class="card"><div class="card-head"><div><h2 class="card-title">Zusammenfassung</h2><div class="card-subtitle">Kennzahlen zu allen Rechnungen</div></div></div><div class="card-body stack">${reportLine("Anzahl Rechnungen",String(all.length))}${reportLine("Anzahl Kunden",String(state.customers.length))}${reportLine("Rechnungsvolumen gesamt",money(sum(all.map(i=>i.gross))))}${reportLine("Durchschnitt je Rechnung",money(average))}${reportLine("Bezahlte Rechnungen",String(all.filter(i=>i.computedStatus==="paid").length))}${reportLine("Offene Rechnungen",String(all.filter(i=>["open","sent"].includes(i.computedStatus)).length))}${reportLine("Überfällige Rechnungen",String(all.filter(i=>i.computedStatus==="overdue").length))}</div></section></div><section class="card table-card" style="margin-top:18px"><div class="card-head"><div><h2 class="card-title">Offene Rechnungen im Detail</h2><div class="card-subtitle">Beträge, die noch nicht als bezahlt markiert sind</div></div></div>${openInvoices.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${
-  openInvoices.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.dueDate)}</td><td>${badge(i.computedStatus)}</td><td class="right strong">${money(i.gross)}</td></tr>`).join("")
-}
-</tbody></table></div>`:emptyState("check","Alles erledigt","Es gibt derzeit keine offenen Rechnungen.")}</section>`;
+  const now=new Date();
+  const selectedMonth=clamp(Number(state.ui.analyticsMonth??(now.getMonth()+1)),0,12);
+  const selectedYear=clamp(Number(state.ui.analyticsYear??now.getFullYear()),2000,2100);
+  const allInvoices=state.invoices.map(i=>({...i,...amounts(i),computedStatus:statusOf(i)}));
+  const all=allInvoices.filter(i=>{
+    const d=parseDate(i.issueDate);
+    return d&&d.getFullYear()===selectedYear&&(selectedMonth===0||d.getMonth()+1===selectedMonth);
+  });
+  const paid=sum(all.filter(i=>i.computedStatus==="paid").map(i=>i.gross));
+  const open=sum(all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).map(i=>i.gross));
+  const overdue=sum(all.filter(i=>i.computedStatus==="overdue").map(i=>i.gross));
+  const average=all.length?sum(all.map(i=>i.gross))/all.length:0;
+  const openInvoices=all.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).sort((a,b)=>String(a.dueDate).localeCompare(String(b.dueDate)));
+  const monthNames=["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+  const periodLabel=selectedMonth===0?`im Jahr ${selectedYear}`:`im ${monthNames[selectedMonth-1]} ${selectedYear}`;
+  const yearOptions=[...new Set([now.getFullYear(),...allInvoices.map(i=>parseDate(i.issueDate)?.getFullYear()).filter(Boolean),selectedYear])].sort((a,b)=>b-a);
+  const monthOptions=[`<option value="0" ${selectedMonth===0?"selected":""}>Alle Monate</option>`,...monthNames.map((name,index)=>`<option value="${index+1}" ${selectedMonth===index+1?"selected":""}>${name}</option>`)].join("");
+  const yearSelect=yearOptions.map(year=>`<option value="${year}" ${selectedYear===year?"selected":""}>${year}</option>`).join("");
+  return `${heading("Auswertungen","Ein Überblick über Rechnungsbeträge und Zahlungsstatus – nach Monat und Jahr filterbar.",`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button>`)}${demoBanner()}
+  <section class="card" style="margin-bottom:18px"><div class="card-body"><div class="form-grid" style="grid-template-columns:repeat(2,minmax(0,220px));align-items:end"><div class="field"><label for="reportMonth">Monat</label><select id="reportMonth" class="select">${monthOptions}</select></div><div class="field"><label for="reportYear">Jahr</label><select id="reportYear" class="select">${yearSelect}</select></div></div><p class="hint" style="margin:10px 0 0">Die Kennzahlen und die Liste der offenen Rechnungen beziehen sich auf Rechnungen, die ${esc(periodLabel)} erstellt wurden.</p></div></section>
+  <div class="report-grid"><div class="card report-stat"><span>Bezahlt</span><strong style="color:var(--green)">${money(paid)}</strong><small>${all.filter(i=>i.computedStatus==="paid").length} bezahlte Rechnungen ${esc(periodLabel)}</small></div><div class="card report-stat"><span>Offen / ausstehend</span><strong>${money(open)}</strong><small>Ohne Entwürfe ${esc(periodLabel)}</small></div><div class="card report-stat"><span>Überfällig</span><strong style="color:var(--red)">${money(overdue)}</strong><small>Fälligkeit liegt in der Vergangenheit</small></div></div>
+  <div class="dashboard"><section class="card"><div class="card-head"><div><h2 class="card-title">Monatlicher Überblick</h2><div class="card-subtitle">Rechnungsvolumen ${selectedMonth===0?`nach Monat im Jahr ${selectedYear}`:`im ${monthNames[selectedMonth-1]} ${selectedYear}`}</div></div></div><div id="reportChart" class="chart-area"></div></section><section class="card"><div class="card-head"><div><h2 class="card-title">Zusammenfassung</h2><div class="card-subtitle">Kennzahlen ${esc(periodLabel)}</div></div></div><div class="card-body stack">${reportLine("Anzahl Rechnungen",String(all.length))}${reportLine("Anzahl Kunden",String(state.customers.length))}${reportLine("Rechnungsvolumen",money(sum(all.map(i=>i.gross))))}${reportLine("Durchschnitt je Rechnung",money(average))}${reportLine("Bezahlte Rechnungen",String(all.filter(i=>i.computedStatus==="paid").length))}${reportLine("Offene Rechnungen",String(all.filter(i=>["open","sent"].includes(i.computedStatus)).length))}${reportLine("Überfällige Rechnungen",String(all.filter(i=>i.computedStatus==="overdue").length))}</div></section></div>
+  <section class="card table-card" style="margin-top:18px"><div class="card-head"><div><h2 class="card-title">Offene Rechnungen im Detail</h2><div class="card-subtitle">Noch nicht als bezahlt markiert · ${esc(periodLabel)}</div></div></div>${openInvoices.length?`<div class="table-wrap"><table class="data-table"><thead><tr><th>Rechnung</th><th>Kunde</th><th>Fällig am</th><th>Status</th><th class="right">Betrag</th></tr></thead><tbody>${openInvoices.map(i=>`<tr><td><button class="link-button" data-action="view-invoice" data-id="${escAttr(i.id)}">${esc(i.number)}</button></td><td>${esc(customerName(i.customerId))}</td><td>${formatDate(i.dueDate)}</td><td>${badge(i.computedStatus)}</td><td class="right strong">${money(i.gross)}</td></tr>`).join("")}</tbody></table></div>`:emptyState("check","Keine offenen Rechnungen","Für den ausgewählten Zeitraum gibt es keine offenen Rechnungen.")}</section>`;
 }
 function reportLine(label,value){
   return `<div class="between"><span class="muted small">${esc(label)}</span><strong class="small mono">${esc(value)}</strong></div>`;
-}
-function renderTeamPage(){
-  return `${heading("Mitarbeiter","Verwalte Mitarbeiterkonten und teile Einladungslinks sicher.")}
-    <section class="card" aria-label="Mitarbeiterverwaltung">
-      <div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Aktive Mitglieder, offene Einladungen und Einladungen ohne E-Mail-Versand</div></div></div>
-      <div class="card-body" id="teamPageContent"><p class="muted">Mitarbeiterliste wird geladen…</p></div>
-    </section>`;
 }
 function renderSettings(){
   const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"]];
@@ -3032,49 +3036,20 @@ function settingsTab(tab){
   if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Sicherung</h2><p>Verwalte deine Rechnio-Daten und erstelle bei Bedarf eine lokale Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Hinweis zur Speicherung:</strong> Rechnungs- und Kundendaten werden derzeit in diesem Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div></div>`;
 }
-function renderDashboardTeamSummary(data){
-  const members=Array.isArray(data.members)?data.members:[];
-  const invitations=Array.isArray(data.invitations)?data.invitations:[];
-  const employees=members.filter(member=>member.role==="employee");
-  const employeeRows=employees.map(member=>`<div class="dashboard-team-item"><div><div class="dashboard-team-email">${esc(String(member.email||"Mitarbeiterkonto"))}</div><div class="dashboard-team-meta">Mitarbeiter · Konto verbunden</div></div><span class="dashboard-team-tag">Aktiv</span></div>`).join("");
-  const inviteRows=invitations.map(invite=>{const expired=Date.parse(invite.expires_at)<=Date.now();return `<div class="dashboard-team-item"><div><div class="dashboard-team-email">${esc(String(invite.email||"Eingeladene Person"))}</div><div class="dashboard-team-meta">${expired?"Einladung abgelaufen":"Einladung noch nicht angenommen"}</div></div><span class="dashboard-team-tag pending">${expired?"Abgelaufen":"Ausstehend"}</span></div>`;}).join("");
-  const people=employees.length+invitations.length;
-  const summary=`<div class="between wrap" style="margin-bottom:8px"><span class="hint">${employees.length} aktive Mitarbeiter${employees.length===1?"":"konten"} · ${invitations.length} offene Einladung${invitations.length===1?"":"en"}</span><span class="status ${employees.length?"paid":"open"}">${people} Eintrag${people===1?"":"e"}</span></div>`;
-  return `${summary}<div class="dashboard-team-list">${employeeRows}${inviteRows}</div>${!employees.length&&!invitations.length?'<p class="muted" style="margin:8px 0 0">Noch keine Mitarbeiter hinzugefügt. Über „Team verwalten“ kannst du jemanden einladen.</p>':""}`;
-}
-async function refreshDashboardTeamPanel(){
-  const target=$("#dashboardTeamSummary");
-  if(!target||teamInfo.role!=="owner")return;
-  if(!teamInfo.enabled){
-    target.innerHTML='<p class="muted">Die Mitarbeiterverwaltung ist noch nicht bereit. Öffne die Seite „Mitarbeiter“, um die Einrichtung zu prüfen.</p>';
-    return;
-  }
-  try{
-    const response=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(payload.error||"Teamübersicht konnte nicht geladen werden.");
-    teamInfo=payload.membership||teamInfo;
-    const current=$("#dashboardTeamSummary");
-    if(current)current.innerHTML=renderDashboardTeamSummary(payload);
-  }catch(error){
-    const current=$("#dashboardTeamSummary");
-    if(current)current.innerHTML=`<p class="muted">${esc(error.message||"Teamübersicht vorübergehend nicht verfügbar.")} Öffne „Einstellungen → Mitarbeiterkonten“, um die Mitgliederliste zu prüfen.</p>`;
-  }
-}
 function teamEscape(value){return esc(String(value??""));}
 function renderTeamPanel(data){
   const members=Array.isArray(data.members)?data.members:[];
   const invitations=Array.isArray(data.invitations)?data.invitations:[];
-  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">${teamLastInviteMode==="link"?"Ohne E-Mail-Versand erstellt. Teile den privaten Link nur mit der gewünschten Person; wer ihn besitzt, kann beitreten.":teamLastInviteMode==="email-fallback"?"Die E-Mail wurde nicht gesendet. Teile diesen Link nur mit der eingeladenen Person.":"Du kannst den Link bei Bedarf ebenfalls kopieren."}</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
+  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">${data.emailSent===false?"Die E-Mail wurde nicht gesendet. Teile diesen Link nur mit der eingeladenen Person.":"Du kannst den Link bei Bedarf ebenfalls kopieren."}</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
   const memberRows=members.map(m=>`<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(m.email||"Benutzerkonto")}</strong><div class="hint">${m.role==="owner"?"Inhaber":"Mitarbeiter"}</div></div><div class="row">${m.role==="employee"?`<button class="btn secondary" type="button" data-action="team-remove-member" data-id="${escAttr(m.user_id)}">Entfernen</button>`:`<span class="status paid">Inhaber</span>`}</div></div>`).join("");
   const inviteRows=invitations.map(inv=>{
     const expired=Date.parse(inv.expires_at)<=Date.now();
-    return `<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(inv.email||"Einladungslink (ohne feste E-Mail)")}</strong><div class="hint">${expired?"Abgelaufen":"Offen"} · gültig bis ${teamEscape(new Date(inv.expires_at).toLocaleDateString("de-DE"))}</div></div><button type="button" class="btn secondary" data-action="team-revoke-invitation" data-id="${escAttr(inv.id)}">${expired?"Aufräumen":"Widerrufen"}</button></div>`;
+    return `<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(inv.email)}</strong><div class="hint">${expired?"Abgelaufen":"Offen"} · gültig bis ${teamEscape(new Date(inv.expires_at).toLocaleDateString("de-DE"))}</div></div><button type="button" class="btn secondary" data-action="team-revoke-invitation" data-id="${escAttr(inv.id)}">${expired?"Aufräumen":"Widerrufen"}</button></div>`;
   }).join("");
-  return `${invitationBox}<div class="stack"><button type="button" class="btn primary" data-action="team-create-link-invitation">Einladungslink erstellen (ohne E-Mail)</button><p class="hint">Der Link ist 7 Tage gültig und kann einmal angenommen werden. Wer den privaten Link besitzt, kann beitreten. Teile ihn nur direkt mit der gewünschten Person. Der Mitarbeiter braucht trotzdem ein eigenes Rechnio-Konto.</p><details><summary style="cursor:pointer;font-weight:600">Alternative: Einladung an feste E-Mail-Adresse</summary><form id="teamInviteForm" class="stack" style="margin-top:14px"><div class="field"><label for="teamInviteEmail">E-Mail-Adresse des Mitarbeiters</label><input id="teamInviteEmail" class="input" type="email" maxlength="254" placeholder="mitarbeiter@unternehmen.de" required></div><div class="save-row"><button type="submit" class="btn secondary">Per E-Mail einladen</button></div><p class="hint">Die Einladung ist 7 Tage gültig. Der Mitarbeiter muss ein Konto mit derselben E-Mail-Adresse verwenden.</p></form></details></div><div class="divider" style="margin:22px 0"></div><h3>Mitglieder (${members.length})</h3>${memberRows||'<p class="muted">Noch keine Mitglieder gefunden.</p>'}<div style="height:18px"></div><h3>Offene Einladungen (${invitations.length})</h3>${inviteRows||'<p class="muted">Keine offenen Einladungen.</p>'}`;
+  return `${invitationBox}<form id="teamInviteForm" class="stack"><div class="field"><label for="teamInviteEmail">E-Mail-Adresse des Mitarbeiters</label><input id="teamInviteEmail" class="input" type="email" maxlength="254" placeholder="mitarbeiter@unternehmen.de" required></div><div class="save-row"><button type="submit" class="btn primary">Mitarbeiter einladen</button></div><p class="hint">Die Einladung ist 7 Tage gültig. Der Mitarbeiter muss ein Konto mit derselben E-Mail-Adresse verwenden.</p></form><div class="divider" style="margin:22px 0"></div><h3>Mitglieder (${members.length})</h3>${memberRows||'<p class="muted">Noch keine Mitglieder gefunden.</p>'}<div style="height:18px"></div><h3>Offene Einladungen (${invitations.length})</h3>${inviteRows||'<p class="muted">Keine offenen Einladungen.</p>'}`;
 }
 async function refreshTeamPanel(){
-  const content=$("#teamPageContent")||$("#teamSettingsContent");
+  const content=$("#teamSettingsContent");
   if(!content)return;
   if(!teamInfo.enabled){
     content.innerHTML=`<div class="form-note">${icon("info")}<span>Hinterlege in Render → Environment einen serverseitigen Supabase-Schlüssel (SUPABASE_SECRET_KEY oder SUPABASE_SERVICE_ROLE_KEY) und führe das aktualisierte SQL aus. Schlüssel niemals in index.html oder GitHub speichern.</span></div>`;
@@ -3092,25 +3067,6 @@ async function refreshTeamPanel(){
     content.innerHTML=`<div class="form-note">${icon("info")}<span>${teamEscape(error.message||"Mitarbeiterverwaltung vorübergehend nicht verfügbar.")}</span></div>`;
   }
 }
-async function createLinkInvitation(){
-  const button=document.querySelector('[data-action="team-create-link-invitation"]');
-  if(button){button.disabled=true;button.textContent="Einladungslink wird erstellt…";}
-  try{
-    const response=await fetch("/api/team/invitations",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({mode:"link"})});
-    const payload=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(payload.error||"Der Einladungslink konnte nicht erstellt werden.");
-    teamLastInviteUrl=payload.inviteUrl||"";
-    teamLastInviteMode="link";
-    const content=$("#teamPageContent")||$("#teamSettingsContent");
-    if(content){
-      const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
-      const next=await refreshed.json().catch(()=>({}));
-      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel(next);$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
-    }
-    toast("Einladungslink erstellt",payload.message||"Teile den Link nur mit der gewünschten Person.","success");
-  }catch(error){toast("Link konnte nicht erstellt werden",error.message||"Bitte versuche es erneut.","error");}
-  finally{if(button&&button.isConnected){button.disabled=false;button.textContent="Einladungslink erstellen (ohne E-Mail)";}}
-}
 async function sendTeamInvitation(event){
   event.preventDefault();
   const input=$("#teamInviteEmail");
@@ -3123,12 +3079,11 @@ async function sendTeamInvitation(event){
     const payload=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(payload.error||"Die Einladung konnte nicht erstellt werden.");
     teamLastInviteUrl=payload.inviteUrl||"";
-    teamLastInviteMode=payload.emailSent?"email-sent":"email-fallback";
-    const content=$("#teamPageContent")||$("#teamSettingsContent");
+    const content=$("#teamSettingsContent");
     if(content){
       const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
       const next=await refreshed.json().catch(()=>({}));
-      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel({...next,emailSent:payload.emailSent,linkOnly:payload.linkOnly});$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
+      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel({...next,emailSent:payload.emailSent});$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
     }
     toast(payload.emailSent?"Einladung versendet":"Einladungslink erstellt",payload.message||"Die Einladung wurde vorbereitet.",payload.emailSent?"success":"warning");
   }catch(error){toast("Einladung fehlgeschlagen",error.message||"Bitte versuche es erneut.","error");}
@@ -3473,114 +3428,21 @@ function validateState(){
 /* ================================================================
 GLOBAL SEARCH AND EVENT DELEGATION
 ================================================================ */
-function globalSearchMatches(value){
-  const query=norm(value);
-  if(query.length<2)return [];
-  const matches=[];
-  const has=(values)=>values.some(value=>value!==null&&value!==undefined&&norm(value).includes(query));
-  const add=(type,id,title,meta,key="")=>matches.push({type,id:String(id||""),title:String(title||"Eintrag"),meta:String(meta||""),key});
-
-  // Rechnungen: Nummer, Titel, Kunde, Status, Daten, Notizen, Positionen und Beträge.
-  (state.invoices||[]).forEach(invoice=>{
-    const customer=customerName(invoice.customerId);
-    const amount=amounts(invoice);
-    const fields=[invoice.number,invoice.title,customer,invoice.status,statusText(statusOf(invoice)),invoice.issueDate,invoice.dueDate,invoice.serviceDate,invoice.servicePeriod,invoice.notes,amount.net.toFixed(2),amount.vat.toFixed(2),amount.gross.toFixed(2),money(amount.gross),...(invoice.items||[]).flatMap(item=>[item.description,item.quantity,item.price,item.vat])];
-    if(has(fields))add("invoice",invoice.id,invoice.number||"Rechnung",[invoice.title,customer,money(amount.gross),statusText(statusOf(invoice))].filter(Boolean).join(" · "));
-  });
-
-  // Kunden: auch Ansprechpartner, vollständige Adresse, Steuerangaben und Notizen.
-  (state.customers||[]).forEach(customer=>{
-    const fields=[customer.name,customer.contact,customer.email,customer.phone,customer.street,customer.postalCode,customer.city,customer.taxId,customer.notes,customer.createdAt];
-    if(has(fields))add("customer",customer.id,customer.name||"Kunde",[customer.contact,customer.email,[customer.postalCode,customer.city].filter(Boolean).join(" ")].filter(Boolean).join(" · "));
-  });
-
-  // Unternehmens-/Profilinformationen; Treffer öffnen die Unternehmenseinstellungen.
-  const companyLabels={name:"Unternehmensname",owner:"Inhaber / Ansprechpartner",email:"Unternehmens-E-Mail",phone:"Telefon",street:"Straße",postalCode:"Postleitzahl",city:"Ort",taxId:"Steuernummer",vatNumber:"USt-IdNr.",iban:"IBAN",footer:"Standardhinweis",invoicePrefix:"Rechnungspräfix",invoiceYear:"Rechnungsjahr",nextInvoiceNumber:"Nächste Rechnungsnummer",paymentDays:"Zahlungsziel",defaultVat:"Standard-Umsatzsteuer"};
-  if(teamInfo.role!=="employee"){
-    Object.entries(state.company||{}).forEach(([key,val])=>{
-      if(val!==null&&val!==undefined&&String(val).trim()&&has([val]))add("company",key,companyLabels[key]||key,String(val),key);
-    });
-  }
-  if(has([state.user?.name,state.user?.email]))add("profile","profile",state.user?.name||"Mein Konto",state.user?.email||"Angemeldetes Konto");
-
-  // Sonstige gespeicherte Einträge (z. B. Ausgaben oder Aktivität), falls vorhanden.
-  (state.expenses||[]).forEach((item,index)=>{
-    const fields=Object.entries(item||{}).filter(([,v])=>["string","number"].includes(typeof v)).map(([,v])=>v);
-    if(has(fields))add("expense",item.id||index,item.name||item.title||item.description||item.vendor||"Ausgabe",fields.filter(Boolean).slice(0,4).join(" · "));
-  });
-  (state.activity||[]).forEach((item,index)=>{
-    const fields=Object.entries(item||{}).filter(([,v])=>["string","number"].includes(typeof v)).map(([,v])=>v);
-    if(has(fields))add("activity",item.id||index,item.title||item.label||item.action||"Aktivität",fields.filter(Boolean).slice(0,3).join(" · "));
-  });
-
-  // Bereiche und Themen der integrierten Anleitung durchsuchbar machen.
-  const pageSearch=[
-    ["dashboard","Dashboard","Übersicht, Kennzahlen, Umsatz, offene Beträge, letzte Rechnungen"],
-    ["invoices","Rechnungen","Rechnung, Rechnungsnummer, Zahlung, bezahlt, offen, überfällig, Entwurf, PDF, erstellen"],
-    ["customers","Kunden","Kontakte, Ansprechpartner, Adresse, E-Mail, Telefon"],
-    ["reports","Auswertungen","Statistik, Diagramm, Monatsumsatz, Beträge, Zahlungsstatus"],
-    ["help","Hilfe & Anleitung","Anleitung, Fragen, Hilfe, Funktionen, Problem"],
-    ["settings","Einstellungen","Unternehmen, Firmendaten, Steuernummer, USt-IdNr., IBAN, Sicherung, Import, Export, Darstellung"],
-    ["team","Mitarbeiter & Team","Mitarbeiterkonto, Team, Einladung, Mitglied, Zugriff, Rolle"]
-  ];
-  pageSearch.forEach(([id,title,keywords])=>{
-    if(id==="settings"&&teamInfo.role==="employee")return;
-    if(id==="team"&&teamInfo.role==="employee")return;
-    if(has([title,keywords]))add("page",id,title,keywords);
-  });
-  helpSteps().forEach((step,index)=>{
-    if(has([step.title,step.question,step.summary,...(step.details||[])]))add("help",index,step.title,step.summary,step.target);
-  });
-
-  // Bevorzuge konkrete Datensätze vor allgemeinen Seitenlinks und vermeide Duplikate.
-  const seen=new Set();
-  return matches.filter(item=>{
-    const key=`${item.type}:${item.id}`;
-    if(seen.has(key))return false;
-    seen.add(key);return true;
-  }).slice(0,12);
-}
-function renderGlobalSearchResults(value){
-  const input=$("#globalSearch"),panel=$("#globalSearchResults");
-  if(!input||!panel)return;
-  const query=norm(value);
-  if(query.length<2){panel.innerHTML="";panel.classList.add("hidden");input.setAttribute("aria-expanded","false");return;}
-  const results=globalSearchMatches(value);
-  panel.innerHTML=results.length?`${'<div class="global-search-label">Suchergebnisse</div>'}${results.map(result=>`<button type="button" class="global-search-result" role="option" data-global-search-type="${escAttr(result.type)}" data-global-search-id="${escAttr(result.id)}" data-global-search-key="${escAttr(result.key||"")}"><span class="global-search-result-icon">${icon(result.type==="invoice"?"file":result.type==="customer"?"users":result.type==="company"||result.type==="profile"?"settings":result.type==="expense"?"wallet":result.type==="activity"?"clock":result.type==="help"?"info":"grid","icon icon-sm")}</span><span class="global-search-result-copy"><span class="global-search-result-title">${esc(result.title)}</span><span class="global-search-result-meta">${esc(result.meta)}</span></span></button>`).join("")}`:`<div class="global-search-empty">Keine Treffer für „${esc(value)}“. Suche nach Kundendaten, Rechnungsdetails, Firmendaten oder einem Bereich von Rechnio.</div>`;
-  panel.classList.remove("hidden");input.setAttribute("aria-expanded","true");
-}
-function openGlobalSearchResult(type,id,key=""){
-  const input=$("#globalSearch"),panel=$("#globalSearchResults");
-  panel?.classList.add("hidden");input?.setAttribute("aria-expanded","false");
-  if(type==="invoice")return viewInvoice(id);
-  if(type==="customer")return viewCustomer(id);
-  if(type==="company"){
-    state.ui.settingsTab="company";saveState();navigate("settings");return;
-  }
-  if(type==="profile"){
-    state.ui.settingsTab="company";saveState();navigate("settings");return;
-  }
-  if(type==="page"){
-    if(id==="settings")state.ui.settingsTab="company";
-    if(id==="team"&&teamInfo.role==="employee")return toast("Keine Berechtigung","Die Mitarbeiterverwaltung ist nur für den Inhaber verfügbar.","warning");
-    navigate(id);return;
-  }
-  if(type==="help"){
-    const step=helpSteps()[Number(id)];
-    if(step){state.ui.helpQuestion=step.title;saveState();openHelpTarget(step.target);return;}
-    navigate("help");return;
-  }
-  if(type==="expense"){
-    navigate("reports");return toast("Suchtreffer gefunden","Dieser Eintrag ist gespeichert; eine eigene Ausgaben-Detailseite ist in dieser Oberfläche noch nicht vorhanden.","warning");
-  }
-  if(type==="activity")return navigate("dashboard");
-}
 function globalSearch(value){
   const query=norm(value);
   if(!query)return;
-  const results=globalSearchMatches(value);
-  if(!results.length){renderGlobalSearchResults(value);return toast("Keine Treffer",`Für „${value}“ wurde nichts gefunden.`,"warning");}
-  openGlobalSearchResult(results[0].type,results[0].id,results[0].key);
+  const invoice=state.invoices.find(i=>[i.number,i.title,customerName(i.customerId)].some(v=>norm(v).includes(query)));
+  const customer=state.customers.find(c=>[c.name,c.contact,c.email,c.phone,c.city].some(v=>norm(v).includes(query)));
+  if(invoice){
+    state.ui.invoiceSearch=value;
+    state.ui.invoiceStatus="all";
+    navigate("invoices");
+  }
+else if(customer){
+  state.ui.customerSearch=value;
+  navigate("customers");
+}
+else toast("Keine Treffer",`Für „${value}“ wurde nichts gefunden.`,"warning");
 }
 function changePage(type,delta){
   if(type==="customer")state.ui.customerPage=Math.max(1,(state.ui.customerPage||1)+delta);
@@ -3628,15 +3490,13 @@ switch(action){
   case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;
   case "mark-paid":markPaid(id);break;
   case "new-invoice-for-customer":closeModal(false);openInvoiceForm(null,id);break;
-  case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;case "save-profile-name":saveProfileName();break;
+  case "show-overdue":showOverdue();break;case "dismiss-due-reminder":state.ui.dueReminderDismissed={...(state.ui.dueReminderDismissed||{}),[id]:true};state.ui.dueReminderActive={...(state.ui.dueReminderActive||{}),[id]:false};saveState();renderPage();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;case "save-profile-name":saveProfileName();break;
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
   case "import-data":$("#importFile")?.click();break;case "dismiss-toast":button.closest(".toast")?.remove();break;
   case "settings-tab":state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
   case "team-remove-member":removeTeamMember(button.dataset.id);break;
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
   case "team-copy-invite-link":copyTeamInviteLink();break;
-  case "team-create-link-invitation":createLinkInvitation();break;
-  case "dashboard-team-settings":navigate("team");break;
   case "invoice-missing-company-settings":closeModal();state.ui.settingsTab="company";saveState();navigate("settings");break;
   case "help-open-company":openHelpTarget("company");break;
   case "help-open-data":openHelpTarget("data");break;
@@ -3655,6 +3515,13 @@ $("#pageContent").addEventListener("submit",e=>{
     submitHelpQuestion($("#helpQuestion")?.value||"");
   }
 });
+$("#pageContent").addEventListener("change",e=>{
+  if(e.target.id==="reportMonth"){
+    state.ui.analyticsMonth=clamp(Number(e.target.value)||0,0,12);saveState();renderPage();
+  }else if(e.target.id==="reportYear"){
+    state.ui.analyticsYear=clamp(Number(e.target.value)||new Date().getFullYear(),2000,2100);saveState();renderPage();
+  }
+});
 $("#pageContent").addEventListener("input",e=>{
   if(e.target.id==="customerSearch"){
     state.ui.customerSearch=e.target.value;state.ui.customerPage=1;const pos=e.target.selectionStart;renderPage();const input=$("#customerSearch");input?.focus();input?.setSelectionRange(pos,pos);
@@ -3668,29 +3535,8 @@ $("#pageContent").addEventListener("change",e=>{
     state.ui.invoiceStatus=e.target.value;state.ui.invoicePage=1;renderPage();
   }
 });
-$("#globalSearch").addEventListener("input",e=>renderGlobalSearchResults(e.target.value));
-$("#globalSearch").addEventListener("focus",e=>{if(norm(e.target.value).length>=2)renderGlobalSearchResults(e.target.value);});
 $("#globalSearch").addEventListener("keydown",e=>{
-  if(e.key==="Enter"){
-    e.preventDefault();
-    const first=$("#globalSearchResults [data-global-search-type]");
-    if(first)openGlobalSearchResult(first.dataset.globalSearchType,first.dataset.globalSearchId,first.dataset.globalSearchKey||"");
-    else globalSearch(e.target.value);
-  }
-  if(e.key==="Escape"){
-    e.target.value="";renderGlobalSearchResults("");
-  }
-});
-$("#globalSearchResults").addEventListener("click",e=>{
-  const result=e.target.closest("[data-global-search-type]");
-  if(!result)return;
-  openGlobalSearchResult(result.dataset.globalSearchType,result.dataset.globalSearchId,result.dataset.globalSearchKey||"");
-});
-document.addEventListener("click",e=>{
-  if(!e.target.closest(".top-search")){
-    $("#globalSearchResults")?.classList.add("hidden");
-    $("#globalSearch")?.setAttribute("aria-expanded","false");
-  }
+  if(e.key==="Enter")globalSearch(e.target.value);if(e.key==="Escape")e.target.value="";
 });
 $("#mobileMenu").addEventListener("click",()=>{
   $("#sidebar").classList.add("open");$("#sidebarOverlay").classList.remove("hidden");
