@@ -1377,7 +1377,7 @@ body{font-size:15px;line-height:1.6}
     <div class="sidebar-brand brand"><span class="brand-mark"><svg class="icon icon-lg"><use href="#i-file"/></svg></span><div><div class="brand-name">rechnio</div><div class="brand-sub">Einfach. Klar. Organisiert.</div></div></div>
     <div class="nav-label">Arbeitsbereich</div>
     <nav class="nav" aria-label="Hauptnavigation"><button class="nav-item active" data-page="dashboard"><svg class="icon"><use href="#i-grid"/></svg>Dashboard</button><button class="nav-item" data-page="invoices"><svg class="icon"><use href="#i-file"/></svg>Rechnungen <span id="navInvoiceCount" class="nav-count">0</span></button><button class="nav-item" data-page="customers"><svg class="icon"><use href="#i-users"/></svg>Kunden <span id="navCustomerCount" class="nav-count">0</span></button><button class="nav-item" data-page="reports"><svg class="icon"><use href="#i-chart"/></svg>Auswertungen</button><button class="nav-item" data-page="help"><svg class="icon"><use href="#i-info"/></svg>Hilfe & Anleitung</button></nav>
-    <div class="nav-label" id="managementNavLabel">Verwaltung</div><nav class="nav" id="managementNav" aria-label="Verwaltung"><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
+    <div class="nav-label" id="managementNavLabel">Verwaltung</div><nav class="nav" id="managementNav" aria-label="Verwaltung"><button class="nav-item" data-page="team"><svg class="icon"><use href="#i-users"/></svg>Mitarbeiter</button><button class="nav-item" data-page="settings"><svg class="icon"><use href="#i-settings"/></svg>Einstellungen</button></nav>
     <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div><div id="sidebarWorkspaceRole" class="user-role hidden"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
   <main class="main">
@@ -1419,6 +1419,9 @@ customers:{
 },
 reports:{
   title:"Auswertungen",subtitle:"Behalte deine Rechnungsbeträge und Zahlungseingänge im Blick."
+},
+team:{
+  title:"Mitarbeiter",subtitle:"Verwalte Teammitglieder, Einladungen und den Zugriff auf deinen Unternehmensbereich."
 },
 settings:{
   title:"Einstellungen",subtitle:"Passe deine Unternehmensangaben an."
@@ -1767,7 +1770,7 @@ async function loadCloudStateForUser(user){
     state.user=user;
   }
   validateState();
-  if(teamInfo.role==="employee"&&state.currentPage==="settings")state.currentPage="dashboard";
+  if(teamInfo.role==="employee"&&["settings","team"].includes(state.currentPage))state.currentPage="dashboard";
   cloudReady=true;
   saveState();
 }
@@ -2259,6 +2262,10 @@ function navigate(page){
     toast("Keine Berechtigung","Die Einstellungen werden vom Inhaber verwaltet.","warning");
     return;
   }
+  if(page==="team"&&teamInfo.role==="employee"){
+    toast("Keine Berechtigung","Die Mitarbeiterverwaltung ist nur für den Inhaber verfügbar.","warning");
+    return;
+  }
   state.currentPage=page;
   saveState();
   closeSidebar();
@@ -2299,7 +2306,7 @@ function updateChrome(){
 }
 function renderPage(){
   const renderers={
-    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,settings:renderSettings,help:renderHelp
+    dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,team:renderTeamPage,settings:renderSettings,help:renderHelp
   };
 $("#pageContent").innerHTML=(renderers[state.currentPage]||renderDashboard)();
 if(state.currentPage==="dashboard"){
@@ -2307,13 +2314,14 @@ if(state.currentPage==="dashboard"){
     drawBars($("#dashboardChart"),monthBuckets());
     drawDonut($("#statusDonut"));
   });
-  if(teamInfo.enabled&&teamInfo.role==="owner")refreshDashboardTeamPanel();
+  if(teamInfo.role==="owner")refreshDashboardTeamPanel();
 }
 if(state.currentPage==="reports") requestAnimationFrame(() => drawBars($("#reportChart"),monthBuckets()));
 if(state.currentPage==="settings"){
   bindSettingsForms();
   if(state.ui.settingsTab==="team"&&teamInfo.role!=="employee")refreshTeamPanel();
 }
+if(state.currentPage==="team"&&teamInfo.role!=="employee")refreshTeamPanel();
 }
 function closeSidebar(){
   $("#sidebar").classList.remove("open");
@@ -2347,7 +2355,7 @@ DASHBOARD AND CHARTS
 ================================================================ */
 function renderDashboard(){
   const employeeAccountCard=teamInfo.role==="employee"&&teamInfo.enabled?`<section class="card employee-account-card" aria-label="Mein Mitarbeiterkonto"><div class="card-body"><div class="row" style="gap:10px;align-items:center"><span class="quick-icon">${icon("users","icon icon-lg")}</span><div><h2 class="card-title" style="margin:0">Mein Mitarbeiterbereich</h2><div class="card-subtitle">Dein eigenes Login · gemeinsamer Unternehmensarbeitsbereich</div></div></div><div class="employee-account-grid"><div class="employee-account-cell"><small>Angemeldet als</small><strong>${esc(state.user?.name||"Mitarbeiter")}</strong></div><div class="employee-account-cell"><small>Konto-E-Mail</small><strong>${esc(state.user?.email||"Nicht hinterlegt")}</strong></div><div class="employee-account-cell"><small>Unternehmen</small><strong>${esc(teamInfo.organizationName||"Gemeinsamer Arbeitsbereich")}</strong></div></div><p class="hint" style="margin:12px 0 0">Du verwendest dein eigenes Rechnio-Konto. Rechnungen und Kunden gehören zum Unternehmensbereich und werden mit dem Inhaber geteilt. Unternehmenseinstellungen und Mitarbeiterverwaltung bleiben dem Inhaber vorbehalten.</p></div></section>`:"";
-  const ownerTeamCard=teamInfo.role==="owner"&&teamInfo.enabled?`<section class="card dashboard-team-card" aria-label="Mitarbeiter im Unternehmen"><div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Wer Zugriff auf deinen Unternehmensbereich hat</div></div><button class="btn secondary btn-sm" type="button" data-action="dashboard-team-settings">Team verwalten ${icon("chevron","icon icon-sm")}</button></div><div class="card-body" id="dashboardTeamSummary"><p class="muted">Team wird geladen…</p></div></section>`:"";
+  const ownerTeamCard=teamInfo.role==="owner"?`<section class="card dashboard-team-card" aria-label="Mitarbeiter im Unternehmen"><div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Wer Zugriff auf deinen Unternehmensbereich hat</div></div><button class="btn secondary btn-sm" type="button" data-action="dashboard-team-settings">Team verwalten ${icon("chevron","icon icon-sm")}</button></div><div class="card-body" id="dashboardTeamSummary"><p class="muted">Team wird geladen…</p></div></section>`:"";
   const workspaceBanner=teamInfo.role==="employee"&&teamInfo.enabled?`<div class="form-note employee-workspace-banner" role="status">${icon("users","icon icon-sm")}<span><strong>Gemeinsamer Arbeitsbereich: ${esc(teamInfo.organizationName||"Dein Unternehmen")}</strong><br>Deine Anmeldung ist getrennt. Die angezeigten Rechnungen und Kunden stammen aus dem Unternehmensbereich.</span></div>`:"";
   const list=state.invoices.map(invoice=>({
     ...invoice,...amounts(invoice),computedStatus:statusOf(invoice)
@@ -2983,6 +2991,13 @@ Daten exportieren</button>`)}${demoBanner()}<div class="report-grid"><div class=
 function reportLine(label,value){
   return `<div class="between"><span class="muted small">${esc(label)}</span><strong class="small mono">${esc(value)}</strong></div>`;
 }
+function renderTeamPage(){
+  return `${heading("Mitarbeiter","Verwalte Mitarbeiterkonten und teile Einladungslinks sicher.")}
+    <section class="card" aria-label="Mitarbeiterverwaltung">
+      <div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Aktive Mitglieder, offene Einladungen und Einladungen ohne E-Mail-Versand</div></div></div>
+      <div class="card-body" id="teamPageContent"><p class="muted">Mitarbeiterliste wird geladen…</p></div>
+    </section>`;
+}
 function renderSettings(){
   const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"]];
   if(teamInfo.role!=="employee")tabs.push(["team","users","Mitarbeiter"]);
@@ -3014,7 +3029,11 @@ function renderDashboardTeamSummary(data){
 }
 async function refreshDashboardTeamPanel(){
   const target=$("#dashboardTeamSummary");
-  if(!target||teamInfo.role!=="owner"||!teamInfo.enabled)return;
+  if(!target||teamInfo.role!=="owner")return;
+  if(!teamInfo.enabled){
+    target.innerHTML='<p class="muted">Die Mitarbeiterverwaltung ist noch nicht bereit. Öffne die Seite „Mitarbeiter“, um die Einrichtung zu prüfen.</p>';
+    return;
+  }
   try{
     const response=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
     const payload=await response.json().catch(()=>({}));
@@ -3040,7 +3059,7 @@ function renderTeamPanel(data){
   return `${invitationBox}<div class="stack"><button type="button" class="btn primary" data-action="team-create-link-invitation">Einladungslink erstellen (ohne E-Mail)</button><p class="hint">Der Link ist 7 Tage gültig und kann einmal angenommen werden. Wer den privaten Link besitzt, kann beitreten. Teile ihn nur direkt mit der gewünschten Person. Der Mitarbeiter braucht trotzdem ein eigenes Rechnio-Konto.</p><details><summary style="cursor:pointer;font-weight:600">Alternative: Einladung an feste E-Mail-Adresse</summary><form id="teamInviteForm" class="stack" style="margin-top:14px"><div class="field"><label for="teamInviteEmail">E-Mail-Adresse des Mitarbeiters</label><input id="teamInviteEmail" class="input" type="email" maxlength="254" placeholder="mitarbeiter@unternehmen.de" required></div><div class="save-row"><button type="submit" class="btn secondary">Per E-Mail einladen</button></div><p class="hint">Die Einladung ist 7 Tage gültig. Der Mitarbeiter muss ein Konto mit derselben E-Mail-Adresse verwenden.</p></form></details></div><div class="divider" style="margin:22px 0"></div><h3>Mitglieder (${members.length})</h3>${memberRows||'<p class="muted">Noch keine Mitglieder gefunden.</p>'}<div style="height:18px"></div><h3>Offene Einladungen (${invitations.length})</h3>${inviteRows||'<p class="muted">Keine offenen Einladungen.</p>'}`;
 }
 async function refreshTeamPanel(){
-  const content=$("#teamSettingsContent");
+  const content=$("#teamPageContent")||$("#teamSettingsContent");
   if(!content)return;
   if(!teamInfo.enabled){
     content.innerHTML=`<div class="form-note">${icon("info")}<span>Hinterlege in Render → Environment einen serverseitigen Supabase-Schlüssel (SUPABASE_SECRET_KEY oder SUPABASE_SERVICE_ROLE_KEY) und führe das aktualisierte SQL aus. Schlüssel niemals in index.html oder GitHub speichern.</span></div>`;
@@ -3067,7 +3086,7 @@ async function createLinkInvitation(){
     if(!response.ok)throw new Error(payload.error||"Der Einladungslink konnte nicht erstellt werden.");
     teamLastInviteUrl=payload.inviteUrl||"";
     teamLastInviteMode="link";
-    const content=$("#teamSettingsContent");
+    const content=$("#teamPageContent")||$("#teamSettingsContent");
     if(content){
       const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
       const next=await refreshed.json().catch(()=>({}));
@@ -3090,7 +3109,7 @@ async function sendTeamInvitation(event){
     if(!response.ok)throw new Error(payload.error||"Die Einladung konnte nicht erstellt werden.");
     teamLastInviteUrl=payload.inviteUrl||"";
     teamLastInviteMode=payload.emailSent?"email-sent":"email-fallback";
-    const content=$("#teamSettingsContent");
+    const content=$("#teamPageContent")||$("#teamSettingsContent");
     if(content){
       const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
       const next=await refreshed.json().catch(()=>({}));
@@ -3509,7 +3528,7 @@ switch(action){
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
   case "team-copy-invite-link":copyTeamInviteLink();break;
   case "team-create-link-invitation":createLinkInvitation();break;
-  case "dashboard-team-settings":state.ui.settingsTab="team";saveState();navigate("settings");break;
+  case "dashboard-team-settings":navigate("team");break;
   case "invoice-missing-company-settings":closeModal();state.ui.settingsTab="company";saveState();navigate("settings");break;
   case "help-open-company":openHelpTarget("company");break;
   case "help-open-data":openHelpTarget("data");break;
