@@ -1437,6 +1437,7 @@ let authenticatedUser = null;
 let cloudReady = false;
 let teamInfo = { enabled:false, role:"owner", organizationId:"", organizationName:"" };
 let teamLastInviteUrl = "";
+let teamLastInviteMode = "";
 let pendingInviteToken = "";
 let invitePreview = null;
 try {
@@ -1734,7 +1735,9 @@ async function prepareInvitationLogin(){
     invitePreview=payload;
     if($("#loginEmail"))$("#loginEmail").value=payload.email||"";
     setAuthMode("register");
-    showAuthSetupNotice(`Einladung für ${payload.email} zu „${payload.organizationName}“. Erstelle das Konto mit genau dieser E-Mail-Adresse.`);
+    showAuthSetupNotice(payload.linkOnly
+      ? `Du hast eine Link-Einladung zu „${payload.organizationName}“. Erstelle ein Rechnio-Konto oder melde dich mit deinem bestehenden Konto an. Wer diesen privaten Link besitzt, kann ihn annehmen.`
+      : `Einladung für ${payload.email} zu „${payload.organizationName}“. Erstelle das Konto mit genau dieser E-Mail-Adresse.`);
   }catch(error){
     setAuthMode("register");
     showAuthSetupNotice(error.message||"Der Einladungslink ist ungültig oder abgelaufen.");
@@ -3028,13 +3031,13 @@ function teamEscape(value){return esc(String(value??""));}
 function renderTeamPanel(data){
   const members=Array.isArray(data.members)?data.members:[];
   const invitations=Array.isArray(data.invitations)?data.invitations:[];
-  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">${data.emailSent===false?"Die E-Mail wurde nicht gesendet. Teile diesen Link nur mit der eingeladenen Person.":"Du kannst den Link bei Bedarf ebenfalls kopieren."}</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
+  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">${teamLastInviteMode==="link"?"Ohne E-Mail-Versand erstellt. Teile den privaten Link nur mit der gewünschten Person; wer ihn besitzt, kann beitreten.":teamLastInviteMode==="email-fallback"?"Die E-Mail wurde nicht gesendet. Teile diesen Link nur mit der eingeladenen Person.":"Du kannst den Link bei Bedarf ebenfalls kopieren."}</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
   const memberRows=members.map(m=>`<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(m.email||"Benutzerkonto")}</strong><div class="hint">${m.role==="owner"?"Inhaber":"Mitarbeiter"}</div></div><div class="row">${m.role==="employee"?`<button class="btn secondary" type="button" data-action="team-remove-member" data-id="${escAttr(m.user_id)}">Entfernen</button>`:`<span class="status paid">Inhaber</span>`}</div></div>`).join("");
   const inviteRows=invitations.map(inv=>{
     const expired=Date.parse(inv.expires_at)<=Date.now();
-    return `<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(inv.email)}</strong><div class="hint">${expired?"Abgelaufen":"Offen"} · gültig bis ${teamEscape(new Date(inv.expires_at).toLocaleDateString("de-DE"))}</div></div><button type="button" class="btn secondary" data-action="team-revoke-invitation" data-id="${escAttr(inv.id)}">${expired?"Aufräumen":"Widerrufen"}</button></div>`;
+    return `<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(inv.email||"Einladungslink (ohne feste E-Mail)")}</strong><div class="hint">${expired?"Abgelaufen":"Offen"} · gültig bis ${teamEscape(new Date(inv.expires_at).toLocaleDateString("de-DE"))}</div></div><button type="button" class="btn secondary" data-action="team-revoke-invitation" data-id="${escAttr(inv.id)}">${expired?"Aufräumen":"Widerrufen"}</button></div>`;
   }).join("");
-  return `${invitationBox}<form id="teamInviteForm" class="stack"><div class="field"><label for="teamInviteEmail">E-Mail-Adresse des Mitarbeiters</label><input id="teamInviteEmail" class="input" type="email" maxlength="254" placeholder="mitarbeiter@unternehmen.de" required></div><div class="save-row"><button type="submit" class="btn primary">Mitarbeiter einladen</button></div><p class="hint">Die Einladung ist 7 Tage gültig. Der Mitarbeiter muss ein Konto mit derselben E-Mail-Adresse verwenden.</p></form><div class="divider" style="margin:22px 0"></div><h3>Mitglieder (${members.length})</h3>${memberRows||'<p class="muted">Noch keine Mitglieder gefunden.</p>'}<div style="height:18px"></div><h3>Offene Einladungen (${invitations.length})</h3>${inviteRows||'<p class="muted">Keine offenen Einladungen.</p>'}`;
+  return `${invitationBox}<div class="stack"><button type="button" class="btn primary" data-action="team-create-link-invitation">Einladungslink erstellen (ohne E-Mail)</button><p class="hint">Der Link ist 7 Tage gültig und kann einmal angenommen werden. Wer den privaten Link besitzt, kann beitreten. Teile ihn nur direkt mit der gewünschten Person. Der Mitarbeiter braucht trotzdem ein eigenes Rechnio-Konto.</p><details><summary style="cursor:pointer;font-weight:600">Alternative: Einladung an feste E-Mail-Adresse</summary><form id="teamInviteForm" class="stack" style="margin-top:14px"><div class="field"><label for="teamInviteEmail">E-Mail-Adresse des Mitarbeiters</label><input id="teamInviteEmail" class="input" type="email" maxlength="254" placeholder="mitarbeiter@unternehmen.de" required></div><div class="save-row"><button type="submit" class="btn secondary">Per E-Mail einladen</button></div><p class="hint">Die Einladung ist 7 Tage gültig. Der Mitarbeiter muss ein Konto mit derselben E-Mail-Adresse verwenden.</p></form></details></div><div class="divider" style="margin:22px 0"></div><h3>Mitglieder (${members.length})</h3>${memberRows||'<p class="muted">Noch keine Mitglieder gefunden.</p>'}<div style="height:18px"></div><h3>Offene Einladungen (${invitations.length})</h3>${inviteRows||'<p class="muted">Keine offenen Einladungen.</p>'}`;
 }
 async function refreshTeamPanel(){
   const content=$("#teamSettingsContent");
@@ -3055,6 +3058,25 @@ async function refreshTeamPanel(){
     content.innerHTML=`<div class="form-note">${icon("info")}<span>${teamEscape(error.message||"Mitarbeiterverwaltung vorübergehend nicht verfügbar.")}</span></div>`;
   }
 }
+async function createLinkInvitation(){
+  const button=document.querySelector('[data-action="team-create-link-invitation"]');
+  if(button){button.disabled=true;button.textContent="Einladungslink wird erstellt…";}
+  try{
+    const response=await fetch("/api/team/invitations",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({mode:"link"})});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Der Einladungslink konnte nicht erstellt werden.");
+    teamLastInviteUrl=payload.inviteUrl||"";
+    teamLastInviteMode="link";
+    const content=$("#teamSettingsContent");
+    if(content){
+      const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
+      const next=await refreshed.json().catch(()=>({}));
+      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel(next);$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
+    }
+    toast("Einladungslink erstellt",payload.message||"Teile den Link nur mit der gewünschten Person.","success");
+  }catch(error){toast("Link konnte nicht erstellt werden",error.message||"Bitte versuche es erneut.","error");}
+  finally{if(button&&button.isConnected){button.disabled=false;button.textContent="Einladungslink erstellen (ohne E-Mail)";}}
+}
 async function sendTeamInvitation(event){
   event.preventDefault();
   const input=$("#teamInviteEmail");
@@ -3067,11 +3089,12 @@ async function sendTeamInvitation(event){
     const payload=await response.json().catch(()=>({}));
     if(!response.ok)throw new Error(payload.error||"Die Einladung konnte nicht erstellt werden.");
     teamLastInviteUrl=payload.inviteUrl||"";
+    teamLastInviteMode=payload.emailSent?"email-sent":"email-fallback";
     const content=$("#teamSettingsContent");
     if(content){
       const refreshed=await fetch("/api/team",{credentials:"same-origin",cache:"no-store",headers:{"Accept":"application/json"}});
       const next=await refreshed.json().catch(()=>({}));
-      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel({...next,emailSent:payload.emailSent});$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
+      if(refreshed.ok){teamInfo=next.membership||teamInfo;content.innerHTML=renderTeamPanel({...next,emailSent:payload.emailSent,linkOnly:payload.linkOnly});$("#teamInviteForm")?.addEventListener("submit",sendTeamInvitation);}
     }
     toast(payload.emailSent?"Einladung versendet":"Einladungslink erstellt",payload.message||"Die Einladung wurde vorbereitet.",payload.emailSent?"success":"warning");
   }catch(error){toast("Einladung fehlgeschlagen",error.message||"Bitte versuche es erneut.","error");}
@@ -3485,6 +3508,7 @@ switch(action){
   case "team-remove-member":removeTeamMember(button.dataset.id);break;
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
   case "team-copy-invite-link":copyTeamInviteLink();break;
+  case "team-create-link-invitation":createLinkInvitation();break;
   case "dashboard-team-settings":state.ui.settingsTab="team";saveState();navigate("settings");break;
   case "invoice-missing-company-settings":closeModal();state.ui.settingsTab="company";saveState();navigate("settings");break;
   case "help-open-company":openHelpTarget("company");break;
