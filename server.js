@@ -1234,7 +1234,7 @@ async function handle(req, res) {
         return;
       }
       const organization = await getOrganization(invitation.organization_id);
-      sendJson(res, 200, { email: invitation.email, organizationName: organization?.name || "Rechnio-Unternehmen", expiresAt: invitation.expires_at });
+      sendJson(res, 200, { email: invitation.email || null, linkOnly: !invitation.email, organizationName: organization?.name || "Rechnio-Unternehmen", expiresAt: invitation.expires_at });
     } catch (error) {
       sendJson(res, error.statusCode || 503, { error: error.message || "Die Einladung konnte nicht geprüft werden." });
     }
@@ -1754,32 +1754,35 @@ async function handle(req, res) {
       let body;
       try { body = await readJson(req); }
       catch (error) { authResponse(res, req, 400, { error: error.message }, found); return; }
-      const email = String(body.email || "").trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      const linkOnly = body.mode === "link";
+      const email = linkOnly ? null : String(body.email || "").trim().toLowerCase();
+      if (!linkOnly && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) {
         authResponse(res, req, 400, { error: "Bitte gib eine gültige E-Mail-Adresse ein." }, found);
         return;
       }
       try {
         const context = await requireOwnerContext(found);
-        if (email === String(found.session.user.email || "").toLowerCase()) {
+        if (!linkOnly && email === String(found.session.user.email || "").toLowerCase()) {
           authResponse(res, req, 400, { error: "Du kannst dich nicht selbst als Mitarbeiter einladen." }, found);
           return;
         }
-        const existingMember = await supabaseAdminRequest(
-          `/rest/v1/rechnio_memberships?select=user_id,email&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&limit=1`
-        );
-        if (!existingMember.ok) throw new Error(readableDatabaseError(existingMember, "Die Mitgliedschaft konnte nicht geprüft werden."));
-        if (Array.isArray(existingMember.data) && existingMember.data.length) {
-          authResponse(res, req, 409, { error: "Diese E-Mail-Adresse gehört bereits zu einem Mitglied dieses Unternehmens." }, found);
-          return;
-        }
-        const existingInvite = await supabaseAdminRequest(
-          `/rest/v1/rechnio_invitations?select=id&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&status=eq.pending&limit=1`
-        );
-        if (!existingInvite.ok) throw new Error(readableDatabaseError(existingInvite, "Vorhandene Einladungen konnten nicht geprüft werden."));
-        if (Array.isArray(existingInvite.data) && existingInvite.data.length) {
-          authResponse(res, req, 409, { error: "Für diese E-Mail gibt es bereits eine offene Einladung. Widerrufe sie zuerst oder verwende den vorhandenen Link." }, found);
-          return;
+        if (!linkOnly) {
+          const existingMember = await supabaseAdminRequest(
+            `/rest/v1/rechnio_memberships?select=user_id,email&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&limit=1`
+          );
+          if (!existingMember.ok) throw new Error(readableDatabaseError(existingMember, "Die Mitgliedschaft konnte nicht geprüft werden."));
+          if (Array.isArray(existingMember.data) && existingMember.data.length) {
+            authResponse(res, req, 409, { error: "Diese E-Mail-Adresse gehört bereits zu einem Mitglied dieses Unternehmens." }, found);
+            return;
+          }
+          const existingInvite = await supabaseAdminRequest(
+            `/rest/v1/rechnio_invitations?select=id&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&status=eq.pending&limit=1`
+          );
+          if (!existingInvite.ok) throw new Error(readableDatabaseError(existingInvite, "Vorhandene Einladungen konnten nicht geprüft werden."));
+          if (Array.isArray(existingInvite.data) && existingInvite.data.length) {
+            authResponse(res, req, 409, { error: "Für diese E-Mail gibt es bereits eine offene Einladung. Widerrufe sie zuerst oder verwende den vorhandenen Link." }, found);
+            return;
+          }
         }
 
         const token = crypto.randomBytes(32).toString("base64url");
@@ -1799,11 +1802,22 @@ async function handle(req, res) {
         });
         if (!inserted.ok) throw new Error(readableDatabaseError(inserted, "Die Einladung konnte nicht erstellt werden."));
         const inviteUrl = `${PUBLIC_SITE_URL}/?invite=${encodeURIComponent(token)}`;
+        if (linkOnly) {
+          authResponse(res, req, 201, {
+            ok: true,
+            inviteUrl,
+            emailSent: false,
+            linkOnly: true,
+            message: "Einladungslink erstellt. Teile ihn nur mit der gewünschten Person. Der Link ist 7 Tage gültig und kann einmal angenommen werden.",
+          }, found);
+          return;
+        }
         const mail = await sendTeamInvitationEmail({ email, organizationName: context.organization.name, inviteUrl });
         authResponse(res, req, 201, {
           ok: true,
           inviteUrl,
           emailSent: mail.sent,
+          linkOnly: false,
           message: mail.sent ? "Einladung erstellt und per E-Mail versendet." : `Einladung erstellt, E-Mail aber nicht versendet. ${mail.reason || "Teile den Link manuell mit der eingeladenen Person."}`,
         }, found);
       } catch (error) {
@@ -1888,7 +1902,7 @@ async function handle(req, res) {
           return;
         }
         const user = found.session.user;
-        if (String(user.email || "").trim().toLowerCase() !== String(invitation.email || "").trim().toLowerCase()) {
+        if (invitation.email && String(user.email || "").trim().toLowerCase() !== String(invitation.email).trim().toLowerCase()) {
           authResponse(res, req, 403, { error: `Melde dich mit ${invitation.email} an, damit die Einladung dem richtigen Konto zugeordnet wird.` }, found);
           return;
         }
@@ -1906,7 +1920,7 @@ async function handle(req, res) {
           return;
         }
         if (otherOrg) {
-          authResponse(res, req, 409, { error: "Dieses Konto gehört bereits zu einem anderen Rechnio-Unternehmen. Nutze für diese Einladung eine neue E-Mail-Adresse oder verwende ein Konto ohne bestehenden Rechnio-Arbeitsbereich." }, found);
+          authResponse(res, req, 409, { error: "Dieses Konto gehört bereits zu einem anderen Rechnio-Unternehmen. Verwende ein Konto ohne bestehenden Rechnio-Arbeitsbereich." }, found);
           return;
         }
         const added = await supabaseAdminRequest("/rest/v1/rechnio_memberships", {
