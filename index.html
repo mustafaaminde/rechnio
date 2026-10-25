@@ -1420,6 +1420,8 @@ const VERSION = "2.0.0";
 const STORAGE_KEY = "rechnio_local_v2";
 const DEFAULT_USER = Object.freeze({ id:"", email:"", name:"" });
 let passwordRecoveryToken = "";
+let passwordRecoveryTokenHash = "";
+let passwordRecoveryRefreshToken = "";
 let passwordRecoveryEmail = "";
 const PAGE_META = {
   dashboard:{
@@ -2052,9 +2054,14 @@ function emailFromAccessToken(token){
     return validEmail(email)?email:"";
   }catch(_){return "";}
 }
-function openPasswordReset(token){
+function openPasswordReset(token, tokenHash="", refreshToken=""){
   passwordRecoveryToken=String(token||"");
-  if(!passwordRecoveryToken){showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an.");return;}
+  passwordRecoveryTokenHash=String(tokenHash||"");
+  passwordRecoveryRefreshToken=String(refreshToken||"");
+  if(!passwordRecoveryToken&&!passwordRecoveryTokenHash){
+    showAuthSetupNotice("Der Passwort-Link konnte nicht geöffnet werden. Öffne bitte den neuesten Link aus deiner E-Mail.");
+    return;
+  }
   passwordRecoveryEmail=emailFromAccessToken(passwordRecoveryToken)||passwordRecoveryEmail||"";
   const emailWrap=$("#resetEmailWrap");
   const emailInput=$("#resetEmail");
@@ -2068,6 +2075,8 @@ function openPasswordReset(token){
 }
 function closePasswordReset(){
   passwordRecoveryToken="";
+  passwordRecoveryTokenHash="";
+  passwordRecoveryRefreshToken="";
   passwordRecoveryEmail="";
   $("#passwordResetOverlay")?.classList.add("hidden");
 }
@@ -2076,40 +2085,37 @@ async function handlePasswordRecoveryReturn(){
   const query=new URLSearchParams(String(window.location.search||"").replace(/^\?/,""));
   const type=fragment.get("type")||query.get("type");
   const accessToken=fragment.get("access_token")||query.get("access_token");
+  const refreshToken=fragment.get("refresh_token")||query.get("refresh_token");
   const tokenHash=query.get("token_hash")||fragment.get("token_hash");
   const errorCode=fragment.get("error_code")||fragment.get("error")||query.get("error_code")||query.get("error");
+  const email=String(query.get("email")||fragment.get("email")||"").trim().toLowerCase();
   if(type!=="recovery"&&!errorCode&&!tokenHash)return false;
   try{window.history.replaceState({},document.title,"/reset-password");}catch(_){/* Best-effort URL cleanup. */}
   showLogin();
   setAuthMode("login");
+
+  // If a token is present, process it even when an unrelated query parameter also contains an error.
+  if(type==="recovery"&&tokenHash){
+    passwordRecoveryEmail=validEmail(email)?email:"";
+    // Do not redeem the one-time token until the user submits their new password.
+    openPasswordReset("",tokenHash,refreshToken);
+    return true;
+  }
+  if(type==="recovery"&&accessToken){
+    passwordRecoveryEmail=emailFromAccessToken(accessToken)|| (validEmail(email)?email:"");
+    openPasswordReset(accessToken,"",refreshToken);
+    return true;
+  }
   if(errorCode){
-    showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an.");
+    showAuthSetupNotice("Der Link konnte nicht geöffnet werden. Bitte öffne den neuesten Passwort-Link aus deiner E-Mail.");
     return true;
   }
-  if(tokenHash&&type==="recovery"){
-    try{
-      const response=await fetch("/api/auth/password-recovery-verify",{
-        method:"POST",credentials:"same-origin",cache:"no-store",
-        headers:{"Content-Type":"application/json","Accept":"application/json"},
-        body:JSON.stringify({tokenHash})
-      });
-      const payload=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(payload.error||"Der Passwort-Link konnte nicht bestätigt werden.");
-      if(!payload.accessToken)throw new Error("Der Passwort-Link konnte nicht bestätigt werden.");
-      passwordRecoveryEmail=emailFromAccessToken(payload.accessToken)||String(payload.email||"").trim().toLowerCase();
-      openPasswordReset(payload.accessToken);
-    }catch(error){
-      console.error("Password recovery link verification failed:",error);
-      showAuthSetupNotice(error.message||"Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
-    }
+  if(accessToken){
+    passwordRecoveryEmail=emailFromAccessToken(accessToken)|| (validEmail(email)?email:"");
+    openPasswordReset(accessToken,"",refreshToken);
     return true;
   }
-  if(!accessToken){
-    showAuthSetupNotice("Der Passwort-Link enthält kein gültiges Token. Fordere bitte einen neuen Link an.");
-    return true;
-  }
-  passwordRecoveryEmail=emailFromAccessToken(accessToken);
-  openPasswordReset(accessToken);
+  showAuthSetupNotice("Der Passwort-Link konnte nicht verarbeitet werden. Bitte öffne den neuesten Link aus deiner E-Mail.");
   return true;
 }
 async function saveNewPassword(event){
@@ -2121,7 +2127,7 @@ async function saveNewPassword(event){
   errorBox.classList.add("hidden");
   if(password.length<8){errorBox.textContent="Das Passwort muss mindestens 8 Zeichen enthalten.";errorBox.classList.remove("hidden");return;}
   if(password!==confirmation){errorBox.textContent="Die Passwörter stimmen nicht überein.";errorBox.classList.remove("hidden");return;}
-  if(!passwordRecoveryToken){errorBox.textContent="Der Link ist nicht mehr gültig. Fordere bitte einen neuen Link an.";errorBox.classList.remove("hidden");return;}
+  if(!passwordRecoveryToken&&!passwordRecoveryTokenHash){errorBox.textContent="Öffne bitte den neuesten Passwort-Link aus deiner E-Mail.";errorBox.classList.remove("hidden");return;}
   const recoveryEmail=String(passwordRecoveryEmail||$("#resetEmail")?.value||"").trim().toLowerCase();
   if(!validEmail(recoveryEmail)){
     errorBox.textContent="Bitte gib die E-Mail-Adresse deines Rechnio-Kontos ein.";
@@ -2131,45 +2137,42 @@ async function saveNewPassword(event){
     return;
   }
   button.disabled=true;button.textContent="Wird gespeichert…";
-  let passwordUpdated=false;
   try{
     const response=await fetch("/api/auth/password-update",{
       method:"POST",credentials:"same-origin",cache:"no-store",
       headers:{"Content-Type":"application/json","Accept":"application/json"},
-      body:JSON.stringify({accessToken:passwordRecoveryToken,password})
+      body:JSON.stringify({accessToken:passwordRecoveryToken,refreshToken:passwordRecoveryRefreshToken,tokenHash:passwordRecoveryTokenHash,password})
     });
     const payload=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(payload.error||"Das Passwort konnte nicht geändert werden.");
-    passwordUpdated=true;
+    if(!response.ok)throw new Error(payload.error||"Das neue Passwort konnte nicht gespeichert werden. Öffne bitte den neuesten Link aus deiner E-Mail.");
 
-    // Sign in immediately with the new password, so a successful reset leads straight to Rechnio.
+    // The password was changed successfully. Sign in immediately with the new password.
+    const loginResponse=await fetch("/api/auth/login",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({email:recoveryEmail,password,remember:$("#rememberLogin")?.checked===true})
+    });
+    const loginPayload=await loginResponse.json().catch(()=>({}));
+    if(!loginResponse.ok)throw new Error("Dein neues Passwort wurde gespeichert. Die automatische Anmeldung hat gerade nicht geklappt. Melde dich bitte mit dem neuen Passwort an.");
+    const user=extractAuthUser(loginPayload);
+    if(!user)throw new Error("Dein neues Passwort wurde gespeichert. Die automatische Anmeldung konnte nicht abgeschlossen werden. Melde dich bitte mit dem neuen Passwort an.");
+
+    // Don't send the user back to login if workspace loading has a temporary problem.
+    let workspace={cloudReady:false};
     try{
-      const loginResponse=await fetch("/api/auth/login",{
-        method:"POST",credentials:"same-origin",cache:"no-store",
-        headers:{"Content-Type":"application/json","Accept":"application/json"},
-        body:JSON.stringify({email:recoveryEmail,password,remember:$("#rememberLogin")?.checked===true})
-      });
-      const loginPayload=await loginResponse.json().catch(()=>({}));
-      if(!loginResponse.ok)throw new Error(loginPayload.error||"Automatische Anmeldung nicht möglich.");
-      const user=extractAuthUser(loginPayload);
-      if(!user)throw new Error("Die Anmeldung hat kein gültiges Benutzerkonto zurückgegeben.");
-      const workspace=await initializeUserWorkspace(user);
-      closePasswordReset();
-      showApp();
-      toast("Passwort geändert","Du bist jetzt bei Rechnio angemeldet.");
-      if(loginPayload.rememberUnavailable)toast("Sitzung nur vorübergehend","Dauerhaftes Angemeldetbleiben ist auf dem Server noch nicht eingerichtet.","warning");
-      if(!workspace.cloudReady)toast("Cloud-Speicherung nicht bereit","Du bist angemeldet, aber Änderungen werden vorerst nur in diesem Browser gespeichert. Prüfe die Supabase-Tabellen und Render-Einstellungen.","warning");
-      if(!String(user.name||"").trim())askForName();
-    }catch(loginError){
-      console.warn("Password was updated but automatic sign-in failed:",loginError);
-      closePasswordReset();
-      showLogin();
-      setAuthMode("login");
-      $("#loginEmail").value=recoveryEmail;
-      showAuthSetupNotice("Dein Passwort wurde geändert. Bitte melde dich einmal mit deinem neuen Passwort an.");
+      workspace=await initializeUserWorkspace(user);
+    }catch(workspaceError){
+      console.warn("Workspace initialization after password reset failed:",workspaceError);
+      cloudReady=false;
     }
+    closePasswordReset();
+    showApp();
+    toast("Passwort geändert","Du bist jetzt bei Rechnio angemeldet.");
+    if(loginPayload.rememberUnavailable)toast("Sitzung nur vorübergehend","Dauerhaftes Angemeldetbleiben ist auf dem Server noch nicht eingerichtet.","warning");
+    if(!workspace?.cloudReady)toast("Cloud-Speicherung nicht bereit","Du bist angemeldet, aber die Cloud-Daten konnten gerade nicht vollständig geladen werden. Prüfe die Supabase-Tabellen und Render-Einstellungen.","warning");
+    if(!String(user.name||"").trim())askForName();
   }catch(error){
-    errorBox.textContent=error.message||"Das Passwort konnte nicht geändert werden.";
+    errorBox.textContent=error.message||"Das neue Passwort konnte nicht gespeichert werden.";
     errorBox.classList.remove("hidden");
   }finally{
     button.disabled=false;button.textContent="Passwort speichern";
