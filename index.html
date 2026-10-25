@@ -367,8 +367,22 @@ svg{
   color:var(--ink)
 }
 .top-search{
-  width:min(330px,32vw)
+  position:relative; z-index:31; width:min(330px,32vw)
 }
+.global-search-results{
+  position:absolute; top:calc(100% + 8px); right:0; width:min(430px,calc(100vw - 28px)); max-height:min(62vh,460px); overflow:auto; padding:6px; border:1px solid var(--line); border-radius:12px; background:var(--panel,#fff); box-shadow:0 18px 48px rgba(20,32,54,.18); z-index:50
+}
+.global-search-results.hidden{display:none!important}
+.global-search-result{
+  display:flex; align-items:center; gap:10px; width:100%; padding:10px; border:0; border-radius:9px; background:transparent; color:var(--ink); text-align:left; cursor:pointer
+}
+.global-search-result:hover,.global-search-result:focus-visible{outline:none;background:var(--brand-soft,#f1f5ff)}
+.global-search-result-icon{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:9px;background:#f1f4f9;color:var(--brand)}
+.global-search-result-copy{display:flex;flex:1;min-width:0;flex-direction:column;gap:3px}
+.global-search-result-copy strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:750}
+.global-search-result-copy small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted);font-size:10px}
+.global-search-result-kind{flex:0 0 auto;color:var(--faint);font-size:9px;font-weight:700}
+.global-search-empty{padding:14px 12px;color:var(--muted);font-size:11px;line-height:1.6}
 .top-search .input{
   min-height:38px; background:#f8fafc; border-color:#edf0f5; font-size:11px
 }
@@ -1290,6 +1304,15 @@ body{font-size:15px;line-height:1.6}
 @media(max-width:600px){.help-card{padding:15px}.help-hero{padding:17px}.help-step-actions{display:grid;grid-template-columns:1fr}.help-step-actions .btn{width:100%;white-space:normal}.help-suggestions{display:grid;grid-template-columns:1fr}.help-chip{width:100%;padding:10px 12px}.invoice-missing-notice{flex-wrap:wrap}.invoice-missing-notice .btn{width:100%}}
 
 
+.password-reset-overlay{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(8,15,28,.72);backdrop-filter:blur(5px)}
+.password-reset-overlay.hidden{display:none!important}
+.password-reset-card{width:min(100%,440px);padding:28px;border:1px solid var(--line,#e5e7eb);border-radius:18px;background:var(--panel,#fff);color:var(--text,#172033);box-shadow:0 24px 80px rgba(0,0,0,.25)}
+.password-reset-card h2{margin:0 0 8px;font-size:23px}
+.password-reset-card p{margin:0 0 20px;color:var(--muted,#64748b);line-height:1.55}
+.password-reset-card .field{margin-bottom:14px}
+.password-reset-actions{display:flex;gap:10px;margin-top:20px}
+.password-reset-actions .btn{flex:1}
+.forgot-password-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
 
 /* Fälligkeitserinnerung: auffällig, aber im bestehenden Rechnio-Design. */
@@ -1352,7 +1375,7 @@ body{font-size:15px;line-height:1.6}
       <div class="field"><label for="loginEmail">E-Mail-Adresse</label><div class="input-wrap"><svg class="icon"><use href="#i-mail"/></svg><input id="loginEmail" class="input" type="email" autocomplete="username" placeholder="du@unternehmen.de" maxlength="254" required></div></div>
       <div class="field"><label for="loginPassword">Passwort</label><div class="input-wrap"><svg class="icon"><use href="#i-shield"/></svg><input id="loginPassword" class="input" type="password" autocomplete="current-password" placeholder="Dein Passwort" required></div><div class="hint" id="passwordHint">Gib dein Konto-Passwort ein.</div></div>
       <div id="loginError" class="login-error hidden" role="alert"></div>
-      <div class="login-meta" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label></div>
+      <div class="login-meta forgot-password-row" id="loginMeta"><label class="checkbox"><input id="rememberLogin" type="checkbox" checked> Angemeldet bleiben</label><button id="forgotPasswordButton" class="link-button" type="button">Passwort vergessen?</button></div>
       <button id="authSubmit" class="btn primary block" type="submit">Anmelden <svg class="icon icon-sm"><use href="#i-chevron"/></svg></button>
       <p class="auth-switch"><span id="authSwitchText">Noch kein Konto?</span> <button id="authModeToggle" class="link-button" type="button">Konto erstellen</button></p>
     </form>
@@ -1370,11 +1393,22 @@ body{font-size:15px;line-height:1.6}
     <div class="sidebar-bottom"><div class="plan-box"><div class="plan-title"><span class="plan-dot"></span>Dein Arbeitsbereich</div><p>Kunden, Rechnungen und Zahlungen an einem zentralen Ort verwalten.</p></div><div class="sidebar-user"><span id="sidebarAvatar" class="avatar">MU</span><div class="grow"><div id="sidebarUserName" class="user-name"></div><div id="sidebarUserEmail" class="user-email"></div><div id="sidebarWorkspaceRole" class="user-role hidden"></div></div><button class="user-logout" aria-label="Abmelden" title="Abmelden" data-action="logout"><svg class="icon"><use href="#i-logout"/></svg></button></div></div>
   </aside>
   <main class="main">
-    <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Kunden oder Rechnungen suchen…" aria-label="Globale Suche"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
+    <header class="topbar"><div class="row"><button id="mobileMenu" class="top-icon mobile-menu" aria-label="Menü öffnen"><svg class="icon"><use href="#i-menu"/></svg></button><div class="crumb"><span>Rechnio</span><svg class="icon icon-sm"><use href="#i-chevron"/></svg><strong id="breadcrumbCurrent">Dashboard</strong></div></div><div class="top-search"><div class="input-wrap"><svg class="icon"><use href="#i-search"/></svg><input id="globalSearch" class="input" type="search" placeholder="Alles durchsuchen…" aria-label="Globale Suche" aria-controls="globalSearchResults" aria-expanded="false" autocomplete="off"></div><div id="globalSearchResults" class="global-search-results hidden" role="listbox" aria-label="Suchergebnisse"></div></div><div class="top-actions"><button class="top-icon" aria-label="Überfällige Rechnungen" title="Überfällige Rechnungen" data-action="show-overdue"><svg class="icon"><use href="#i-bell"/></svg><span id="notificationDot" class="notify-dot hidden"></span></button><span class="top-divider"></span><button class="row" style="border:0;background:transparent;padding:0" data-page="settings" aria-label="Einstellungen"><span id="topbarAvatar" class="avatar top-avatar">MU</span><svg class="icon icon-sm faint"><use href="#i-chevron"/></svg></button></div></header>
     <div id="pageContent" class="content"></div>
   </main>
 </div>
 <div id="modalRoot"></div>
+<div id="passwordResetOverlay" class="password-reset-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+  <form id="passwordResetForm" class="password-reset-card" novalidate>
+    <h2 id="passwordResetTitle">Neues Passwort festlegen</h2>
+    <p>Wähle ein neues Passwort für dein Rechnio-Konto. Verwende mindestens 8 Zeichen.</p>
+    <div class="field hidden" id="resetEmailWrap"><label for="resetEmail">E-Mail-Adresse deines Kontos</label><input id="resetEmail" class="input" type="email" autocomplete="username" maxlength="254" placeholder="du@unternehmen.de"></div>
+    <div class="field"><label for="newPassword">Neues Passwort</label><input id="newPassword" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+    <div class="field"><label for="confirmNewPassword">Passwort wiederholen</label><input id="confirmNewPassword" class="input" type="password" autocomplete="new-password" minlength="8" maxlength="256" required></div>
+    <div id="passwordResetError" class="login-error hidden" role="alert"></div>
+    <div class="password-reset-actions"><button id="cancelPasswordReset" class="btn secondary" type="button">Abbrechen</button><button id="saveNewPassword" class="btn primary" type="submit">Passwort speichern</button></div>
+  </form>
+</div>
 <div id="toastRegion" class="toast-region" aria-live="polite"></div>
 
 <script>
@@ -1385,6 +1419,8 @@ APP CONFIGURATION AND STATE
 const VERSION = "2.0.0";
 const STORAGE_KEY = "rechnio_local_v2";
 const DEFAULT_USER = Object.freeze({ id:"", email:"", name:"" });
+let passwordRecoveryToken = "";
+let passwordRecoveryEmail = "";
 const PAGE_META = {
   dashboard:{
     title:"Dashboard",subtitle:"Hier siehst du, was in deinem Unternehmen gerade wichtig ist."
@@ -1931,13 +1967,6 @@ STARTUP, AUTHENTICATION AND NAVIGATION
 async function handleAuthReturnNotice(){
   const fragment = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
   const query = new URLSearchParams(String(window.location.search || "").replace(/^\?/, ""));
-  // Alte Passwort-Zurücksetzen-Links werden nicht mehr unterstützt. URL bereinigen und normal zur Anmeldung zurückkehren.
-  const authType = fragment.get("type") || query.get("type");
-  const currentPath = String(window.location.pathname || "").toLowerCase().replace(/\/+$/, "");
-  if(authType === "recovery" || currentPath === "/reset-password"){
-    try{window.history.replaceState({}, document.title, "/");}catch(_){/* Best-effort URL cleanup. */}
-    return "";
-  }
   const errorCode = fragment.get("error_code") || fragment.get("error") || query.get("error_code") || query.get("error");
   const errorDescription = fragment.get("error_description") || query.get("error_description");
   const accessToken = fragment.get("access_token") || query.get("access_token");
@@ -1983,11 +2012,175 @@ async function handleAuthReturnNotice(){
   }
   return "";
 }
+async function requestPasswordReset(){
+  if(authMode!=="login")return;
+  let email=$("#loginEmail").value.trim().toLowerCase();
+  if(!validEmail(email)){
+    email=window.prompt("Gib die E-Mail-Adresse deines Rechnio-Kontos ein:","");
+    if(email===null)return;
+    email=String(email).trim().toLowerCase();
+  }
+  if(!validEmail(email)){
+    showAuthSetupNotice("Bitte gib eine gültige E-Mail-Adresse ein.");
+    return;
+  }
+  const button=$("#forgotPasswordButton");
+  if(button){button.disabled=true;button.textContent="Wird gesendet…";}
+  try{
+    const response=await fetch("/api/auth/password-reset",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({email})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Der Link konnte nicht angefordert werden.");
+    $("#loginEmail").value=email;
+    showAuthSetupNotice(payload.message||"Falls ein Konto mit dieser E-Mail-Adresse existiert, erhältst du einen Link zum Zurücksetzen des Passworts.");
+  }catch(error){
+    showAuthSetupNotice(error.message||"Der Passwort-Link konnte nicht angefordert werden.");
+  }finally{
+    if(button){button.disabled=false;button.textContent="Passwort vergessen?";}
+  }
+}
+function emailFromAccessToken(token){
+  try{
+    const segment=String(token||"").split(".")[1];
+    if(!segment)return "";
+    const base64=segment.replace(/-/g,"+").replace(/_/g,"/").padEnd(Math.ceil(segment.length/4)*4,"=");
+    const payload=JSON.parse(atob(base64));
+    const email=String(payload.email||payload.user_email||"").trim().toLowerCase();
+    return validEmail(email)?email:"";
+  }catch(_){return "";}
+}
+function openPasswordReset(token){
+  passwordRecoveryToken=String(token||"");
+  if(!passwordRecoveryToken){showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an.");return;}
+  passwordRecoveryEmail=emailFromAccessToken(passwordRecoveryToken)||passwordRecoveryEmail||"";
+  const emailWrap=$("#resetEmailWrap");
+  const emailInput=$("#resetEmail");
+  if(emailInput)emailInput.value=passwordRecoveryEmail;
+  if(emailWrap)emailWrap.classList.toggle("hidden",Boolean(passwordRecoveryEmail));
+  $("#passwordResetError")?.classList.add("hidden");
+  $("#newPassword").value="";
+  $("#confirmNewPassword").value="";
+  $("#passwordResetOverlay")?.classList.remove("hidden");
+  setTimeout(()=>$("#newPassword")?.focus(),0);
+}
+function closePasswordReset(){
+  passwordRecoveryToken="";
+  passwordRecoveryEmail="";
+  $("#passwordResetOverlay")?.classList.add("hidden");
+}
+async function handlePasswordRecoveryReturn(){
+  const fragment=new URLSearchParams(String(window.location.hash||"").replace(/^#/,""));
+  const query=new URLSearchParams(String(window.location.search||"").replace(/^\?/,""));
+  const type=fragment.get("type")||query.get("type");
+  const accessToken=fragment.get("access_token")||query.get("access_token");
+  const tokenHash=query.get("token_hash")||fragment.get("token_hash");
+  const errorCode=fragment.get("error_code")||fragment.get("error")||query.get("error_code")||query.get("error");
+  if(type!=="recovery"&&!errorCode&&!tokenHash)return false;
+  try{window.history.replaceState({},document.title,"/reset-password");}catch(_){/* Best-effort URL cleanup. */}
+  showLogin();
+  setAuthMode("login");
+  if(errorCode){
+    showAuthSetupNotice("Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an.");
+    return true;
+  }
+  if(tokenHash&&type==="recovery"){
+    try{
+      const response=await fetch("/api/auth/password-recovery-verify",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({tokenHash})
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||"Der Passwort-Link konnte nicht bestätigt werden.");
+      if(!payload.accessToken)throw new Error("Der Passwort-Link konnte nicht bestätigt werden.");
+      passwordRecoveryEmail=emailFromAccessToken(payload.accessToken)||String(payload.email||"").trim().toLowerCase();
+      openPasswordReset(payload.accessToken);
+    }catch(error){
+      console.error("Password recovery link verification failed:",error);
+      showAuthSetupNotice(error.message||"Der Passwort-Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Link an.");
+    }
+    return true;
+  }
+  if(!accessToken){
+    showAuthSetupNotice("Der Passwort-Link enthält kein gültiges Token. Fordere bitte einen neuen Link an.");
+    return true;
+  }
+  passwordRecoveryEmail=emailFromAccessToken(accessToken);
+  openPasswordReset(accessToken);
+  return true;
+}
+async function saveNewPassword(event){
+  event.preventDefault();
+  const password=$("#newPassword").value;
+  const confirmation=$("#confirmNewPassword").value;
+  const errorBox=$("#passwordResetError");
+  const button=$("#saveNewPassword");
+  errorBox.classList.add("hidden");
+  if(password.length<8){errorBox.textContent="Das Passwort muss mindestens 8 Zeichen enthalten.";errorBox.classList.remove("hidden");return;}
+  if(password!==confirmation){errorBox.textContent="Die Passwörter stimmen nicht überein.";errorBox.classList.remove("hidden");return;}
+  if(!passwordRecoveryToken){errorBox.textContent="Der Link ist nicht mehr gültig. Fordere bitte einen neuen Link an.";errorBox.classList.remove("hidden");return;}
+  const recoveryEmail=String(passwordRecoveryEmail||$("#resetEmail")?.value||"").trim().toLowerCase();
+  if(!validEmail(recoveryEmail)){
+    errorBox.textContent="Bitte gib die E-Mail-Adresse deines Rechnio-Kontos ein.";
+    errorBox.classList.remove("hidden");
+    $("#resetEmailWrap")?.classList.remove("hidden");
+    $("#resetEmail")?.focus();
+    return;
+  }
+  button.disabled=true;button.textContent="Wird gespeichert…";
+  let passwordUpdated=false;
+  try{
+    const response=await fetch("/api/auth/password-update",{
+      method:"POST",credentials:"same-origin",cache:"no-store",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},
+      body:JSON.stringify({accessToken:passwordRecoveryToken,password})
+    });
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||"Das Passwort konnte nicht geändert werden.");
+    passwordUpdated=true;
+
+    // Sign in immediately with the new password, so a successful reset leads straight to Rechnio.
+    try{
+      const loginResponse=await fetch("/api/auth/login",{
+        method:"POST",credentials:"same-origin",cache:"no-store",
+        headers:{"Content-Type":"application/json","Accept":"application/json"},
+        body:JSON.stringify({email:recoveryEmail,password,remember:$("#rememberLogin")?.checked===true})
+      });
+      const loginPayload=await loginResponse.json().catch(()=>({}));
+      if(!loginResponse.ok)throw new Error(loginPayload.error||"Automatische Anmeldung nicht möglich.");
+      const user=extractAuthUser(loginPayload);
+      if(!user)throw new Error("Die Anmeldung hat kein gültiges Benutzerkonto zurückgegeben.");
+      const workspace=await initializeUserWorkspace(user);
+      closePasswordReset();
+      showApp();
+      toast("Passwort geändert","Du bist jetzt bei Rechnio angemeldet.");
+      if(loginPayload.rememberUnavailable)toast("Sitzung nur vorübergehend","Dauerhaftes Angemeldetbleiben ist auf dem Server noch nicht eingerichtet.","warning");
+      if(!workspace.cloudReady)toast("Cloud-Speicherung nicht bereit","Du bist angemeldet, aber Änderungen werden vorerst nur in diesem Browser gespeichert. Prüfe die Supabase-Tabellen und Render-Einstellungen.","warning");
+      if(!String(user.name||"").trim())askForName();
+    }catch(loginError){
+      console.warn("Password was updated but automatic sign-in failed:",loginError);
+      closePasswordReset();
+      showLogin();
+      setAuthMode("login");
+      $("#loginEmail").value=recoveryEmail;
+      showAuthSetupNotice("Dein Passwort wurde geändert. Bitte melde dich einmal mit deinem neuen Passwort an.");
+    }
+  }catch(error){
+    errorBox.textContent=error.message||"Das Passwort konnte nicht geändert werden.";
+    errorBox.classList.remove("hidden");
+  }finally{
+    button.disabled=false;button.textContent="Passwort speichern";
+  }
+}
 async function boot(){
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
   setAuthMode("login");
   showLogin();
+  if(await handlePasswordRecoveryReturn())return;
   const authReturnNotice=await handleAuthReturnNotice();
   try{
     const response=await fetch("/api/auth/me",{credentials:"same-origin",headers:{"Accept":"application/json"},cache:"no-store"});
@@ -2040,6 +2233,7 @@ function setAuthMode(mode){
   $("#authSubtitle").textContent=registering?"Erstelle dein Konto mit einer E-Mail-Adresse und einem Passwort. Wir senden dir einen Bestätigungslink.":"Melde dich an, um deine Rechnungen und Kunden zu verwalten.";
   $("#authSubmit").innerHTML=registering?"Konto erstellen "+icon("chevron","icon icon-sm"):"Anmelden "+icon("chevron","icon icon-sm");
   $("#loginMeta").classList.remove("hidden");
+  $("#forgotPasswordButton")?.classList.toggle("hidden",registering);
   $("#passwordHint").textContent=registering?"Verwende mindestens 8 Zeichen. Danach bestätigen wir deine E-Mail-Adresse.":"Gib dein Konto-Passwort ein.";
   $("#loginPassword").autocomplete=registering?"new-password":"current-password";
   $("#authSwitchText").textContent=registering?"Du hast bereits ein Konto?":"Noch kein Konto?";
@@ -3304,21 +3498,60 @@ function validateState(){
 /* ================================================================
 GLOBAL SEARCH AND EVENT DELEGATION
 ================================================================ */
+function globalSearchRecordText(value){
+  if(value===null||value===undefined)return "";
+  if(Array.isArray(value))return value.map(globalSearchRecordText).join(" ");
+  if(typeof value==="object")return Object.values(value).map(globalSearchRecordText).join(" ");
+  return String(value);
+}
+function globalSearchMatches(value){
+  const query=norm(value);
+  if(!query)return [];
+  const results=[];
+  const terms=query.split(/\s+/).filter(Boolean);
+  for(const invoice of state.invoices){
+    const amount=amounts(invoice);
+    const text=norm(globalSearchRecordText({invoice,customer:customerName(invoice.customerId),statusLabel:statusText(statusOf(invoice)),amounts:amount,grossLabel:money(amount.gross)}));
+    if(terms.every(term=>text.includes(term))){
+      results.push({type:"invoice",id:invoice.id,score:text.startsWith(query)||norm(invoice.number).startsWith(query)?2:1,title:invoice.number||"Rechnung",detail:[invoice.title,customerName(invoice.customerId),money(amount.gross),statusText(statusOf(invoice))].filter(Boolean).join(" · "),raw:invoice});
+    }
+  }
+  for(const customer of state.customers){
+    const text=norm(globalSearchRecordText(customer));
+    if(terms.every(term=>text.includes(term))){
+      results.push({type:"customer",id:customer.id,score:text.startsWith(query)||norm(customer.name).startsWith(query)?2:1,title:customer.name||"Kunde",detail:[customer.email,customer.phone,[customer.postalCode,customer.city].filter(Boolean).join(" "),customer.contact].filter(Boolean).join(" · "),raw:customer});
+    }
+  }
+  return results.sort((a,b)=>b.score-a.score||a.title.localeCompare(b.title,"de")).slice(0,8);
+}
+function renderGlobalSearchResults(value){
+  const input=$("#globalSearch"),panel=$("#globalSearchResults");
+  if(!input||!panel)return;
+  const query=String(value||"").trim();
+  if(!query){panel.innerHTML="";panel.classList.add("hidden");input.setAttribute("aria-expanded","false");return;}
+  const matches=globalSearchMatches(query);
+  if(!matches.length){
+    panel.innerHTML=`<div class="global-search-empty">Keine Treffer für „${esc(query)}“.<br>Du kannst nach Kundendaten, Rechnungsnummern, Beträgen, Adressen, Notizen und weiteren gespeicherten Angaben suchen.</div>`;
+  }else{
+    panel.innerHTML=matches.map(item=>`<button class="global-search-result" type="button" role="option" data-action="global-search-result" data-search-type="${item.type}" data-id="${escAttr(item.id)}"><span class="global-search-result-icon">${icon(item.type==="invoice"?"file":"users","icon")}</span><span class="global-search-result-copy"><strong>${esc(item.title)}</strong><small>${esc(item.detail||"")}</small></span><span class="global-search-result-kind">${item.type==="invoice"?"Rechnung":"Kunde"}</span></button>`).join("");
+  }
+  panel.classList.remove("hidden");
+  input.setAttribute("aria-expanded","true");
+}
+function openGlobalSearchResult(type,id){
+  const panel=$("#globalSearchResults"),input=$("#globalSearch");
+  panel?.classList.add("hidden");
+  input?.setAttribute("aria-expanded","false");
+  if(type==="invoice"&&state.invoices.some(item=>item.id===id))viewInvoice(id);
+  else if(type==="customer"&&state.customers.some(item=>item.id===id))viewCustomer(id);
+  else toast("Treffer nicht gefunden","Dieser Eintrag ist nicht mehr verfügbar.","warning");
+}
 function globalSearch(value){
   const query=norm(value);
   if(!query)return;
-  const invoice=state.invoices.find(i=>[i.number,i.title,customerName(i.customerId)].some(v=>norm(v).includes(query)));
-  const customer=state.customers.find(c=>[c.name,c.contact,c.email,c.phone,c.city].some(v=>norm(v).includes(query)));
-  if(invoice){
-    state.ui.invoiceSearch=value;
-    state.ui.invoiceStatus="all";
-    navigate("invoices");
-  }
-else if(customer){
-  state.ui.customerSearch=value;
-  navigate("customers");
-}
-else toast("Keine Treffer",`Für „${value}“ wurde nichts gefunden.`,"warning");
+  const matches=globalSearchMatches(value);
+  if(matches.length){openGlobalSearchResult(matches[0].type,matches[0].id);return;}
+  renderGlobalSearchResults(value);
 }
 function changePage(type,delta){
   if(type==="customer")state.ui.customerPage=Math.max(1,(state.ui.customerPage||1)+delta);
@@ -3349,6 +3582,9 @@ function bindEvents(){
       }
     });
     $("#authModeToggle")?.addEventListener("click",()=>setAuthMode(authMode==="login"?"register":"login"));
+    $("#forgotPasswordButton")?.addEventListener("click",requestPasswordReset);
+    $("#passwordResetForm")?.addEventListener("submit",saveNewPassword);
+    $("#cancelPasswordReset")?.addEventListener("click",()=>{closePasswordReset();showLogin();setAuthMode("login");});
   }
 document.addEventListener("click",e=>{
   const page=e.target.closest("[data-page]");if(page){
@@ -3356,6 +3592,7 @@ document.addEventListener("click",e=>{
   }
 const button=e.target.closest("[data-action]");if(!button)return;const action=button.dataset.action,id=button.dataset.id;
 switch(action){
+  case "global-search-result":openGlobalSearchResult(button.dataset.searchType,id);break;
   case "new-invoice":openInvoiceForm();break;case "new-customer":openCustomerForm();break;
   case "edit-invoice":closeModal(false);openInvoiceForm(id);break;case "edit-customer":closeModal(false);openCustomerForm(id);break;
   case "view-invoice":viewInvoice(id);break;case "print-invoice":printInvoice(id);break;case "view-customer":viewCustomer(id);break;
@@ -3408,8 +3645,23 @@ $("#pageContent").addEventListener("change",e=>{
     state.ui.invoiceStatus=e.target.value;state.ui.invoicePage=1;renderPage();
   }
 });
+$("#globalSearch").addEventListener("input",e=>renderGlobalSearchResults(e.target.value));
 $("#globalSearch").addEventListener("keydown",e=>{
-  if(e.key==="Enter")globalSearch(e.target.value);if(e.key==="Escape")e.target.value="";
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const first=$("#globalSearchResults .global-search-result");
+    if(first){first.click();}else globalSearch(e.target.value);
+  }
+  if(e.key==="Escape"){
+    e.target.value="";renderGlobalSearchResults("");
+  }
+  if(e.key==="ArrowDown"){
+    const first=$("#globalSearchResults .global-search-result");
+    if(first){e.preventDefault();first.focus();}
+  }
+});
+document.addEventListener("click",e=>{
+  if(!e.target.closest(".top-search"))renderGlobalSearchResults("");
 });
 $("#mobileMenu").addEventListener("click",()=>{
   $("#sidebar").classList.add("open");$("#sidebarOverlay").classList.remove("hidden");
