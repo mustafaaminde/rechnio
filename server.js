@@ -759,7 +759,7 @@ function newSessionFromAuth(authData, remember = false) {
     !authData?.user?.id
   ) {
     return null;
-  }
+    }
 
   const ttl = remember
     ? REMEMBER_SESSION_TTL_MS
@@ -1234,7 +1234,7 @@ async function handle(req, res) {
         return;
       }
       const organization = await getOrganization(invitation.organization_id);
-      sendJson(res, 200, { email: invitation.email, organizationName: organization?.name || "Rechnio-Unternehmen", expiresAt: invitation.expires_at });
+      sendJson(res, 200, { email: invitation.email || "", linkOnly: !invitation.email, organizationName: organization?.name || "Rechnio-Unternehmen", expiresAt: invitation.expires_at });
     } catch (error) {
       sendJson(res, error.statusCode || 503, { error: error.message || "Die Einladung konnte nicht geprüft werden." });
     }
@@ -1313,174 +1313,38 @@ async function handle(req, res) {
   }
 
   if (req.method === "POST" && route === "/api/auth/password-update") {
-    const limitKey = `${requestIp(req)}:password-update`;
-    if (isRateLimited(authAttempts, limitKey, MAX_AUTH_ATTEMPTS)) {
-      sendJson(res, 429, {
-        error: "Zu viele Versuche. Bitte warte etwas und versuche es erneut.",
-      });
-      return;
-    }
-
     if (!supabaseConfig()) {
-      sendJson(res, 503, {
-        error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe die Supabase-Einstellungen in Render.",
-      });
+      sendJson(res, 503, { error: "Der Passwort-Dienst ist nicht konfiguriert. Prüfe die Supabase-Einstellungen in Render." });
       return;
     }
-
     let body;
-    try {
-      body = await readJson(req);
-    } catch (error) {
-      sendJson(res, 400, { error: error.message });
-      return;
-    }
-
-    const tokenHash = String(body.tokenHash || "").trim();
-    const refreshToken = String(body.refreshToken || "").trim();
-    let accessToken = String(body.accessToken || "").trim();
+    try { body = await readJson(req); }
+    catch (error) { sendJson(res, 400, { error: error.message }); return; }
+    const accessToken = String(body.accessToken || "").trim();
     const password = String(body.password ?? "");
-
-    if (!accessToken && !tokenHash) {
-      sendJson(res, 400, {
-        error: "Der Passwort-Link konnte nicht verarbeitet werden. Öffne bitte den neuesten Link aus deiner E-Mail.",
-      });
+    if (!accessToken || accessToken.length > 10000) {
+      sendJson(res, 400, { error: "Der Passwort-Link konnte nicht verarbeitet werden." });
       return;
     }
-
-    if (tokenHash && !/^[A-Za-z0-9_-]{20,200}$/.test(tokenHash)) {
-      sendJson(res, 400, {
-        error: "Der Passwort-Link konnte nicht verarbeitet werden. Öffne bitte den neuesten Link aus deiner E-Mail.",
-      });
-      return;
-    }
-
-    if (accessToken.length > 10000 || refreshToken.length > 10000) {
-      sendJson(res, 400, {
-        error: "Der Passwort-Link konnte nicht verarbeitet werden. Öffne bitte den neuesten Link aus deiner E-Mail.",
-      });
-      return;
-    }
-
     if (password.length < 8 || password.length > 256) {
-      sendJson(res, 400, {
-        error: "Das Passwort muss mindestens 8 Zeichen enthalten.",
-      });
+      sendJson(res, 400, { error: "Das Passwort muss mindestens 8 Zeichen enthalten." });
       return;
     }
-
-    // A token_hash is redeemed only when the user submits the new password.
-    // This prevents email previews or simply opening the link from consuming it.
-    let recoveryData = null;
-    if (tokenHash) {
-      const verified = await supabaseRequest("/auth/v1/verify", {
-        method: "POST",
-        body: { token_hash: tokenHash, type: "recovery" },
-      });
-
-      if (!verified.ok || !verified.data?.access_token) {
-        console.warn("Supabase recovery token verification rejected", {
-          status: verified.status,
-          code: String(
-            verified.data?.code ||
-            verified.data?.error_code ||
-            verified.data?.error ||
-            "unknown"
-          ).slice(0, 80),
-        });
-        sendJson(res, verified.status === 429 ? 429 : 400, {
-          error: verified.status === 429
-            ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut."
-            : "Der Passwort-Link konnte nicht bestätigt werden. Öffne bitte den neuesten Link aus deiner E-Mail.",
-        });
-        return;
-      }
-
-      recoveryData = verified.data;
-      accessToken = String(verified.data.access_token || "");
-    }
-
-    let result = await supabaseRequest("/auth/v1/user", {
+    const result = await supabaseRequest("/auth/v1/user", {
       method: "PUT",
       accessToken,
       body: { password },
     });
-
-    let refreshedData = null;
-    // If a legacy access-token link has expired, refresh it once and retry.
-    if (!result.ok && refreshToken && !tokenHash) {
-      const refreshed = await supabaseRequest(
-        "/auth/v1/token?grant_type=refresh_token",
-        {
-          method: "POST",
-          body: { refresh_token: refreshToken },
-        }
-      );
-
-      if (refreshed.ok && refreshed.data?.access_token) {
-        refreshedData = refreshed.data;
-        accessToken = String(refreshed.data.access_token);
-        result = await supabaseRequest("/auth/v1/user", {
-          method: "PUT",
-          accessToken,
-          body: { password },
-        });
-      }
-    }
-
     if (!result.ok) {
       console.warn("Supabase password update rejected", {
         status: result.status,
-        code: String(
-          result.data?.code ||
-          result.data?.error_code ||
-          result.data?.error ||
-          "unknown"
-        ).slice(0, 80),
-        reason: String(
-          result.data?.msg ||
-          result.data?.message ||
-          result.data?.error_description ||
-          result.data?.hint ||
-          ""
-        ).replace(/[\r\n]+/g, " ").slice(0, 160),
+        code: String(result.data?.code || result.data?.error_code || result.data?.error || "unknown").slice(0, 80),
+        reason: String(result.data?.msg || result.data?.message || result.data?.error_description || result.data?.hint || "").replace(/[\r\n]+/g, " ").slice(0, 160),
       });
-
-      sendJson(res, result.status === 429 ? 429 : 400, {
-        error: result.status === 429
-          ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut."
-          : "Das neue Passwort konnte nicht gespeichert werden. Öffne bitte den neuesten Link aus deiner E-Mail und versuche es erneut.",
-      });
+      sendJson(res, result.status === 429 ? 429 : 400, { error: result.status === 429 ? "Zu viele Versuche. Bitte warte etwas und versuche es erneut." : "Der Link ist ungültig oder abgelaufen. Fordere bitte einen neuen Passwort-Link an." });
       return;
     }
-
-    // The frontend uses this email to sign in immediately with the new password.
-    // Prefer the user object returned by Supabase; fall back to the verified recovery user.
-    let email = String(
-      result.data?.email ||
-      result.data?.user?.email ||
-      recoveryData?.user?.email ||
-      recoveryData?.email ||
-      refreshedData?.user?.email ||
-      refreshedData?.email ||
-      ""
-    ).trim().toLowerCase();
-
-    // A GET after a successful password update asks Supabase for the account identity
-    // using the same access token rather than trusting an email supplied by the browser.
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      const currentUser = await supabaseRequest("/auth/v1/user", {
-        accessToken,
-      });
-      if (currentUser.ok) {
-        email = String(
-          currentUser.data?.email || currentUser.data?.user?.email || ""
-        ).trim().toLowerCase();
-      }
-    }
-
-    authAttempts.delete(limitKey);
-    sendJson(res, 200, { ok: true, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "" });
+    sendJson(res, 200, { ok: true });
     return;
   }
 
@@ -1656,8 +1520,7 @@ async function handle(req, res) {
       { user: opened.session.user, rememberUnavailable: rememberRequested && !remember },
       { "Set-Cookie": setCookie }
     );
-
-    return;
+return;
   }
 
   if (req.method === "POST" && route === "/api/auth/session") {
@@ -1890,32 +1753,36 @@ async function handle(req, res) {
       let body;
       try { body = await readJson(req); }
       catch (error) { authResponse(res, req, 400, { error: error.message }, found); return; }
-      const email = String(body.email || "").trim().toLowerCase();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+      const linkOnly = String(body.mode || body.invitationMode || "").trim().toLowerCase() === "link";
+      const requestedEmail = String(body.email || "").trim().toLowerCase();
+      if (!linkOnly && (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requestedEmail) || requestedEmail.length > 254)) {
         authResponse(res, req, 400, { error: "Bitte gib eine gültige E-Mail-Adresse ein." }, found);
         return;
       }
       try {
         const context = await requireOwnerContext(found);
-        if (email === String(found.session.user.email || "").toLowerCase()) {
-          authResponse(res, req, 400, { error: "Du kannst dich nicht selbst als Mitarbeiter einladen." }, found);
-          return;
-        }
-        const existingMember = await supabaseAdminRequest(
-          `/rest/v1/rechnio_memberships?select=user_id,email&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&limit=1`
-        );
-        if (!existingMember.ok) throw new Error(readableDatabaseError(existingMember, "Die Mitgliedschaft konnte nicht geprüft werden."));
-        if (Array.isArray(existingMember.data) && existingMember.data.length) {
-          authResponse(res, req, 409, { error: "Diese E-Mail-Adresse gehört bereits zu einem Mitglied dieses Unternehmens." }, found);
-          return;
-        }
-        const existingInvite = await supabaseAdminRequest(
-          `/rest/v1/rechnio_invitations?select=id&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&status=eq.pending&limit=1`
-        );
-        if (!existingInvite.ok) throw new Error(readableDatabaseError(existingInvite, "Vorhandene Einladungen konnten nicht geprüft werden."));
-        if (Array.isArray(existingInvite.data) && existingInvite.data.length) {
-          authResponse(res, req, 409, { error: "Für diese E-Mail gibt es bereits eine offene Einladung. Widerrufe sie zuerst oder verwende den vorhandenen Link." }, found);
-          return;
+        const email = linkOnly ? "" : requestedEmail;
+        if (!linkOnly) {
+          if (email === String(found.session.user.email || "").toLowerCase()) {
+            authResponse(res, req, 400, { error: "Du kannst dich nicht selbst als Mitarbeiter einladen." }, found);
+            return;
+          }
+          const existingMember = await supabaseAdminRequest(
+            `/rest/v1/rechnio_memberships?select=user_id,email&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&limit=1`
+          );
+          if (!existingMember.ok) throw new Error(readableDatabaseError(existingMember, "Die Mitgliedschaft konnte nicht geprüft werden."));
+          if (Array.isArray(existingMember.data) && existingMember.data.length) {
+            authResponse(res, req, 409, { error: "Diese E-Mail-Adresse gehört bereits zu einem Mitglied dieses Unternehmens." }, found);
+            return;
+          }
+          const existingInvite = await supabaseAdminRequest(
+            `/rest/v1/rechnio_invitations?select=id&organization_id=eq.${restFilter(context.organization.id)}&email=eq.${restFilter(email)}&status=eq.pending&limit=1`
+          );
+          if (!existingInvite.ok) throw new Error(readableDatabaseError(existingInvite, "Vorhandene Einladungen konnten nicht geprüft werden."));
+          if (Array.isArray(existingInvite.data) && existingInvite.data.length) {
+            authResponse(res, req, 409, { error: "Für diese E-Mail gibt es bereits eine offene Einladung. Widerrufe sie zuerst oder verwende den vorhandenen Link." }, found);
+            return;
+          }
         }
 
         const token = crypto.randomBytes(32).toString("base64url");
@@ -1935,12 +1802,17 @@ async function handle(req, res) {
         });
         if (!inserted.ok) throw new Error(readableDatabaseError(inserted, "Die Einladung konnte nicht erstellt werden."));
         const inviteUrl = `${PUBLIC_SITE_URL}/?invite=${encodeURIComponent(token)}`;
-        const mail = await sendTeamInvitationEmail({ email, organizationName: context.organization.name, inviteUrl });
+        const mail = linkOnly
+          ? { sent: false, reason: "Link-Einladung ohne E-Mail-Versand erstellt." }
+          : await sendTeamInvitationEmail({ email, organizationName: context.organization.name, inviteUrl });
         authResponse(res, req, 201, {
           ok: true,
           inviteUrl,
+          linkOnly,
           emailSent: mail.sent,
-          message: mail.sent ? "Einladung erstellt und per E-Mail versendet." : `Einladung erstellt, E-Mail aber nicht versendet. ${mail.reason || "Teile den Link manuell mit der eingeladenen Person."}`,
+          message: linkOnly
+            ? "Einladungslink erstellt. Teile ihn nur mit der gewünschten Person."
+            : mail.sent ? "Einladung erstellt und per E-Mail versendet." : `Einladung erstellt, E-Mail aber nicht versendet. ${mail.reason || "Teile den Link manuell mit der eingeladenen Person."}`,
         }, found);
       } catch (error) {
         authResponse(res, req, error.statusCode || 503, { error: error.message || "Die Einladung konnte nicht erstellt werden." }, found);
@@ -2024,7 +1896,7 @@ async function handle(req, res) {
           return;
         }
         const user = found.session.user;
-        if (String(user.email || "").trim().toLowerCase() !== String(invitation.email || "").trim().toLowerCase()) {
+        if (invitation.email && String(user.email || "").trim().toLowerCase() !== String(invitation.email).trim().toLowerCase()) {
           authResponse(res, req, 403, { error: `Melde dich mit ${invitation.email} an, damit die Einladung dem richtigen Konto zugeordnet wird.` }, found);
           return;
         }
