@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#101827">
+<script>
+try{if(localStorage.getItem("rechnio_theme")==="dark")document.documentElement.setAttribute("data-theme","dark");}catch(_){}
+</script>
 <meta name="description" content="Rechnio – Kunden, Rechnungen und Zahlungseingänge übersichtlich verwalten.">
 <title>Rechnio — Rechnungen im Griff</title>
 <style>
@@ -1329,6 +1332,118 @@ body{font-size:15px;line-height:1.6}
 .password-reset-actions .btn{flex:1}
 .forgot-password-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 
+
+
+/* ================================================================
+   RECHNIO DARK MODE — WhatsApp-inspired, available to owners and employees
+   ================================================================ */
+html[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0b141a;
+  --panel:#111b21;
+  --panel-2:#202c33;
+  --ink:#e9edef;
+  --muted:#aebac1;
+  --faint:#8696a0;
+  --line:#26353d;
+  --line-2:#34444d;
+  --brand:#25a58c;
+  --brand-dark:#16836f;
+  --brand-soft:#173a35;
+  --green:#53d9a7;
+  --green-soft:#173a30;
+  --amber:#f7c66a;
+  --amber-soft:#3b301c;
+  --red:#ff8490;
+  --red-soft:#402329;
+  --purple:#c0aaff;
+  --purple-soft:#302942;
+  --sidebar:#0b141a;
+  --sidebar-text:#aebac1;
+  --shadow:0 1px 3px #0004;
+  --shadow-lg:0 22px 70px #0008;
+}
+html[data-theme="dark"],html[data-theme="dark"] body{background:var(--bg);color:var(--ink)}
+html[data-theme="dark"] .sidebar{background:#0b141a;border-right:1px solid #26353d}
+html[data-theme="dark"] .topbar{background:rgba(17,27,33,.94);border-bottom-color:var(--line)}
+html[data-theme="dark"] .top-icon{color:#aebac1}
+html[data-theme="dark"] .top-icon:hover{background:#202c33;border-color:#34444d}
+html[data-theme="dark"] .top-search .input{background:#202c33;border-color:#34444d;color:#e9edef}
+html[data-theme="dark"] .card,
+html[data-theme="dark"] .settings-nav,
+html[data-theme="dark"] .settings-content,
+html[data-theme="dark"] .help-card{background:var(--panel);border-color:var(--line)}
+html[data-theme="dark"] .input,
+html[data-theme="dark"] .select,
+html[data-theme="dark"] .textarea{background:#202c33;border-color:#34444d;color:#e9edef}
+html[data-theme="dark"] .input::placeholder,
+html[data-theme="dark"] .textarea::placeholder{color:#81919a}
+html[data-theme="dark"] .field label{color:#d7e0e4}
+html[data-theme="dark"] .secondary{background:#202c33;color:#e9edef;border-color:#34444d;box-shadow:none}
+html[data-theme="dark"] .secondary:hover{background:#293840;border-color:#49606b}
+html[data-theme="dark"] .ghost{color:#aebac1}
+html[data-theme="dark"] .ghost:hover{background:#202c33;color:#e9edef}
+html[data-theme="dark"] .quick{background:#17232a;border-color:#26353d;color:#e9edef}
+html[data-theme="dark"] .quick:hover{background:#202c33;border-color:#386e64}
+html[data-theme="dark"] .data-table th,
+html[data-theme="dark"] .detail-table th{background:#17232a;color:#aebac1;border-color:#26353d}
+html[data-theme="dark"] .data-table td,
+html[data-theme="dark"] .detail-table td{border-bottom-color:#26353d}
+html[data-theme="dark"] .data-table tbody tr:hover{background:#18272d}
+html[data-theme="dark"] .activity{border-bottom-color:#26353d}
+html[data-theme="dark"] .table-toolbar,
+html[data-theme="dark"] .table-footer{border-color:#26353d}
+html[data-theme="dark"] .modal{background:#111b21;border-color:#34444d}
+html[data-theme="dark"] .modal-foot{background:#17232a;border-top-color:#26353d}
+html[data-theme="dark"] .modal-close{background:#202c33;color:#b9c6cc}
+html[data-theme="dark"] .modal-close:hover{background:#2a3a42;color:#fff}
+html[data-theme="dark"] .global-search-results{background:#111b21;border-color:#34444d}
+html[data-theme="dark"] .global-search-result{color:#e9edef}
+html[data-theme="dark"] .global-search-result:hover,
+html[data-theme="dark"] .global-search-result:focus-visible{background:#202c33}
+html[data-theme="dark"] .global-search-result-icon{background:#173a35;color:#65d8bd}
+html[data-theme="dark"] .settings-tab:hover{background:#202c33;color:#e9edef}
+html[data-theme="dark"] .settings-tab.active{background:#173a35;color:#65d8bd}
+html[data-theme="dark"] .form-note{background:#182b2d;color:#b9d7d2}
+html[data-theme="dark"] .employee-workspace-banner{background:#182b2d;border-color:#2d514a;color:#c3ded8}
+html[data-theme="dark"] .employee-workspace-banner strong{color:#e9edef}
+html[data-theme="dark"] .employee-account-card{background:linear-gradient(135deg,#17272e,#111b21);border-color:#2c454c}
+html[data-theme="dark"] .employee-account-cell{background:#202c33;border-color:#34444d}
+html[data-theme="dark"] .dashboard-team-tag{background:#1b3040;color:#a9d4ff}
+html[data-theme="dark"] .dashboard-team-tag.pending{background:#3b301c;color:#f7c66a}
+html[data-theme="dark"] .demo-banner{background:#28233a;border-color:#484064;color:#d4c7f7}
+html[data-theme="dark"] .demo-banner strong{color:#e4d9ff}
+html[data-theme="dark"] .demo-credentials{background:#1d293d;border-color:#344765;color:#bdccef}
+html[data-theme="dark"] .demo-credentials strong{color:#c6d5ff}
+html[data-theme="dark"] .help-hero{background:linear-gradient(135deg,#1a2b38,#17232a);border-color:#2c434e}
+html[data-theme="dark"] .help-detail-list{color:#c7d1d6}
+html[data-theme="dark"] .help-chip{background:#202c33;border-color:#34444d;color:#d7e0e4}
+html[data-theme="dark"] .help-chip:hover{background:#173a35;border-color:#386e64;color:#9ce8d8}
+html[data-theme="dark"] .help-answer{background:#18272d;border-color:#2c454c}
+html[data-theme="dark"] .help-success{background:#173a30;border-color:#28634d}
+html[data-theme="dark"] .help-progress{background:#26353d}
+html[data-theme="dark"] .gridline{stroke:#2b3a42}
+html[data-theme="dark"] .status.draft{background:#27333b;color:#c2cbd0}
+html[data-theme="dark"] .mini-avatar{background:#27384d;color:#b8cbff}
+html[data-theme="dark"] .mini-avatar.pink{background:#3b2632;color:#f3a7cc}
+html[data-theme="dark"] .mini-avatar.green{background:#173a30;color:#8ae0bf}
+html[data-theme="dark"] .mini-avatar.orange{background:#3a2d20;color:#f4c18b}
+html[data-theme="dark"] .mini-avatar.purple{background:#302942;color:#c0aaff}
+html[data-theme="dark"] .invoice-missing-notice{background:#332b1d;border-color:#574623;color:#f2d8a0}
+html[data-theme="dark"] .invoice-missing-notice h3{color:#f7d58b}
+html[data-theme="dark"] .invoice-missing-notice p{color:#dbc99f}
+html[data-theme="dark"] .invoice-missing-notice .notice-icon{background:#49391c;color:#f7c66a}
+html[data-theme="dark"] .settings-danger{background:#332126;border-color:#63343d}
+html[data-theme="dark"] .toast{background:#17232a;border-color:#34444d;color:#e9edef}
+html[data-theme="dark"] .login-panel{background:#111b21}
+html[data-theme="dark"] .login-form-wrap h2{color:#e9edef}
+html[data-theme="dark"] .password-reset-card{background:#111b21;color:#e9edef}
+html[data-theme="dark"] .password-reset-card .input{background:#202c33;color:#e9edef}
+html[data-theme="dark"] .nav-item:hover{background:#202c33;color:#fff}
+html[data-theme="dark"] .nav-item.active{background:#173a35;border-color:#285c50}
+html[data-theme="dark"] .nav-item.active .icon{color:#8be4ce}
+html[data-theme="dark"] .plan-box{background:#ffffff08}
+html[data-theme="dark"] .brand-sub{color:#aebac1}
 </style>
 </head>
 <body>
@@ -1337,6 +1452,8 @@ body{font-size:15px;line-height:1.6}
 <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></symbol>
 <symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
 <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 14l4-4 4 3 5-7"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.9 13A8.5 8.5 0 0 1 11 3.1 8.6 8.6 0 1 0 20.9 13Z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42"/></symbol>
 <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 .1.1 1.4 1.1-1.4 2.4-1.7-.7a8 8 0 0 1-1.7 1l-.3 1.8h-2.8l-.3-1.8a8 8 0 0 1-1.7-1l-1.7.7-1.4-2.4 1.4-1.1a7 7 0 0 1 0-2l-1.4-1.1 1.4-2.4 1.7.7a8 8 0 0 1 1.7-1l.3-1.8h2.8l.3 1.8a8 8 0 0 1 1.7 1l1.7-.7 1.4 2.4-1.4 1.1a7 7 0 0 1 0 2Z" transform="translate(-1 -1) scale(1.08)"/></symbol>
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
 <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
@@ -1785,7 +1902,7 @@ async function loadCloudStateForUser(user){
     state.user=user;
   }
   validateState();
-  if(teamInfo.role==="employee"&&["settings","team"].includes(state.currentPage))state.currentPage="dashboard";
+  if(teamInfo.role==="employee"&&state.currentPage==="team")state.currentPage="dashboard";
   cloudReady=true;
   saveState();
 }
@@ -2129,7 +2246,18 @@ async function saveNewPassword(event){
     button.disabled=false;button.textContent="Passwort speichern";
   }
 }
+function currentTheme(){
+  try{return localStorage.getItem("rechnio_theme")==="dark"?"dark":"light";}catch(_){return document.documentElement.dataset.theme==="dark"?"dark":"light";}
+}
+function applyTheme(theme,persist=true){
+  const next=theme==="dark"?"dark":"light";
+  document.documentElement.dataset.theme=next;
+  const meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute("content",next==="dark"?"#0b141a":"#101827");
+  if(persist){try{localStorage.setItem("rechnio_theme",next);}catch(_){}}
+}
 async function boot(){
+  applyTheme(currentTheme(),false);
   $$('[data-year]').forEach(el=>el.textContent=String(new Date().getFullYear()));
   bindEvents();
   setAuthMode("login");
@@ -2273,10 +2401,7 @@ async function saveProfileName(){
 }
 function navigate(page){
   if(!PAGE_META[page])return;
-  if(page==="settings"&&teamInfo.role==="employee"){
-    toast("Keine Berechtigung","Die Einstellungen werden vom Inhaber verwaltet.","warning");
-    return;
-  }
+  if(page==="settings"&&teamInfo.role==="employee")state.ui.settingsTab="preferences";
   if(page==="team"&&teamInfo.role==="employee"){
     toast("Keine Berechtigung","Die Mitarbeiterverwaltung ist nur für den Inhaber verfügbar.","warning");
     return;
@@ -2315,9 +2440,11 @@ function updateChrome(){
   $("#navCustomerCount").textContent=state.customers.length;
   $$('.nav-item[data-page]').forEach(b=>b.classList.toggle("active",b.dataset.page===state.currentPage));
   const employee=teamInfo.role==="employee";
-  $("#managementNavLabel")?.classList.toggle("hidden",employee);
-  $("#managementNav")?.classList.toggle("hidden",employee);
-  $$('[data-page="settings"]').forEach(el=>el.classList.toggle("hidden",employee));
+  const managementLabel=$("#managementNavLabel");
+  if(managementLabel){managementLabel.textContent=employee?"Persönlich":"Verwaltung";managementLabel.classList.remove("hidden");}
+  $("#managementNav")?.classList.remove("hidden");
+  $$('[data-page="settings"]').forEach(el=>el.classList.remove("hidden"));
+  $$('[data-page="team"]').forEach(el=>el.classList.toggle("hidden",employee));
 }
 function renderPage(){
   const renderers={
@@ -2922,7 +3049,7 @@ function getHelpAnswer(question){
   if(!q)return {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu Rechnungen, Kunden, Exporten, Einstellungen oder zur Datenspeicherung. Die Antwort basiert auf der in dieser Version integrierten Rechnio-Anleitung.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?","Wo trage ich Firmendaten ein?","Wie exportiere ich Kunden?"],target:"help",button:"Hilfe ansehen"};
   if(/rechnung.{0,35}(erstell|anleg|neu)|(?:erstell|anleg).{0,35}rechnung|neue rechnung/.test(q))return {title:"Rechnung erstellen",intro:"So legst du eine neue Rechnung in Rechnio an.",steps:["Öffne links den Bereich „Rechnungen“.","Klicke auf „Neue Rechnung“.","Wähle den Rechnungsempfänger aus der Kundenliste aus.","Prüfe Rechnungsnummer, Rechnungsdatum und Zahlungsziel. Das Leistungsdatum oder der Leistungszeitraum kann ebenfalls ergänzt werden.","Füge eine Position hinzu und trage Beschreibung, Menge, Nettopreis und passenden Steuersatz ein.","Kontrolliere die berechneten Beträge und klicke auf „Rechnung speichern“.","Öffne die gespeicherte Rechnung zur Kontrolle. Über „Drucken / PDF speichern“ kannst du eine PDF-Datei erstellen."],target:"invoices",button:"Neue Rechnung öffnen"};
   if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b|mehrere benutzer/.test(q))return {title:"Mitarbeiterkonten",intro:"Der Inhaber kann über Einstellungen → Mitarbeiter einen privaten Einladungslink erstellen und direkt über WhatsApp teilen.",steps:["Öffne Einstellungen und wähle den Tab Mitarbeiter.","Klicke auf „Einladungslink schicken“. Rechnio erstellt einen sicheren Link und öffnet WhatsApp mit einer vorbereiteten Nachricht.","Wähle in WhatsApp den Mitarbeiter aus und sende die Nachricht. Der Mitarbeiter öffnet den Link und erstellt bei Bedarf ein eigenes Rechnio-Konto.","Der Link läuft nach sieben Tagen ab und kann nur einmal angenommen werden. Teile ihn nur mit der gewünschten Person.","Die Funktion benötigt die aktualisierte Supabase-Tabelle und einen geheimen Schlüssel nur in Render."],target:"settings",button:"Mitarbeiterverwaltung öffnen"};
-  if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Mitarbeiterkonten nutzen nach der Einrichtung einen gemeinsamen Unternehmensbereich. Einladungen funktionieren über einen sicheren Link, den du direkt per WhatsApp teilen kannst."],target:"dashboard",button:"Zum Dashboard"};
+  if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Mitarbeiterkonten nutzen nach der Einrichtung einen gemeinsamen Unternehmensbereich. Die Einladungs-E-Mail benötigt einen verifizierten Resend-Absender; andernfalls kann der sichere Link manuell geteilt werden."],target:"dashboard",button:"Zum Dashboard"};
   if(/mit login|anmelden|login|passwort|registrier|konto erstellen|zugang|zuruecksetzen|zurücksetzen/.test(q))return {title:"Anmelden und Zugang",intro:"Die aktuelle Oberfläche ist auf einen bereits eingerichteten Testzugang ausgelegt. Die Registrierung ist in diesem Build deaktiviert.",steps:["Gib die dir bereitgestellte E-Mail-Adresse manuell ein; sie wird nicht mehr automatisch ins Feld eingetragen.","Gib dein Passwort ein und klicke auf „Anmelden“.","Falls die Anmeldung fehlschlägt, überprüfe, ob der Dienst bei Render Live ist, und achte auf die Meldung unter dem Formular.","Es gibt in dieser Version keinen bestätigten Selbstbedienungs-Link zum Zurücksetzen des Passworts."],target:"help",button:"Hilfe ansehen"};
   if(/e.?mail|email|versenden|versand|rechnung senden|rechnung per mail|mahnung|zahlungserinner/.test(q))return {title:"Rechnung per E-Mail versenden",intro:"In der aktuellen Oberfläche ist kein zuverlässig bestätigter Direktversand eingebaut. Die sichere Alternative ist, die Rechnung als PDF zu speichern und manuell über dein E-Mail-Programm zu senden.",steps:["Öffne „Rechnungen“ und klicke bei der passenden Rechnung auf „Ansehen“.","Prüfe die Rechnungsangaben und speichere über „Drucken / PDF speichern“ eine PDF-Datei.","Öffne dein E-Mail-Programm, wähle den Kunden als Empfänger und hänge das PDF an.","Automatische Mahnungen und ein integrierter E-Mail-Versand sollten erst genutzt werden, wenn der E-Mail-Dienst serverseitig eingerichtet und erfolgreich getestet wurde."],target:"invoices",button:"Zu Rechnungen"};
   if(/speicher|daten verloren|cloud|browser|geraet|gerät|backup|sicherung|importieren|import/.test(q))return {title:"Daten speichern und sichern",intro:"Nach erfolgreicher Anmeldung werden Kunden- und Rechnungsdaten auf dem Server gespeichert. Mit aktivierter Mitarbeiterfunktion teilen alle Mitglieder eines Unternehmens denselben Datenstand. Ohne vollständige Server-Konfiguration nutzt Rechnio weiterhin den bisherigen persönlichen Cloud-Speicher.",steps:["Öffne „Einstellungen“ und den Bereich „Daten & Sicherung“.","Klicke auf „Exportieren“, um eine JSON-Sicherungsdatei herunterzuladen.","Bewahre diese Datei sicher auf. Sie kann Kundendaten enthalten.","Über „Daten importieren“ kannst du eine zuvor exportierte Rechnio-JSON-Datei wieder einlesen.","Lösche Browserdaten oder Website-Speicher nicht, bevor du eine Sicherung erstellt hast."],target:"data",button:"Daten & Sicherung öffnen"};
@@ -3009,27 +3136,23 @@ function reportLine(label,value){
 function renderTeamPage(){
   return `${heading("Mitarbeiter","Verwalte Mitarbeiterkonten und teile Einladungslinks sicher.")}
     <section class="card" aria-label="Mitarbeiterverwaltung">
-      <div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Aktive Mitglieder, offene Einladungen und WhatsApp-Einladungen</div></div></div>
+      <div class="card-head"><div><h2 class="card-title">Mitarbeiter & Team</h2><div class="card-subtitle">Aktive Mitglieder, offene Einladungen und Einladungen ohne E-Mail-Versand</div></div></div>
       <div class="card-body" id="teamPageContent"><p class="muted">Mitarbeiterliste wird geladen…</p></div>
     </section>`;
 }
 function renderSettings(){
-  const tabs=[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"]];
-  if(teamInfo.role!=="employee")tabs.push(["team","users","Mitarbeiter"]);
-  return `${heading("Einstellungen","Unternehmensangaben und Standardwerte für Rechnio.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${state.ui.settingsTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${
-      icon(ic,"icon icon-sm")
-    }
-  ${
-    label
-  }
-</button>`).join("")}</nav><div id="settingsContent" class="card settings-content">${settingsTab(state.ui.settingsTab||"company")}</div></div>`;
+  const employee=teamInfo.role==="employee";
+  const tabs=employee?[["preferences","settings","Darstellung"]]:[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"],["team","users","Mitarbeiter"]];
+  const activeTab=employee?"preferences":(state.ui.settingsTab||"company");
+  if(employee)state.ui.settingsTab="preferences";
+  return `${heading(employee?"Persönliche Einstellungen":"Einstellungen",employee?"Passe die Darstellung für dein eigenes Rechnio-Konto an.":"Unternehmensangaben und Standardwerte für Rechnio.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${activeTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${icon(ic,"icon icon-sm")} ${label}</button>`).join("")}</nav><div id="settingsContent" class="card settings-content">${settingsTab(activeTab)}</div></div>`;
 }
 function settingsTab(tab){
   const c=state.company;
   if(tab==="team")return `<h2>Mitarbeiterkonten</h2><p>Lade Mitarbeitende ein, damit sie dieselben Rechnungen und Kunden deines Unternehmens sehen können.</p><div id="teamSettingsContent">${teamInfo.enabled?'<p class="muted">Mitarbeiterliste wird geladen…</p>':`<div class="form-note">${icon("info")}<span>Die gemeinsame Mitarbeiterverwaltung ist noch nicht aktiviert. Führe das aktualisierte SQL in Supabase aus und hinterlege den geheimen Supabase-Schlüssel nur in Render → Environment. Danach Seite neu laden.</span></div>`}</div>`;
   if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte überprüfe deine Firmenangaben, bevor du Rechnungen erstellst.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setIban">Bankverbindung (IBAN)</label><input id="setIban" class="input" value="${escAttr(c.iban||"")}" placeholder="DE…"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Rechnio berechnet den ausgewählten Steuersatz, prüft aber nicht, ob er rechtlich zur konkreten Leistung passt. 7 % nur bei gesetzlich begünstigten Umsätzen auswählen; sonst gilt regelmäßig 19 %. Die Rechnungsvorschau ist kein strukturiertes XRechnung-/ZUGFeRD-Dokument.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
-  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Diese Optionen gelten nur in diesem Browser.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
+  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Wähle, wie Rechnio auf diesem Gerät aussehen soll. Diese Auswahl gilt nur für dein Konto in diesem Browser.</p><form id="preferencesForm" class="stack"><div class="field"><label for="prefTheme">Farbschema</label><select id="prefTheme" class="select"><option value="light" ${currentTheme()==="light"?"selected":""}>☀️ Hellmodus</option><option value="dark" ${currentTheme()==="dark"?"selected":""}>🌙 Dark Mode</option></select><span class="hint">Du kannst jederzeit zwischen hellem und dunklem Design wechseln.</span></div><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Sicherung</h2><p>Verwalte deine Rechnio-Daten und erstelle bei Bedarf eine lokale Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Hinweis zur Speicherung:</strong> Rechnungs- und Kundendaten werden derzeit in diesem Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div></div>`;
 }
 function renderDashboardTeamSummary(data){
@@ -3065,7 +3188,7 @@ function teamEscape(value){return esc(String(value??""));}
 function renderTeamPanel(data){
   const members=Array.isArray(data.members)?data.members:[];
   const invitations=Array.isArray(data.invitations)?data.invitations:[];
-  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">Der sichere Link wurde erstellt. Teile ihn über WhatsApp nur mit der gewünschten Person.</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
+  const invitationBox=teamLastInviteUrl?`<div class="form-note" style="margin-bottom:18px"><div style="width:100%"><strong>Einladungslink zum Teilen</strong><p class="hint">${teamLastInviteMode==="link"?"Ohne E-Mail-Versand erstellt. Teile den privaten Link nur mit der gewünschten Person; wer ihn besitzt, kann beitreten.":teamLastInviteMode==="email-fallback"?"Die E-Mail wurde nicht gesendet. Teile diesen Link nur mit der eingeladenen Person.":"Du kannst den Link bei Bedarf ebenfalls kopieren."}</p><input id="teamInviteUrl" class="input" readonly value="${escAttr(teamLastInviteUrl)}" style="margin:8px 0;width:100%"><button type="button" class="btn secondary" data-action="team-copy-invite-link">Link kopieren</button></div></div>`:"";
   const memberRows=members.map(m=>`<div class="between wrap" style="padding:12px 0;border-bottom:1px solid var(--border)"><div><strong>${teamEscape(m.email||"Benutzerkonto")}</strong><div class="hint">${m.role==="owner"?"Inhaber":"Mitarbeiter"}</div></div><div class="row">${m.role==="employee"?`<button class="btn secondary" type="button" data-action="team-remove-member" data-id="${escAttr(m.user_id)}">Entfernen</button>`:`<span class="status paid">Inhaber</span>`}</div></div>`).join("");
   const inviteRows=invitations.map(inv=>{
     const expired=Date.parse(inv.expires_at)<=Date.now();
@@ -3171,7 +3294,7 @@ $("#invoiceSettingsForm")?.addEventListener("submit",e=>{
   });saveState();renderApp();toast("Rechnungseinstellungen gespeichert","Neue Rechnungen verwenden die neuen Standardwerte.");
 });
 $("#preferencesForm")?.addEventListener("submit",e=>{
-  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=false;saveState();renderApp();toast("Einstellungen gespeichert","Deine Einstellungen wurden aktualisiert.");
+  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=false;applyTheme($("#prefTheme")?.value||"light");saveState();renderApp();toast("Einstellungen gespeichert","Deine Darstellung wurde gespeichert.");
 });
 $("#importFile")?.addEventListener("change",e=>{
   importData(e.target.files?.[0]);e.target.value="";
