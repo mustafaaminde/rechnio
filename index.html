@@ -901,6 +901,26 @@ svg{
 .invoice-missing{color:#b42332!important;font-weight:750;font-size:10px}
 
 /* reports and settings */
+.mode-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:20px}
+.mode-option{display:grid;gap:14px;min-width:0;padding:15px;border:2px solid var(--line);border-radius:14px;background:var(--panel);color:var(--ink);text-align:left;transition:border-color .15s,background .15s,box-shadow .15s}
+.mode-option:hover{border-color:var(--line-2);background:var(--panel-2)}
+.mode-option.active{border-color:var(--brand);box-shadow:0 0 0 3px color-mix(in srgb,var(--brand) 14%,transparent)}
+.mode-option-preview{display:flex;gap:7px;height:105px;padding:9px;border:1px solid #dfe5ec;border-radius:9px;overflow:hidden}
+.mode-preview-light{background:#f4f7fb}
+.mode-preview-dark{background:#0b141a;border-color:#34444d}
+.mode-preview-sidebar{width:24%;border-radius:4px;background:#101827;flex:none}
+.mode-preview-dark .mode-preview-sidebar{background:#17232a;border:1px solid #26353d}
+.mode-preview-main{display:flex;flex:1;flex-direction:column;gap:7px;min-width:0;padding:2px}
+.mode-preview-line{display:block;height:8px;border-radius:3px;background:#dce4ef}
+.mode-preview-line.short{width:55%}
+.mode-preview-card{display:block;flex:1;min-height:0;border:1px solid #e4eaf2;border-radius:5px;background:#fff}
+.mode-preview-dark .mode-preview-line{background:#34444d}
+.mode-preview-dark .mode-preview-card{background:#111b21;border-color:#26353d}
+.mode-option-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:800}
+.mode-option-label .icon{width:19px;height:19px}
+.mode-option-status{margin-left:auto;color:var(--faint);font-size:10px;font-weight:750}
+.mode-option.active .mode-option-status{color:var(--brand)}
+@media(max-width:600px){.mode-options{grid-template-columns:minmax(0,1fr)}}
 .report-grid{
   display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:13px; margin-bottom:18px
 }
@@ -3142,17 +3162,19 @@ function renderTeamPage(){
 }
 function renderSettings(){
   const employee=teamInfo.role==="employee";
-  const tabs=employee?[["preferences","settings","Darstellung"]]:[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"],["team","users","Mitarbeiter"]];
-  const activeTab=employee?"preferences":(state.ui.settingsTab||"company");
-  if(employee)state.ui.settingsTab="preferences";
+  const tabs=employee?[["mode","sun","Modus"],["preferences","settings","Darstellung"]]:[["company","users","Unternehmen"],["invoice","file","Rechnungen"],["mode","sun","Modus"],["preferences","settings","Darstellung"],["data","shield","Daten & Sicherung"],["team","users","Mitarbeiter"]];
+  const allowedEmployeeTabs=["mode","preferences"];
+  const activeTab=employee?(allowedEmployeeTabs.includes(state.ui.settingsTab)?state.ui.settingsTab:"preferences"):(state.ui.settingsTab||"company");
+  if(employee&&!allowedEmployeeTabs.includes(state.ui.settingsTab))state.ui.settingsTab=activeTab;
   return `${heading(employee?"Persönliche Einstellungen":"Einstellungen",employee?"Passe die Darstellung für dein eigenes Rechnio-Konto an.":"Unternehmensangaben und Standardwerte für Rechnio.","")}<div class="settings-layout"><nav class="card settings-nav" aria-label="Einstellungen">${tabs.map(([key,ic,label])=>`<button class="settings-tab ${activeTab===key?"active":""}" data-action="settings-tab" data-tab="${key}">${icon(ic,"icon icon-sm")} ${label}</button>`).join("")}</nav><div id="settingsContent" class="card settings-content">${settingsTab(activeTab)}</div></div>`;
 }
 function settingsTab(tab){
   const c=state.company;
+  if(tab==="mode")return `<h2>Modus</h2><p>Wähle, ob Rechnio hell oder dunkel angezeigt wird. Die Änderung wird sofort übernommen und auf diesem Gerät gespeichert.</p><div class="mode-options" role="group" aria-label="Farbschema"><button type="button" class="mode-option ${currentTheme()==="light"?"active":""}" data-action="set-theme" data-theme="light" aria-pressed="${currentTheme()==="light"}"><span class="mode-option-preview mode-preview-light" aria-hidden="true"><span class="mode-preview-sidebar"></span><span class="mode-preview-main"><span class="mode-preview-line short"></span><span class="mode-preview-line"></span><span class="mode-preview-card"></span></span></span><span class="mode-option-label">${icon("sun","icon")} Hell <span class="mode-option-status">${currentTheme()==="light"?"Aktiv":"Auswählen"}</span></span></button><button type="button" class="mode-option ${currentTheme()==="dark"?"active":""}" data-action="set-theme" data-theme="dark" aria-pressed="${currentTheme()==="dark"}"><span class="mode-option-preview mode-preview-dark" aria-hidden="true"><span class="mode-preview-sidebar"></span><span class="mode-preview-main"><span class="mode-preview-line short"></span><span class="mode-preview-line"></span><span class="mode-preview-card"></span></span></span><span class="mode-option-label">${icon("moon","icon")} Dunkel <span class="mode-option-status">${currentTheme()==="dark"?"Aktiv":"Auswählen"}</span></span></button></div>`;
   if(tab==="team")return `<h2>Mitarbeiterkonten</h2><p>Lade Mitarbeitende ein, damit sie dieselben Rechnungen und Kunden deines Unternehmens sehen können.</p><div id="teamSettingsContent">${teamInfo.enabled?'<p class="muted">Mitarbeiterliste wird geladen…</p>':`<div class="form-note">${icon("info")}<span>Die gemeinsame Mitarbeiterverwaltung ist noch nicht aktiviert. Führe das aktualisierte SQL in Supabase aus und hinterlege den geheimen Supabase-Schlüssel nur in Render → Environment. Danach Seite neu laden.</span></div>`}</div>`;
   if(tab==="company")return `<h2>Unternehmensangaben</h2><p>Diese Angaben erscheinen in der Rechnungsansicht. Bitte überprüfe deine Firmenangaben, bevor du Rechnungen erstellst.</p><form id="companySettingsForm"><div class="form-grid"><div class="field"><label for="setCompanyName">Unternehmensname *</label><input id="setCompanyName" class="input" value="${escAttr(c.name)}" required></div><div class="field"><label for="setOwner">Inhaber / Ansprechpartner</label><input id="setOwner" class="input" value="${escAttr(c.owner)}"></div><div class="field"><label for="setEmail">E-Mail</label><input id="setEmail" class="input" type="email" value="${escAttr(c.email)}"></div><div class="field"><label for="setPhone">Telefon</label><input id="setPhone" class="input" value="${escAttr(c.phone)}"></div><div class="field full"><label for="setStreet">Straße und Hausnummer</label><input id="setStreet" class="input" value="${escAttr(c.street)}"></div><div class="field"><label for="setPostal">Postleitzahl</label><input id="setPostal" class="input" value="${escAttr(c.postalCode)}"></div><div class="field"><label for="setCity">Ort</label><input id="setCity" class="input" value="${escAttr(c.city)}"></div><div class="field"><label for="setTax">Steuernummer</label><input id="setTax" class="input" value="${escAttr(c.taxId)}"></div><div class="field"><label for="setVatNumber">USt-IdNr.</label><input id="setVatNumber" class="input" value="${escAttr(c.vatNumber)}"></div><div class="field full"><label for="setIban">Bankverbindung (IBAN)</label><input id="setIban" class="input" value="${escAttr(c.iban||"")}" placeholder="DE…"></div><div class="field full"><label for="setFooter">Standardhinweis auf Rechnungen</label><textarea id="setFooter" class="textarea">${esc(c.footer)}</textarea></div></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
   if(tab==="invoice")return `<h2>Rechnungseinstellungen</h2><p>Diese Standardwerte werden beim Erstellen neuer Rechnungen vorgeschlagen.</p><form id="invoiceSettingsForm"><div class="form-grid"><div class="field"><label for="setPrefix">Rechnungspräfix</label><input id="setPrefix" class="input" value="${escAttr(c.invoicePrefix)}" maxlength="10" required><span class="hint">Beispiel: RE-2026-001</span></div><div class="field"><label for="setNext">Nächste Nummer</label><input id="setNext" class="input" type="number" min="1" step="1" value="${escAttr(c.nextInvoiceNumber)}" required></div><div class="field"><label for="setVat">Standard-MwSt.</label><select id="setVat" class="select"><option value="19" ${Number(c.defaultVat)===19?"selected":""}>19 %</option><option value="7" ${Number(c.defaultVat)===7?"selected":""}>7 %</option><option value="0" ${Number(c.defaultVat)===0?"selected":""}>0 %</option></select></div><div class="field"><label for="setDays">Zahlungsziel (Tage)</label><input id="setDays" class="input" type="number" min="0" max="365" step="1" value="${escAttr(c.paymentDays)}" required></div><div class="field"><label for="setCurrency">Währung</label><select id="setCurrency" class="select"><option value="EUR">Euro (€)</option></select><span class="hint">Diese Demo unterstützt derzeit Euro.</span></div></div><div class="form-note" style="margin-top:18px">${icon("info")}<span>Rechnio berechnet den ausgewählten Steuersatz, prüft aber nicht, ob er rechtlich zur konkreten Leistung passt. 7 % nur bei gesetzlich begünstigten Umsätzen auswählen; sonst gilt regelmäßig 19 %. Die Rechnungsvorschau ist kein strukturiertes XRechnung-/ZUGFeRD-Dokument.</span></div><div class="save-row"><button type="submit" class="btn primary">Änderungen speichern</button></div></form>`;
-  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Wähle, wie Rechnio auf diesem Gerät aussehen soll. Diese Auswahl gilt nur für dein Konto in diesem Browser.</p><form id="preferencesForm" class="stack"><div class="field"><label for="prefTheme">Farbschema</label><select id="prefTheme" class="select"><option value="light" ${currentTheme()==="light"?"selected":""}>☀️ Hellmodus</option><option value="dark" ${currentTheme()==="dark"?"selected":""}>🌙 Dark Mode</option></select><span class="hint">Du kannst jederzeit zwischen hellem und dunklem Design wechseln.</span></div><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
+  if(tab==="preferences")return `<h2>Darstellung und Verhalten</h2><p>Lege fest, wie Rechnio sich in bestimmten Situationen verhalten soll.</p><form id="preferencesForm" class="stack"><label class="checkbox"><input id="prefConfirm" type="checkbox" ${state.preferences.confirmDelete?"checked":""}> Vor dem Löschen nachfragen</label><div class="save-row"><button type="submit" class="btn primary">Einstellungen speichern</button></div></form>`;
   return `<h2>Daten & Sicherung</h2><p>Verwalte deine Rechnio-Daten und erstelle bei Bedarf eine lokale Sicherung.</p><div class="form-note">${icon("info")}<span><strong>Hinweis zur Speicherung:</strong> Rechnungs- und Kundendaten werden derzeit in diesem Browser gespeichert. Eine geräteübergreifende Cloud-Synchronisierung ist noch nicht eingerichtet.</span></div><div class="stack" style="margin-top:20px"><div class="between wrap"><div><strong class="small">Daten exportieren</strong><div class="hint">JSON-Datei als lokale Sicherung.</div></div><button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Exportieren</button></div><div class="divider"></div><div class="between wrap"><div><strong class="small">Daten importieren</strong><div class="hint">Lade eine zuvor exportierte Rechnio-JSON-Datei.</div></div><button class="btn secondary" data-action="import-data">Datei auswählen</button><input id="importFile" type="file" accept="application/json,.json" class="hidden"></div></div>`;
 }
 function renderDashboardTeamSummary(data){
@@ -3294,7 +3316,7 @@ $("#invoiceSettingsForm")?.addEventListener("submit",e=>{
   });saveState();renderApp();toast("Rechnungseinstellungen gespeichert","Neue Rechnungen verwenden die neuen Standardwerte.");
 });
 $("#preferencesForm")?.addEventListener("submit",e=>{
-  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=false;applyTheme($("#prefTheme")?.value||"light");saveState();renderApp();toast("Einstellungen gespeichert","Deine Darstellung wurde gespeichert.");
+  e.preventDefault();state.preferences.confirmDelete=$("#prefConfirm").checked;state.preferences.showDemoData=false;saveState();renderApp();toast("Einstellungen gespeichert","Deine Einstellungen wurden gespeichert.");
 });
 $("#importFile")?.addEventListener("change",e=>{
   importData(e.target.files?.[0]);e.target.value="";
@@ -3785,6 +3807,7 @@ switch(action){
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
   case "import-data":$("#importFile")?.click();break;case "dismiss-toast":button.closest(".toast")?.remove();break;
   case "settings-tab":state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
+  case "set-theme":applyTheme(button.dataset.theme);renderPage();toast("Modus geändert",currentTheme()==="dark"?"Rechnio verwendet jetzt den Dunkelmodus.":"Rechnio verwendet jetzt den Hellmodus.");break;
   case "team-remove-member":removeTeamMember(button.dataset.id);break;
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
   case "team-copy-invite-link":copyTeamInviteLink();break;
