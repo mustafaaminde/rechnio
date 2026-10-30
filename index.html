@@ -3090,11 +3090,18 @@ function renderHelpAnswer(answer){
   else if(["dashboard","customers","invoices","reports","settings","help"].includes(answer.target))action=`<button class="btn primary btn-sm" data-page="${escAttr(answer.target)}">${icon("chevron","icon icon-sm")}${esc(answer.button||"Öffnen")}</button>`;
   return `<section class="help-answer" aria-live="polite"><h3>${esc(answer.title||"Antwort")}</h3><p>${esc(answer.intro||"")}</p><ol>${list}</ol>${action}</section>`;
 }
+function isRemovedInvoiceHelpTopic(question, answer){
+  const title=String(answer?.title||"");
+  const text=norm([question,title,answer?.intro,...(answer?.steps||[])].filter(Boolean).join(" "));
+  const exactRemovedTitle=["rechnung per e-mail versenden","rechnung prüfen und als pdf speichern"]
+    .includes(norm(title));
+  const asksAboutPdf=/\bpdf\b/.test(text);
+  const asksAboutEmailSending=/e.?mail/.test(text)&&/(rechnung|versend|senden)/.test(text);
+  return exactRemovedTitle||asksAboutPdf||asksAboutEmailSending;
+}
 function renderHelp(){
-  // Alte, bereits gespeicherte Antworten zu den entfernten PDF-/E-Mail-Hilfethemen ausblenden.
-  const previousHelpTitle=String(state.ui.helpAnswer?.title||"");
-  const previousHelpQuestion=norm(state.ui.helpQuestion||"");
-  if(["Rechnung per E-Mail versenden","Rechnung prüfen und als PDF speichern"].includes(previousHelpTitle)||/pdf|e.?mail|rechnung senden|versenden/.test(previousHelpQuestion)){
+  // Entfernte Rechnungs-PDF- und Rechnungs-E-Mail-Themen auch aus altem Browser-/Cloud-Status löschen.
+  if(isRemovedInvoiceHelpTopic(state.ui.helpQuestion,state.ui.helpAnswer)){
     state.ui.helpAnswer=null;
     state.ui.helpQuestion="";
     saveState();
@@ -3116,6 +3123,14 @@ function renderHelp(){
 function submitHelpQuestion(question){
   const q=String(question||"").trim();
   if(!q){toast("Frage fehlt","Beschreibe kurz, wobei du Hilfe benötigst.","warning");return;}
+  if(isRemovedInvoiceHelpTopic(q,null)){
+    state.ui.helpQuestion="";
+    state.ui.helpAnswer=null;
+    saveState();
+    renderPage();
+    toast("Hilfethema entfernt","Diese beiden Themen werden in der Hilfe nicht mehr angezeigt.","info");
+    return;
+  }
   state.ui.helpQuestion=q;
   state.ui.helpAnswer=getHelpAnswer(q);
   saveState();
