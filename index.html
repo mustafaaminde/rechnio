@@ -1768,7 +1768,14 @@ function normalizeSavedState(parsed, initial=createInitialState()){
       paidAt: invoice?.paidAt || null
     };
   });
+  const sequencePrefix=String(company.invoicePrefix||"RE").trim().toUpperCase();
+  const sequenceYear=Number(company.invoiceYear)||new Date().getFullYear();
   const nextFromInvoice = invoices.reduce((largest, invoice) => {
+    const parsed=parseStructuredInvoiceNumber(invoice.number);
+    if(parsed){
+      return parsed.prefix===sequencePrefix&&parsed.year===sequenceYear
+        ?Math.max(largest,parsed.sequence+1):largest;
+    }
     const match = String(invoice.number).match(/(\d+)$/);
     return match ? Math.max(largest, Number(match[1]) + 1) : largest;
   }, 1);
@@ -2744,13 +2751,36 @@ function detailBlock(label,value){
 /* ================================================================
 INVOICE CREATION, LINE ITEMS, CALCULATIONS
 ================================================================ */
+function parseStructuredInvoiceNumber(value){
+  const match=String(value||"").trim().match(/^(.+?)\s*-\s*(\d{4})\s*-\s*(\d+)$/);
+  if(!match)return null;
+  return {
+    prefix:match[1].trim().toUpperCase(),
+    year:Number(match[2]),
+    sequence:Number(match[3]),
+    width:Math.max(3,match[3].length)
+  };
+}
+function normalizeInvoiceNumber(value){
+  const raw=String(value||"").trim();
+  const parsed=parseStructuredInvoiceNumber(raw);
+  if(!parsed)return raw;
+  return `${parsed.prefix}-${parsed.year}-${String(parsed.sequence).padStart(parsed.width,"0")}`;
+}
 function nextInvoiceNumber(){
   const year=new Date().getFullYear();
   if(Number(state.company.invoiceYear)!==year){
     state.company.invoiceYear=year;
     state.company.nextInvoiceNumber=1;
   }
-return `${state.company.invoicePrefix||"RE"}-${year}-${String(state.company.nextInvoiceNumber||1).padStart(3,"0")}`;
+  const prefix=String(state.company.invoicePrefix||"RE").trim().toUpperCase()||"RE";
+  const highestExisting=state.invoices.reduce((highest,invoice)=>{
+    const parsed=parseStructuredInvoiceNumber(invoice.number);
+    return parsed&&parsed.prefix===prefix&&parsed.year===year
+      ?Math.max(highest,parsed.sequence+1):highest;
+  },1);
+  state.company.nextInvoiceNumber=Math.max(1,Number(state.company.nextInvoiceNumber)||1,highestExisting);
+  return `${prefix}-${year}-${String(state.company.nextInvoiceNumber).padStart(3,"0")}`;
 }
 function openInvoiceForm(id=null,forcedCustomerId=null){
   if(!state.customers.length){
@@ -2771,7 +2801,7 @@ openModal({
 });
 }
 function invoiceFormBody(invoice,number,issue,due,customer){
-  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde</label><select id="invoiceCustomer" class="select">${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
+  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"><span class="hint">Die erste Nummer kannst du festlegen. Danach zählt Rechnio automatisch weiter, z. B. RE-2026-001 → RE-2026-002.</span></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde</label><select id="invoiceCustomer" class="select">${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
       c.id===customer?.id?"selected":""
     }
   >${
@@ -2833,7 +2863,7 @@ calculateDraft();
 }
 function saveInvoiceForm(){
   const id=$("#invoiceEditId").value;
-  let number=$("#invoiceNumber").value.trim(),issueDate=$("#invoiceIssueDate").value,serviceDate=$("#invoiceServiceDate").value,servicePeriod=$("#invoiceServicePeriod").value.trim(),dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value;
+  let number=normalizeInvoiceNumber($("#invoiceNumber").value),issueDate=$("#invoiceIssueDate").value,serviceDate=$("#invoiceServiceDate").value,servicePeriod=$("#invoiceServicePeriod").value.trim(),dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value;
   const title=$("#invoiceTitle").value.trim(),notes=$("#invoiceNotes").value.trim(),status=$("#invoiceStatus").value;
   // Leere Metadatenfelder erhalten sinnvolle Standardwerte, statt eine Pflichtfeldmeldung zu zeigen.
   if(!number) number=nextInvoiceNumber();
@@ -2865,8 +2895,22 @@ if(old){
 }
 else{
   state.invoices.unshift(invoice);
-  const tail=Number(number.match(/(\d+)$/)?.[1]);
-  if(Number.isFinite(tail))state.company.nextInvoiceNumber=Math.max(Number(state.company.nextInvoiceNumber)||1,tail+1);
+  const parsedNumber=parseStructuredInvoiceNumber(number);
+  if(parsedNumber){
+    // Die erste manuelle Rechnungsnummer legt Präfix und Jahr der Nummernserie fest.
+    // Danach wird stets die höchste bereits verwendete Nummer dieser Serie fortgesetzt.
+    state.company.invoicePrefix=parsedNumber.prefix;
+    state.company.invoiceYear=parsedNumber.year;
+    const nextForSeries=state.invoices.reduce((highest,entry)=>{
+      const parsed=parseStructuredInvoiceNumber(entry.number);
+      return parsed&&parsed.prefix===parsedNumber.prefix&&parsed.year===parsedNumber.year
+        ?Math.max(highest,parsed.sequence+1):highest;
+    },1);
+    state.company.nextInvoiceNumber=Math.max(nextForSeries,parsedNumber.sequence+1);
+  }else{
+    const tail=Number(number.match(/(\d+)$/)?.[1]);
+    if(Number.isFinite(tail))state.company.nextInvoiceNumber=Math.max(Number(state.company.nextInvoiceNumber)||1,tail+1);
+  }
   addActivity("invoice","Rechnung erstellt",`${number} · ${customerName(customerId)}`,amounts(invoice).gross);
 }
 saveState();
