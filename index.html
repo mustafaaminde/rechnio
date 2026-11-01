@@ -805,10 +805,30 @@ svg{
   min-width:145px
 }
 .line-items .qty{
-  width:70px
+  width:48px; min-width:0; text-align:center
 }
 .line-items .price{
-  width:104px
+  width:66px; min-width:0; text-align:center
+}
+.line-items .number-stepper{
+  display:flex; align-items:center; justify-content:center; gap:4px; min-width:0
+}
+.line-items .stepper-btn{
+  display:inline-flex; align-items:center; justify-content:center; flex:0 0 27px;
+  width:27px; height:34px; padding:0; border:1px solid var(--line); border-radius:7px;
+  background:var(--surface, #fff); color:var(--ink); font-size:18px; line-height:1; font-weight:750; cursor:pointer
+}
+.line-items .stepper-btn:hover{
+  border-color:var(--brand); background:var(--brand-soft, #f2f5ff); color:var(--brand)
+}
+.line-items .stepper-btn:focus-visible{
+  outline:2px solid var(--brand); outline-offset:2px
+}
+.line-items .qty-stepper{
+  min-width:91px
+}
+.line-items .price-stepper{
+  min-width:104px
 }
 .line-items .vat{
   width:82px
@@ -2761,7 +2781,7 @@ openModal({
 });
 }
 function invoiceFormBody(invoice,number,issue,due,customer){
-  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kundenname</label><input id="invoiceCustomer" class="input" list="invoiceCustomerSuggestions" value="${escAttr(customer?.name||"")}" placeholder="Kundennamen eingeben oder auswählen" autocomplete="off" required><datalist id="invoiceCustomerSuggestions">${state.customers.map(c=>`<option value="${escAttr(c.name)}"></option>`).join("")}</datalist><span class="hint">Du kannst einen gespeicherten Kunden auswählen oder einen neuen Namen direkt eingeben. Neue Namen werden automatisch als Kunde gespeichert.</span></div></div><div class="divider"></div><div class="section"><div class="between wrap" style="margin-bottom:10px"><div class="section-head" style="margin:0"><span class="section-num">3</span><h3>Positionen</h3></div><button type="button" class="btn secondary btn-sm" data-action="add-line">${icon("plus","icon icon-sm")} Position hinzufügen</button></div><div class="table-wrap" style="overflow:visible"><table class="line-items"><thead><tr><th>Beschreibung</th><th>Menge</th><th>Preis netto</th><th>MwSt.</th><th class="right">Netto</th><th></th></tr></thead><tbody id="invoiceLines"></tbody></table></div><div class="form-note" style="margin-top:12px">${icon("info")}<span><strong>Steuersatz prüfen:</strong> 7 % darf nur gewählt werden, wenn genau diese Ware oder Leistung gesetzlich begünstigt ist. Andernfalls gilt regelmäßig 19 %. Rechnio prüft die rechtliche Berechtigung des Steuersatzes nicht automatisch.</span></div><div id="invoiceTotals" class="totals"></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">4</span><h3>Weitere Angaben</h3></div><div class="form-grid"><div class="field full"><label for="invoiceNotes">Notiz / Zahlungshinweis</label><textarea id="invoiceNotes" class="textarea" placeholder="z. B. Zahlbar innerhalb von 14 Tagen.">${esc(invoice?.notes??state.company.footer??"")}</textarea></div><div class="field"><label for="invoiceStatus">Status</label><select id="invoiceStatus" class="select">${[["draft","Entwurf"],["open","Offen"],["paid","Bezahlt"]].map(([v,l])=>`<option value="${v}" ${
+  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kundenname</label><input id="invoiceCustomer" class="input" list="invoiceCustomerSuggestions" value="${escAttr(customer?.name||"")}" placeholder="Kundennamen frei eingeben" autocomplete="off" required><datalist id="invoiceCustomerSuggestions">${state.customers.map(c=>`<option value="${escAttr(c.name)}"></option>`).join("")}</datalist><span class="hint">Du kannst jeden Kundennamen frei eintippen – du musst keinen Eintrag aus der Liste auswählen. Ein neuer Name wird beim Speichern der Rechnung automatisch als Kunde angelegt.</span></div></div><div class="divider"></div><div class="section"><div class="between wrap" style="margin-bottom:10px"><div class="section-head" style="margin:0"><span class="section-num">3</span><h3>Positionen</h3></div><button type="button" class="btn secondary btn-sm" data-action="add-line">${icon("plus","icon icon-sm")} Position hinzufügen</button></div><div class="table-wrap" style="overflow:visible"><table class="line-items"><thead><tr><th>Beschreibung</th><th>Menge</th><th>Preis netto</th><th>MwSt.</th><th class="right">Netto</th><th></th></tr></thead><tbody id="invoiceLines"></tbody></table></div><div class="form-note" style="margin-top:12px">${icon("info")}<span><strong>Steuersatz prüfen:</strong> 7 % darf nur gewählt werden, wenn genau diese Ware oder Leistung gesetzlich begünstigt ist. Andernfalls gilt regelmäßig 19 %. Rechnio prüft die rechtliche Berechtigung des Steuersatzes nicht automatisch.</span></div><div id="invoiceTotals" class="totals"></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">4</span><h3>Weitere Angaben</h3></div><div class="form-grid"><div class="field full"><label for="invoiceNotes">Notiz / Zahlungshinweis</label><textarea id="invoiceNotes" class="textarea" placeholder="z. B. Zahlbar innerhalb von 14 Tagen.">${esc(invoice?.notes??state.company.footer??"")}</textarea></div><div class="field"><label for="invoiceStatus">Status</label><select id="invoiceStatus" class="select">${[["draft","Entwurf"],["open","Offen"],["paid","Bezahlt"]].map(([v,l])=>`<option value="${v}" ${
   (invoice?.status||"open")===v?"selected":""
 }
 >${
@@ -2786,7 +2806,19 @@ calculateDraft();
 function renderInvoiceLines(){
   const body=$("#invoiceLines");
   if(!body)return;
-  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="1" step="1" value="${escAttr(item.quantity??1)}"></td><td><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="1" value="${escAttr(item.price??0)}"></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
+  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><div class="number-stepper qty-stepper"><button type="button" class="stepper-btn" data-action="invoice-step" data-index="${index}" data-field="quantity" data-step="-1" aria-label="Menge verringern">−</button><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="1" step="1" value="${escAttr(item.quantity??1)}"><button type="button" class="stepper-btn" data-action="invoice-step" data-index="${index}" data-field="quantity" data-step="1" aria-label="Menge erhöhen">+</button></div></td><td><div class="number-stepper price-stepper"><button type="button" class="stepper-btn" data-action="invoice-step" data-index="${index}" data-field="price" data-step="-1" aria-label="Nettopreis um einen Euro verringern">−</button><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="1" value="${escAttr(item.price??0)}"><button type="button" class="stepper-btn" data-action="invoice-step" data-index="${index}" data-field="price" data-step="1" aria-label="Nettopreis um einen Euro erhöhen">+</button></div></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
+}
+function stepInvoiceValue(index,field,delta){
+  const row=$(`#invoiceLines tr[data-line="${index}"]`);
+  if(!row||!invoiceDraftItems[index]||!(field==="quantity"||field==="price"))return;
+  calculateDraft();
+  const input=field==="quantity"?$(".line-qty",row):$(".line-price",row);
+  const minimum=field==="quantity"?1:0;
+  const current=Math.max(minimum,num(input.value,minimum));
+  const next=Math.max(minimum,Math.round(current+delta));
+  invoiceDraftItems[index][field]=next;
+  input.value=String(next);
+  calculateDraft();
 }
 function calculateDraft(){
   const rows=$$("#invoiceLines tr");
@@ -3813,7 +3845,7 @@ switch(action){
   case "edit-invoice":closeModal(false);openInvoiceForm(id);break;case "edit-customer":closeModal(false);openCustomerForm(id);break;
   case "view-invoice":viewInvoice(id);break;case "print-invoice":printInvoice(id);break;case "view-customer":viewCustomer(id);break;
   case "delete-invoice":requestDelete("invoice",id);break;case "delete-customer":requestDelete("customer",id);break;case "confirm-delete":confirmDelete();break;
-  case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;
+  case "close-modal":closeModal();break;case "add-line":addLine();break;case "remove-line":removeLine(Number(button.dataset.index));break;case "invoice-step":stepInvoiceValue(Number(button.dataset.index),button.dataset.field,Number(button.dataset.step));break;
   case "mark-paid":markPaid(id);break;
   case "new-invoice-for-customer":closeModal(false);openInvoiceForm(null,id);break;
   case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;case "save-profile-name":saveProfileName();break;
