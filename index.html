@@ -1582,13 +1582,6 @@ help:{
   title:"Hilfe & Anleitung",subtitle:"Schritt für Schritt durch Rechnio – mit Antworten auf häufige Fragen."
 }
 };
-const EMPLOYEE_ALLOWED_PAGES = Object.freeze(["dashboard","invoices","customers","settings","help"]);
-function isEmployeeAccount(){
-  return teamInfo?.role === "employee";
-}
-function canAccessPage(page){
-  return Boolean(PAGE_META[page]) && (!isEmployeeAccount() || EMPLOYEE_ALLOWED_PAGES.includes(page));
-}
 const AVATAR_COLORS = ["","pink","green","orange","purple"];
 const SHORT_MONTHS = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
 const $ = (selector, root=document) => root.querySelector(selector);
@@ -1775,14 +1768,7 @@ function normalizeSavedState(parsed, initial=createInitialState()){
       paidAt: invoice?.paidAt || null
     };
   });
-  const sequencePrefix=String(company.invoicePrefix||"RE").trim().toUpperCase();
-  const sequenceYear=Number(company.invoiceYear)||new Date().getFullYear();
   const nextFromInvoice = invoices.reduce((largest, invoice) => {
-    const parsed=parseStructuredInvoiceNumber(invoice.number);
-    if(parsed){
-      return parsed.prefix===sequencePrefix&&parsed.year===sequenceYear
-        ?Math.max(largest,parsed.sequence+1):largest;
-    }
     const match = String(invoice.number).match(/(\d+)$/);
     return match ? Math.max(largest, Number(match[1]) + 1) : largest;
   }, 1);
@@ -1936,7 +1922,7 @@ async function loadCloudStateForUser(user){
     state.user=user;
   }
   validateState();
-  if(!canAccessPage(state.currentPage))state.currentPage="dashboard";
+  if(teamInfo.role==="employee"&&state.currentPage==="team")state.currentPage="dashboard";
   cloudReady=true;
   saveState();
 }
@@ -1950,12 +1936,10 @@ async function initializeUserWorkspace(user){
     if(Number(error?.status)===401){authenticatedUser=null;throw error;}
     console.error("Rechnio cloud workspace unavailable; using local account storage:",error);
     cloudReady=false;
-    const fallbackRole=teamInfo?.role==="employee"?"employee":"owner";
-    teamInfo={enabled:false,role:fallbackRole,organizationId:"",organizationName:""};
+    teamInfo={enabled:false,role:"owner",organizationId:"",organizationName:""};
     state=loadStateForUser(user);
     state.user={...(state.user||{}),...user};
     validateState();
-    if(!canAccessPage(state.currentPage))state.currentPage="dashboard";
     saveState();
     return {cloudReady:false,error:error?.message||"Cloud-Speicherung ist momentan nicht verfügbar."};
   }
@@ -2107,7 +2091,7 @@ function statusOf(invoice){
 }
 function statusText(status){
   return({
-    paid:"Bezahlt",open:"Offen",overdue:"Überfällig",draft:"Entwurf",sent:"Versendet"
+    paid:"Bezahlt",open:"Offen",overdue:"Überfällig",draft:"Entwurf",sent:"Offen"
   })[status]||"Offen";
 }
 function badge(status){
@@ -2391,7 +2375,6 @@ async function logout(){
     await fetch("/api/auth/logout",{method:"POST",credentials:"same-origin",headers:{"Accept":"application/json"}});
   }catch(error){console.warn("Abmeldung konnte den Server nicht erreichen.",error);}
   authenticatedUser=null;
-  teamInfo={enabled:false,role:"owner",organizationId:"",organizationName:""};
   cloudReady=false;
   if(cloudSaveTimer){clearTimeout(cloudSaveTimer);cloudSaveTimer=null;}
   closeSidebar();
@@ -2438,11 +2421,11 @@ async function saveProfileName(){
 }
 function navigate(page){
   if(!PAGE_META[page])return;
-  if(!canAccessPage(page)){
-    toast("Bereich nicht verfügbar","Dieser Bereich ist nur für den Inhaber freigegeben.","warning");
+  if(page==="settings"&&teamInfo.role==="employee")state.ui.settingsTab="preferences";
+  if(page==="team"&&teamInfo.role==="employee"){
+    toast("Keine Berechtigung","Die Mitarbeiterverwaltung ist nur für den Inhaber verfügbar.","warning");
     return;
   }
-  if(page==="settings"&&isEmployeeAccount())state.ui.settingsTab="preferences";
   state.currentPage=page;
   saveState();
   closeSidebar();
@@ -2476,16 +2459,14 @@ function updateChrome(){
   $("#navInvoiceCount").textContent=state.invoices.length;
   $("#navCustomerCount").textContent=state.customers.length;
   $$('.nav-item[data-page]').forEach(b=>b.classList.toggle("active",b.dataset.page===state.currentPage));
-  const employee=isEmployeeAccount();
+  const employee=teamInfo.role==="employee";
   const managementLabel=$("#managementNavLabel");
   if(managementLabel){managementLabel.textContent=employee?"Persönlich":"Verwaltung";managementLabel.classList.remove("hidden");}
   $("#managementNav")?.classList.remove("hidden");
   $$('[data-page="settings"]').forEach(el=>el.classList.remove("hidden"));
-  $$('[data-page="reports"]').forEach(el=>el.classList.toggle("hidden",employee));
   $$('[data-page="team"]').forEach(el=>el.classList.toggle("hidden",employee));
 }
 function renderPage(){
-  if(!canAccessPage(state.currentPage))state.currentPage="dashboard";
   const renderers={
     dashboard:renderDashboard,invoices:renderInvoices,customers:renderCustomers,reports:renderReports,team:renderTeamPage,settings:renderSettings,help:renderHelp
   };
@@ -2548,9 +2529,7 @@ const now=new Date(),monthKey=`${now.getFullYear()}-${String(now.getMonth()+1).p
 const monthlyRevenue=sum(list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).map(i=>i.gross));
 const paidThisMonth=list.filter(i=>i.computedStatus==="paid"&&String(i.paidAt||i.issueDate||"").slice(0,7)===monthKey).length;
 const recent=[...state.invoices].sort((a,b)=>String(b.issueDate).localeCompare(String(a.issueDate))).slice(0,5);
-const actions=isEmployeeAccount()
-  ? `<button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`
-  : `<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
+const actions=`<button class="btn secondary" data-action="export-data">${icon("download","icon icon-sm")} Daten exportieren</button><button class="btn primary" data-action="new-invoice">${icon("plus","icon icon-sm")} Neue Rechnung</button>`;
 return `${heading(`Guten Tag, ${state.user?.name||"dir"}!`,teamInfo.role==="employee"?"Dein persönlicher Zugang zur gemeinsamen Unternehmensübersicht.":"Hier ist die aktuelle Übersicht deiner Rechnungen.",actions)}${workspaceBanner}${demoBanner()}
 <section class="stats" aria-label="Kennzahlen">${statCard("Monatsumsatz",money(monthlyRevenue),"chart","blue",`${paidThisMonth} bezahlte Rechnungen diesen Monat`)}${statCard("Bezahlte Rechnungen",money(paid),"wallet","green",`${list.filter(i=>i.computedStatus==="paid").length} bezahlt insgesamt`)}${statCard("Offene Beträge",money(open),"clock","amber",`${list.filter(i=>["open","sent","overdue"].includes(i.computedStatus)).length} offen`)}${statCard("Überfällig",money(overdue),"calendar","red",`${list.filter(i=>i.computedStatus==="overdue").length} überfällig`)}${statCard("Kunden",String(state.customers.length),"users","purple","Gespeicherte Kontakte")}</section>
 ${employeeAccountCard}${ownerTeamCard}
@@ -2560,9 +2539,7 @@ ${employeeAccountCard}${ownerTeamCard}
   }
 </tbody></table></div>`:emptyState("file","Noch keine Rechnungen","Erstelle deine erste Rechnung.","new-invoice")}</section></div>
 <div class="dash-right"><section class="card"><div class="card-head"><div><h2 class="card-title">Zahlungsstatus</h2><div class="card-subtitle">Verteilung nach Status</div></div></div><div class="card-body"><div id="statusDonut" class="donut-wrap"></div></div></section>
-<section class="card"><div class="card-head"><div><h2 class="card-title">Schnellzugriff</h2><div class="card-subtitle">Häufige Aktionen</div></div></div><div class="card-body"><div class="quick-grid"><button class="quick" data-action="new-invoice"><span class="quick-icon">${icon("file-plus")}</span><span><strong>Rechnung erstellen</strong><small>Neue Rechnung</small></span></button><button class="quick" data-action="new-customer"><span class="quick-icon">${icon("user-plus")}</span><span><strong>Kunde hinzufügen</strong><small>Kontakt speichern</small></span></button>${isEmployeeAccount()
-  ? `<button class="quick" data-page="help"><span class="quick-icon">${icon("info")}</span><span><strong>Hilfe & Anleitung</strong><small>Schritt für Schritt</small></span></button>`
-  : `<button class="quick" data-page="reports"><span class="quick-icon">${icon("chart")}</span><span><strong>Auswertungen</strong><small>Umsätze prüfen</small></span></button><button class="quick" data-action="export-data"><span class="quick-icon">${icon("download")}</span><span><strong>Daten exportieren</strong><small>JSON-Sicherung</small></span></button>`}</div></div></section>
+<section class="card"><div class="card-head"><div><h2 class="card-title">Schnellzugriff</h2><div class="card-subtitle">Häufige Aktionen</div></div></div><div class="card-body"><div class="quick-grid"><button class="quick" data-action="new-invoice"><span class="quick-icon">${icon("file-plus")}</span><span><strong>Rechnung erstellen</strong><small>Neue Rechnung</small></span></button><button class="quick" data-action="new-customer"><span class="quick-icon">${icon("user-plus")}</span><span><strong>Kunde hinzufügen</strong><small>Kontakt speichern</small></span></button><button class="quick" data-page="reports"><span class="quick-icon">${icon("chart")}</span><span><strong>Auswertungen</strong><small>Umsätze prüfen</small></span></button><button class="quick" data-action="export-data"><span class="quick-icon">${icon("download")}</span><span><strong>Daten exportieren</strong><small>JSON-Sicherung</small></span></button></div></div></section>
 <section class="card"><div class="card-head"><div><h2 class="card-title">Aktivität</h2><div class="card-subtitle">Letzte Änderungen</div></div></div><div class="card-body"><div class="activity-list">${renderActivity(state.activity.slice(0,4))}</div></div></section></div></div>`;
 }
 function renderActivity(items){
@@ -2681,7 +2658,7 @@ function renderInvoices(){
   Export</button><button class="btn primary" data-action="new-invoice">${
     icon("plus","icon icon-sm")
   }
-Neue Rechnung</button>`)}<section class="card table-card"><div class="table-toolbar"><div class="toolbar-group"><div class="toolbar-search input-wrap">${icon("search")}<input id="invoiceSearch" class="input" type="search" placeholder="Rechnungsnummer, Kunde…" value="${escAttr(state.ui.invoiceSearch)}"></div></div><div class="toolbar-group"><select id="invoiceStatusFilter" class="select toolbar-select" aria-label="Nach Status filtern">${[["all","Alle Status"],["paid","Bezahlt"],["open","Offen"],["sent","Versendet"],["overdue","Überfällig"],["draft","Entwurf"]].map(([v,l])=>`<option value="${v}" ${
+Neue Rechnung</button>`)}<section class="card table-card"><div class="table-toolbar"><div class="toolbar-group"><div class="toolbar-search input-wrap">${icon("search")}<input id="invoiceSearch" class="input" type="search" placeholder="Rechnungsnummer, Kunde…" value="${escAttr(state.ui.invoiceSearch)}"></div></div><div class="toolbar-group"><select id="invoiceStatusFilter" class="select toolbar-select" aria-label="Nach Status filtern">${[["all","Alle Status"],["paid","Bezahlt"],["open","Offen"],["overdue","Überfällig"],["draft","Entwurf"]].map(([v,l])=>`<option value="${v}" ${
   filter===v?"selected":""
 }
 >${
@@ -2767,36 +2744,13 @@ function detailBlock(label,value){
 /* ================================================================
 INVOICE CREATION, LINE ITEMS, CALCULATIONS
 ================================================================ */
-function parseStructuredInvoiceNumber(value){
-  const match=String(value||"").trim().match(/^(.+?)\s*-\s*(\d{4})\s*-\s*(\d+)$/);
-  if(!match)return null;
-  return {
-    prefix:match[1].trim().toUpperCase(),
-    year:Number(match[2]),
-    sequence:Number(match[3]),
-    width:Math.max(3,match[3].length)
-  };
-}
-function normalizeInvoiceNumber(value){
-  const raw=String(value||"").trim();
-  const parsed=parseStructuredInvoiceNumber(raw);
-  if(!parsed)return raw;
-  return `${parsed.prefix}-${parsed.year}-${String(parsed.sequence).padStart(parsed.width,"0")}`;
-}
 function nextInvoiceNumber(){
   const year=new Date().getFullYear();
   if(Number(state.company.invoiceYear)!==year){
     state.company.invoiceYear=year;
     state.company.nextInvoiceNumber=1;
   }
-  const prefix=String(state.company.invoicePrefix||"RE").trim().toUpperCase()||"RE";
-  const highestExisting=state.invoices.reduce((highest,invoice)=>{
-    const parsed=parseStructuredInvoiceNumber(invoice.number);
-    return parsed&&parsed.prefix===prefix&&parsed.year===year
-      ?Math.max(highest,parsed.sequence+1):highest;
-  },1);
-  state.company.nextInvoiceNumber=Math.max(1,Number(state.company.nextInvoiceNumber)||1,highestExisting);
-  return `${prefix}-${year}-${String(state.company.nextInvoiceNumber).padStart(3,"0")}`;
+return `${state.company.invoicePrefix||"RE"}-${year}-${String(state.company.nextInvoiceNumber||1).padStart(3,"0")}`;
 }
 function openInvoiceForm(id=null,forcedCustomerId=null){
   if(!state.customers.length){
@@ -2817,13 +2771,13 @@ openModal({
 });
 }
 function invoiceFormBody(invoice,number,issue,due,customer){
-  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"><span class="hint">Die erste Nummer kannst du festlegen. Danach zählt Rechnio automatisch weiter, z. B. RE-2026-001 → RE-2026-002.</span></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde</label><select id="invoiceCustomer" class="select">${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
+  return `<form id="invoiceForm" novalidate><input id="invoiceEditId" type="hidden" value="${escAttr(invoice?.id||"")}"><div class="section"><div class="section-head"><span class="section-num">1</span><h3>Rechnungsdaten</h3></div><div class="form-grid three"><div class="field"><label for="invoiceNumber">Rechnungsnummer</label><input id="invoiceNumber" class="input" value="${escAttr(number)}"></div><div class="field"><label for="invoiceIssueDate">Rechnungsdatum</label><input id="invoiceIssueDate" class="input" type="date" value="${escAttr(issue)}"></div><div class="field"><label for="invoiceServiceDate">Liefer-/Leistungsdatum</label><input id="invoiceServiceDate" class="input" type="date" value="${escAttr(invoice?.serviceDate||"")}"><span class="hint">Ein Datum oder unten einen Zeitraum angeben.</span></div><div class="field"><label for="invoiceServicePeriod">Leistungszeitraum</label><input id="invoiceServicePeriod" class="input" value="${escAttr(invoice?.servicePeriod||"")}" placeholder="z. B. 01.10.2026–31.10.2026"><span class="hint">Alternativ zum einzelnen Datum.</span></div><div class="field"><label for="invoiceDueDate">Zahlbar bis</label><input id="invoiceDueDate" class="input" type="date" value="${escAttr(due)}"></div><div class="field full"><label for="invoiceTitle">Titel / Beschreibung</label><input id="invoiceTitle" class="input" value="${escAttr(invoice?.title||"")}" placeholder="z. B. Webdesign, Reparatur, Beratung"></div></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">2</span><h3>Kunde auswählen</h3></div><div class="field"><label for="invoiceCustomer">Kunde</label><select id="invoiceCustomer" class="select">${state.customers.map(c=>`<option value="${escAttr(c.id)}" ${
       c.id===customer?.id?"selected":""
     }
   >${
     esc(c.name)
   }
-</option>`).join("")}</select><span class="hint">Kunden kannst du im Menü „Kunden“ verwalten.</span></div></div><div class="divider"></div><div class="section"><div class="between wrap" style="margin-bottom:10px"><div class="section-head" style="margin:0"><span class="section-num">3</span><h3>Positionen</h3></div><button type="button" class="btn secondary btn-sm" data-action="add-line">${icon("plus","icon icon-sm")} Position hinzufügen</button></div><div class="table-wrap" style="overflow:visible"><table class="line-items"><thead><tr><th>Beschreibung</th><th>Menge</th><th>Preis netto</th><th>MwSt.</th><th class="right">Netto</th><th></th></tr></thead><tbody id="invoiceLines"></tbody></table></div><div class="form-note" style="margin-top:12px">${icon("info")}<span><strong>Steuersatz prüfen:</strong> 7 % darf nur gewählt werden, wenn genau diese Ware oder Leistung gesetzlich begünstigt ist. Andernfalls gilt regelmäßig 19 %. Rechnio prüft die rechtliche Berechtigung des Steuersatzes nicht automatisch.</span></div><div id="invoiceTotals" class="totals"></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">4</span><h3>Weitere Angaben</h3></div><div class="form-grid"><div class="field full"><label for="invoiceNotes">Notiz / Zahlungshinweis</label><textarea id="invoiceNotes" class="textarea" placeholder="z. B. Zahlbar innerhalb von 14 Tagen.">${esc(invoice?.notes??state.company.footer??"")}</textarea></div><div class="field"><label for="invoiceStatus">Status</label><select id="invoiceStatus" class="select">${[["draft","Entwurf"],["open","Offen"],["sent","Versendet"],["paid","Bezahlt"]].map(([v,l])=>`<option value="${v}" ${
+</option>`).join("")}</select><span class="hint">Kunden kannst du im Menü „Kunden“ verwalten.</span></div></div><div class="divider"></div><div class="section"><div class="between wrap" style="margin-bottom:10px"><div class="section-head" style="margin:0"><span class="section-num">3</span><h3>Positionen</h3></div><button type="button" class="btn secondary btn-sm" data-action="add-line">${icon("plus","icon icon-sm")} Position hinzufügen</button></div><div class="table-wrap" style="overflow:visible"><table class="line-items"><thead><tr><th>Beschreibung</th><th>Menge</th><th>Preis netto</th><th>MwSt.</th><th class="right">Netto</th><th></th></tr></thead><tbody id="invoiceLines"></tbody></table></div><div class="form-note" style="margin-top:12px">${icon("info")}<span><strong>Steuersatz prüfen:</strong> 7 % darf nur gewählt werden, wenn genau diese Ware oder Leistung gesetzlich begünstigt ist. Andernfalls gilt regelmäßig 19 %. Rechnio prüft die rechtliche Berechtigung des Steuersatzes nicht automatisch.</span></div><div id="invoiceTotals" class="totals"></div></div><div class="divider"></div><div class="section"><div class="section-head"><span class="section-num">4</span><h3>Weitere Angaben</h3></div><div class="form-grid"><div class="field full"><label for="invoiceNotes">Notiz / Zahlungshinweis</label><textarea id="invoiceNotes" class="textarea" placeholder="z. B. Zahlbar innerhalb von 14 Tagen.">${esc(invoice?.notes??state.company.footer??"")}</textarea></div><div class="field"><label for="invoiceStatus">Status</label><select id="invoiceStatus" class="select">${[["draft","Entwurf"],["open","Offen"],["paid","Bezahlt"]].map(([v,l])=>`<option value="${v}" ${
   (invoice?.status||"open")===v?"selected":""
 }
 >${
@@ -2848,7 +2802,7 @@ calculateDraft();
 function renderInvoiceLines(){
   const body=$("#invoiceLines");
   if(!body)return;
-  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="1" step="1" value="${escAttr(item.quantity??1)}"></td><td><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="1" value="${escAttr(item.price??0)}"></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
+  body.innerHTML=invoiceDraftItems.map((item,index)=>`<tr data-line="${index}"><td><input class="input description line-description" aria-label="Beschreibung Position ${index+1}" value="${escAttr(item.description||"")}" placeholder="Leistung oder Produkt"></td><td><input class="input qty line-qty" aria-label="Menge Position ${index+1}" type="number" min="0.01" step="0.01" value="${escAttr(item.quantity??1)}"></td><td><input class="input price line-price" aria-label="Nettopreis Position ${index+1}" type="number" min="0" step="0.01" value="${escAttr(item.price??0)}"></td><td><select class="select vat line-vat" aria-label="MwSt Position ${index+1}"><option value="19" ${Number(item.vat)===19?"selected":""}>19 %</option><option value="7" ${Number(item.vat)===7?"selected":""}>7 %</option><option value="0" ${Number(item.vat)===0?"selected":""}>0 %</option></select></td><td class="line-total">${money(num(item.quantity)*num(item.price))}</td><td><button type="button" class="remove-line" data-action="remove-line" data-index="${index}" aria-label="Position entfernen" ${invoiceDraftItems.length<=1?"disabled":""}>${icon("x","icon icon-sm")}</button></td></tr>`).join("");
 }
 function calculateDraft(){
   const rows=$$("#invoiceLines tr");
@@ -2879,7 +2833,7 @@ calculateDraft();
 }
 function saveInvoiceForm(){
   const id=$("#invoiceEditId").value;
-  let number=normalizeInvoiceNumber($("#invoiceNumber").value),issueDate=$("#invoiceIssueDate").value,serviceDate=$("#invoiceServiceDate").value,servicePeriod=$("#invoiceServicePeriod").value.trim(),dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value;
+  let number=$("#invoiceNumber").value.trim(),issueDate=$("#invoiceIssueDate").value,serviceDate=$("#invoiceServiceDate").value,servicePeriod=$("#invoiceServicePeriod").value.trim(),dueDate=$("#invoiceDueDate").value,customerId=$("#invoiceCustomer").value;
   const title=$("#invoiceTitle").value.trim(),notes=$("#invoiceNotes").value.trim(),status=$("#invoiceStatus").value;
   // Leere Metadatenfelder erhalten sinnvolle Standardwerte, statt eine Pflichtfeldmeldung zu zeigen.
   if(!number) number=nextInvoiceNumber();
@@ -2911,22 +2865,8 @@ if(old){
 }
 else{
   state.invoices.unshift(invoice);
-  const parsedNumber=parseStructuredInvoiceNumber(number);
-  if(parsedNumber){
-    // Die erste manuelle Rechnungsnummer legt Präfix und Jahr der Nummernserie fest.
-    // Danach wird stets die höchste bereits verwendete Nummer dieser Serie fortgesetzt.
-    state.company.invoicePrefix=parsedNumber.prefix;
-    state.company.invoiceYear=parsedNumber.year;
-    const nextForSeries=state.invoices.reduce((highest,entry)=>{
-      const parsed=parseStructuredInvoiceNumber(entry.number);
-      return parsed&&parsed.prefix===parsedNumber.prefix&&parsed.year===parsedNumber.year
-        ?Math.max(highest,parsed.sequence+1):highest;
-    },1);
-    state.company.nextInvoiceNumber=Math.max(nextForSeries,parsedNumber.sequence+1);
-  }else{
-    const tail=Number(number.match(/(\d+)$/)?.[1]);
-    if(Number.isFinite(tail))state.company.nextInvoiceNumber=Math.max(Number(state.company.nextInvoiceNumber)||1,tail+1);
-  }
+  const tail=Number(number.match(/(\d+)$/)?.[1]);
+  if(Number.isFinite(tail))state.company.nextInvoiceNumber=Math.max(Number(state.company.nextInvoiceNumber)||1,tail+1);
   addActivity("invoice","Rechnung erstellt",`${number} · ${customerName(customerId)}`,amounts(invoice).gross);
 }
 saveState();
@@ -3058,10 +2998,6 @@ function markPaid(id){
 DELETE CONFIRMATION AND OVERDUE FILTER
 ================================================================ */
 function requestDelete(kind,id){
-  if(isEmployeeAccount()){
-    toast("Keine Berechtigung","Mitarbeiter können Einträge ansehen und bearbeiten, aber nicht löschen.","warning");
-    return;
-  }
   const c=kind==="customer"?customerById(id):null,i=kind==="invoice"?invoiceById(id):null;
   if(!c&&!i)return;
   if(c&&state.invoices.some(x=>x.customerId===id)){
@@ -3084,12 +3020,6 @@ openModal({
 });
 }
 function confirmDelete(){
-  if(isEmployeeAccount()){
-    pendingDelete=null;
-    closeModal();
-    toast("Keine Berechtigung","Mitarbeiter können Einträge nicht löschen.","warning");
-    return;
-  }
   if(!pendingDelete)return;
   const {
     kind,id
@@ -3126,30 +3056,16 @@ function showOverdue(){
 HELP CENTER AND GUIDED WALKTHROUGH
 ================================================================ */
 function helpSteps(){
-  const steps=[];
-  if(!isEmployeeAccount())steps.push({title:"Unternehmensangaben eintragen",question:"Sind deine Firmendaten eingetragen?",summary:"Damit Rechnungen deinen richtigen Namen und deine Anschrift zeigen.",details:["Öffne Einstellungen → Unternehmen.","Trage deinen rechtlichen Namen bzw. Firmennamen ein.","Ergänze Straße und Hausnummer, PLZ und Ort.","Trage – soweit für deine Situation erforderlich – Steuernummer oder USt-IdNr. ein. Die IBAN ist optional, wenn du keine Banküberweisung auf der Rechnung anbieten möchtest.","Klicke auf „Änderungen speichern“."],target:"company",button:"Unternehmensangaben öffnen"});
-  steps.push(
+  return [
+    {title:"Unternehmensangaben eintragen",question:"Sind deine Firmendaten eingetragen?",summary:"Damit Rechnungen deinen richtigen Namen und deine Anschrift zeigen.",details:["Öffne Einstellungen → Unternehmen.","Trage deinen rechtlichen Namen bzw. Firmennamen ein.","Ergänze Straße und Hausnummer, PLZ und Ort.","Trage – soweit für deine Situation erforderlich – Steuernummer oder USt-IdNr. ein. Die IBAN ist optional, wenn du keine Banküberweisung auf der Rechnung anbieten möchtest.","Klicke auf „Änderungen speichern“."],target:"company",button:"Unternehmensangaben öffnen"},
     {title:"Kunden anlegen",question:"Hast du den Rechnungsempfänger gespeichert?",summary:"Eine Rechnung braucht den richtigen Kunden und die passenden Adressdaten.",details:["Öffne links den Bereich Kunden.","Klicke auf „Kunde hinzufügen“.","Trage mindestens Name/Firma und die passenden Kontaktdaten ein.","Ergänze Straße, Hausnummer, PLZ und Ort.","Speichere den Kunden und kontrolliere den Eintrag in der Kundenliste."],target:"customers",button:"Kunden öffnen"},
     {title:"Rechnung erstellen",question:"Hast du eine neue Rechnung angelegt?",summary:"Wähle einen Kunden und trage die Leistung sowie die Beträge ein.",details:["Öffne Rechnungen und klicke auf „Neue Rechnung“.","Wähle den richtigen Kunden.","Prüfe Rechnungsdatum, Liefer-/Leistungsdatum und Zahlungsziel.","Trage für jede Position eine verständliche Beschreibung, Menge, Preis und den passenden Steuersatz ein.","Kontrolliere Netto, Umsatzsteuer und Bruttobetrag, bevor du speicherst."],target:"invoices",button:"Rechnungen öffnen"},
-    {title:"Zahlungsstatus aktualisieren",question:"Hast du den Status geprüft?",summary:"So bleiben offene und bezahlte Rechnungen in deinen Übersichten richtig sortiert.",details:["Öffne Rechnungen und wähle die passende Rechnung.","Markiere sie erst dann als bezahlt, wenn die Zahlung tatsächlich eingegangen ist.","Prüfe anschließend den Status im Dashboard und in der Rechnungsliste.","Bei verspäteter Zahlung kontrollierst du das Fälligkeitsdatum und kontaktierst den Kunden bei Bedarf."],target:"invoices",button:"Rechnungen öffnen"}
-  );
-  return steps;
+    {title:"Zahlungsstatus aktualisieren",question:"Hast du den Status geprüft?",summary:"So bleiben offene und bezahlte Rechnungen in deinen Übersichten richtig sortiert.",details:["Öffne Rechnungen und wähle die passende Rechnung.","Markiere sie erst dann als bezahlt, wenn die Zahlung tatsächlich eingegangen ist.","Prüfe anschließend Dashboard und Auswertungen.","Bei verspäteter Zahlung kontrollierst du das Fälligkeitsdatum und kontaktierst den Kunden bei Bedarf."],target:"reports",button:"Auswertungen öffnen"}
+  ];
 }
 function getHelpAnswer(question){
   const q=norm(question);
-  if(!q)return isEmployeeAccount()
-    ? {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu deinen Mitarbeiterfunktionen in Rechnio.",steps:["Wie erstelle ich eine Rechnung?","Wie lege ich einen Kunden an?","Wie ändere ich die Darstellung?"],target:"help",button:"Hilfe ansehen"}
-    : {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu Rechnungen, Kunden, Exporten, Einstellungen oder zur Datenspeicherung. Die Antwort basiert auf der in dieser Version integrierten Rechnio-Anleitung.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?","Wo trage ich Firmendaten ein?","Wie exportiere ich Kunden?"],target:"help",button:"Hilfe ansehen"};
-  if(isEmployeeAccount()){
-    if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b|mehrere benutzer/.test(q))return {title:"Mitarbeiterkonto",intro:"Du bist mit deinem eigenen Mitarbeiterkonto im gemeinsamen Unternehmensbereich angemeldet. Neue Mitarbeiter und Einladungen kann nur der Inhaber verwalten.",steps:["Dein Login ist getrennt vom Konto des Inhabers.","Rechnungen und Kunden werden mit dem Unternehmen geteilt.","Unternehmens- und Teamverwaltung bleiben beim Inhaber."],target:"help",button:"Hilfe öffnen"};
-    if(/löschen|loeschen|entfernen|entfernt/.test(q))return {title:"Eintrag löschen",intro:"Mitarbeiterkonten können Rechnungen und Kunden ansehen und bearbeiten. Das Löschen ist dem Inhaber vorbehalten.",steps:["Öffne die betroffene Rechnung oder den Kunden.","Nimm notwendige Änderungen vor und speichere sie.","Bitte den Inhaber, einen Eintrag zu löschen, wenn das wirklich nötig ist."],target:"help",button:"Zur Hilfe zurück"};
-    if(/firmenname|firmendaten|steuernummer|ust.?id|iban|absender|rechnungssteller|unternehmensangaben|adresse vom unternehmen|unternehmen/.test(q))return {title:"Unternehmensangaben",intro:"Unternehmensdaten werden vom Inhaber verwaltet, damit Rechnungsangaben zentral und einheitlich bleiben.",steps:["Prüfe die Angaben auf der Rechnung.","Melde fehlende oder falsche Unternehmensdaten dem Inhaber.","Der Inhaber kann sie unter Einstellungen → Unternehmen ändern."],target:"help",button:"Zur Hilfe zurück"};
-    if(/daten sichern|datensicherung|json|backup|importieren|import/.test(q))return {title:"Datensicherung",intro:"Die vollständige Unternehmenssicherung und der Datenimport bleiben dem Inhaber vorbehalten.",steps:["Du kannst Kunden und Rechnungen über die jeweiligen CSV-Exportfunktionen exportieren.","Für eine vollständige JSON-Sicherung wende dich bitte an den Inhaber."],target:"help",button:"Zur Hilfe zurück"};
-    if(/export|csv|download/.test(q))return {title:"Kunden und Rechnungen exportieren",intro:"Als Mitarbeiter kannst du die Listen exportieren, die du für deine tägliche Arbeit brauchst.",steps:["Öffne „Kunden“ und nutze dort die CSV-Exportfunktion.","Öffne „Rechnungen“ und nutze dort die CSV-Exportfunktion.","Die vollständige JSON-Sicherung und der Import bleiben dem Inhaber vorbehalten."],target:"help",button:"Zur Hilfe zurück"};
-    if(/einstellung|darstellung|hell|dunkel|modus|thema/.test(q))return {title:"Persönliche Einstellungen",intro:"In deinem Mitarbeiterkonto kannst du die Darstellung von Rechnio selbst einstellen.",steps:["Öffne Einstellungen.","Wähle Hell oder Dunkel unter „Modus“.","Unter „Darstellung“ kannst du deine persönlichen Anzeigeoptionen anpassen.","Firmendaten, Rechnungsnummern und Teamzugriffe verwaltet der Inhaber."],target:"settings",button:"Persönliche Einstellungen öffnen"};
-    if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Dein Mitarbeiterbereich in Rechnio",intro:"Du hast Zugriff auf die Bereiche, die du für die tägliche Arbeit mit Rechnungen und Kunden brauchst.",steps:["Dashboard: Überblick über Rechnungen, Zahlungen und Kunden.","Rechnungen: erstellen, bearbeiten, ansehen und Zahlungsstatus verwalten.","Kunden: Kontakte speichern, ansehen und bearbeiten.","Einstellungen: persönliche Darstellung ändern.","Hilfe & Anleitung: Funktionen Schritt für Schritt kennenlernen.","Unternehmensdaten und Mitarbeiterzugriffe verwaltet der Inhaber."],target:"dashboard",button:"Zum Dashboard"};
-    if(/umsatz|auswertung|statistik|diagramm|gewinn|kosten|ausgaben/.test(q))return {title:"Dashboard",intro:"Das Dashboard zeigt dir die wichtigsten Informationen zu Rechnungen, Zahlungsstatus und Kunden. Erweiterte Auswertungen und Unternehmenskennzahlen bleiben dem Inhaber vorbehalten.",steps:["Öffne das Dashboard für die aktuelle Übersicht.","Öffne Rechnungen, um einzelne Beträge und Zahlungsstatus zu prüfen.","Bei Fragen zu erweiterten Auswertungen wende dich an den Inhaber."],target:"dashboard",button:"Zum Dashboard"};
-  }
+  if(!q)return {title:"Was möchtest du wissen?",intro:"Stelle eine Frage zu Rechnungen, Kunden, Exporten, Einstellungen oder zur Datenspeicherung. Die Antwort basiert auf der in dieser Version integrierten Rechnio-Anleitung.",steps:["Zum Beispiel: Wie erstelle ich eine Rechnung?","Wo trage ich Firmendaten ein?","Wie exportiere ich Kunden?"],target:"help",button:"Hilfe ansehen"};
   if(/rechnung.{0,35}(erstell|anleg|neu)|(?:erstell|anleg).{0,35}rechnung|neue rechnung/.test(q))return {title:"Rechnung erstellen",intro:"So legst du eine neue Rechnung in Rechnio an.",steps:["Öffne links den Bereich „Rechnungen“.","Klicke auf „Neue Rechnung“.","Wähle den Rechnungsempfänger aus der Kundenliste aus.","Prüfe Rechnungsnummer, Rechnungsdatum und Zahlungsziel. Das Leistungsdatum oder der Leistungszeitraum kann ebenfalls ergänzt werden.","Füge eine Position hinzu und trage Beschreibung, Menge, Nettopreis und passenden Steuersatz ein.","Kontrolliere die berechneten Beträge und klicke auf „Rechnung speichern“.","Öffne die gespeicherte Rechnung zur Kontrolle."],target:"invoices",button:"Neue Rechnung öffnen"};
   if(/mitarbeiter|mitarbeiterkonto|team|einladen|rolle\b|mehrere benutzer/.test(q))return {title:"Mitarbeiterkonten",intro:"Der Inhaber kann über Einstellungen → Mitarbeiter einen privaten Einladungslink erstellen und direkt über WhatsApp teilen.",steps:["Öffne Einstellungen und wähle den Tab Mitarbeiter.","Klicke auf „Einladungslink schicken“. Rechnio erstellt einen sicheren Link und öffnet WhatsApp mit einer vorbereiteten Nachricht.","Wähle in WhatsApp den Mitarbeiter aus und sende die Nachricht. Der Mitarbeiter öffnet den Link und erstellt bei Bedarf ein eigenes Rechnio-Konto.","Der Link läuft nach sieben Tagen ab und kann nur einmal angenommen werden. Teile ihn nur mit der gewünschten Person.","Die Funktion benötigt die aktualisierte Supabase-Tabelle und einen geheimen Schlüssel nur in Render."],target:"settings",button:"Mitarbeiterverwaltung öffnen"};
   if(/was kann rechnio|funktionen|ueber rechnio|über rechnio|was ist rechnio|wie funktioniert rechnio|uebersicht|übersicht|features/.test(q))return {title:"Was du mit Rechnio machen kannst",intro:"Diese Version bündelt die wichtigsten Abläufe rund um Kunden und Rechnungen.",steps:["Dashboard: Überblick über wichtige Kennzahlen und aktuelle Rechnungen.","Rechnungen: erstellen, bearbeiten, ansehen und den Status wie offen oder bezahlt verwalten.","Kunden: Kontakte mit Adresse und weiteren Kontaktdaten speichern und bearbeiten.","Auswertungen: Rechnungsbeträge und Zahlungsstatus überblicken.","Exporte: Kunden und Rechnungen als CSV exportieren; Kundendaten lassen sich nach Monat, Jahr oder insgesamt auswählen.","Einstellungen: Unternehmensangaben, Rechnungsnummern, Steuersatz-Standard, Zahlungsziel und Datensicherung verwalten.","Mitarbeiterkonten nutzen nach der Einrichtung einen gemeinsamen Unternehmensbereich. Die Einladungs-E-Mail benötigt einen verifizierten Resend-Absender; andernfalls kann der sichere Link manuell geteilt werden."],target:"dashboard",button:"Zum Dashboard"};
@@ -3163,9 +3079,7 @@ function getHelpAnswer(question){
   if(/umsatz|auswertung|statistik|diagramm|dashboard|gewinn|kosten|ausgaben/.test(q))return {title:"Dashboard und Auswertungen",intro:"Diese Bereiche fassen vorhandene Rechnungen und deren Zahlungsstatus zusammen.",steps:["Das Dashboard zeigt wichtige Kennzahlen und aktuelle Rechnungen.","Öffne „Auswertungen“, um Rechnungsvolumen, bezahlte, offene und überfällige Beträge zu sehen.","Die Summen beruhen auf den in Rechnio gespeicherten Rechnungen und Statusangaben.","Ein vollständiger Unternehmensgewinn lässt sich daraus allein nicht sicher bestimmen, solange Kosten/Ausgaben nicht lückenlos erfasst werden.","Prüfe Daten und Status vor geschäftlichen Entscheidungen."],target:/dashboard/.test(q)?"dashboard":"reports",button:/dashboard/.test(q)?"Zum Dashboard":"Zu Auswertungen"};
   if(/mwst|mehrwertsteuer|umsatzsteuer|steuersatz|7 ?%|19 ?%|steuer/.test(q))return {title:"Umsatzsteuer und Steuersätze",intro:"Rechnio berechnet die Steuer anhand des ausgewählten Steuersatzes. Die App entscheidet nicht, welcher Steuersatz rechtlich für deine Leistung gilt.",steps:["Öffne die Rechnung und bearbeite die betroffene Position.","Prüfe Menge, Nettopreis und den zugeordneten Steuersatz.","Wähle nur einen Steuersatz, der tatsächlich auf die Leistung anwendbar ist.","Wenn du dir unsicher bist, kläre es mit einer qualifizierten Steuerberatung oder einer verlässlichen offiziellen Quelle."],target:"invoices",button:"Zu Rechnungen"};
   if(/abo|preis|bezahlen|zahlungsmethode|subscription|kosten von rechnio/.test(q))return {title:"Abo und Preise",intro:"In der aktuellen Oberfläche ist keine bestätigte Abonnement- oder Zahlungsverwaltung integriert.",steps:["Die Preisstufen sind noch kein aktiver Checkout.","Vor dem Verkauf müssen Preis, Bedingungen, Datenschutz und Zahlungsabwicklung eingerichtet werden.","Bis dahin solltest du keine Zahlung über Rechnio versprechen oder behaupten, ein Abo werde automatisch verwaltet."],target:"help",button:"Hilfe ansehen"};
-  return isEmployeeAccount()
-    ? {title:"Ich helfe dir bei Rechnio",intro:"Deine Frage lässt sich noch keinem Thema eindeutig zuordnen. Hier sind Beispiele aus deinem Mitarbeiterbereich.",steps:["Wie erstelle ich eine Rechnung?","Wie lege ich einen Kunden an?","Wie ändere ich meine persönlichen Einstellungen?","Wie exportiere ich Kunden und Rechnungen?"],target:"help",button:"Hilfe ansehen"}
-    : {title:"Ich helfe dir bei Rechnio",intro:"Ich kenne die wichtigsten Bereiche und Abläufe dieser Rechnio-Version. Deine Frage lässt sich noch keinem Thema eindeutig zuordnen. Formuliere sie genauer oder wähle eine der Beispiel-Fragen.",steps:["Wie erstelle ich eine Rechnung?","Warum fehlen Firmendaten in der Rechnung?","Wie verwalte oder exportiere ich Kunden?","Wo werden meine Daten gespeichert?","Welche Funktionen hat Rechnio?"],target:"help",button:"Hilfe ansehen"};
+  return {title:"Ich helfe dir bei Rechnio",intro:"Ich kenne die wichtigsten Bereiche und Abläufe dieser Rechnio-Version. Deine Frage lässt sich noch keinem Thema eindeutig zuordnen. Formuliere sie genauer oder wähle eine der Beispiel-Fragen.",steps:["Wie erstelle ich eine Rechnung?","Warum fehlen Firmendaten in der Rechnung?","Wie verwalte oder exportiere ich Kunden?","Wo werden meine Daten gespeichert?","Welche Funktionen hat Rechnio?"],target:"help",button:"Hilfe ansehen"};
 }
 function renderHelpAnswer(answer){
   if(!answer)return "";
@@ -3193,10 +3107,6 @@ function renderHelp(){
     saveState();
   }
   const steps=helpSteps();
-  const suggestions=isEmployeeAccount()
-    ? ["Wie erstelle ich eine Rechnung?","Wie lege ich einen Kunden an?","Wie ändere ich den Dunkelmodus?","Wie exportiere ich Kunden und Rechnungen?","Welche Funktionen hat mein Mitarbeiterbereich?"]
-    : ["Wie erstelle ich eine Rechnung?","Warum fehlen Firmendaten auf meiner Rechnung?","Wie lege ich einen Kunden an?","Wo werden meine Daten gespeichert und wie mache ich eine Sicherung?","Welche Funktionen hat Rechnio?"];
-  const suggestionButtons=suggestions.map(question=>`<button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="${escAttr(question)}">${esc(question)}</button>`).join("");
   const rawStep=Number(state.ui.helpStep)||0;
   const complete=rawStep>=steps.length;
   const index=Math.max(0,Math.min(rawStep,steps.length-1));
@@ -3208,7 +3118,7 @@ function renderHelp(){
   return `${heading("Hilfe & Anleitung","Lerne Rechnio Schritt für Schritt kennen – auf Computer, Tablet und Smartphone.")}
     <section class="help-hero"><div class="help-kicker">Dein Rechnio-Assistent</div><h2>Wir machen es Schritt für Schritt.</h2><p>Der Assistent erläutert die Funktionen und Grenzen dieser Rechnio-Version. Stelle Fragen zu Rechnungen, Kunden, Exporten, Einstellungen, Datensicherung oder Anmeldung. Die Antworten stammen aus einer integrierten Wissensbasis; ein externes generatives KI-Modell ist derzeit nicht angeschlossen. Du kannst dir jeden Schritt erklären lassen und anschließend bestätigen, dass du ihn erledigt hast.</p></section>
     <div class="help-layout"><section class="help-card"><div class="between wrap"><div><div class="help-kicker">Geführte Anleitung</div><h2 class="card-title" style="margin:5px 0 0">Rechnio kennenlernen</h2></div><span class="muted small">${complete?steps.length: index} / ${steps.length} Schritte erledigt</span></div><div class="help-progress" role="progressbar" aria-label="Fortschritt der Anleitung" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}"><div class="help-progress-fill" style="width:${progress}%"></div></div>${wizard}</section>
-    <section class="help-card"><div class="help-kicker">Fragen und Antworten</div><h2 class="card-title" style="margin:5px 0 6px">Was möchtest du machen?</h2><p class="muted" style="margin:0 0 14px;line-height:1.7">Formuliere deine Frage in normalem Deutsch. Die Antworten beruhen auf der integrierten Rechnio-Wissensbasis und beschreiben die vorhandenen Funktionen sowie deren bekannte Grenzen.</p><form id="helpAskForm" class="help-question-form"><label class="sr-only" for="helpQuestion">Deine Frage</label><textarea id="helpQuestion" class="textarea" placeholder="Wie erstelle ich eine Rechnung?" maxlength="500">${esc(question)}</textarea><button class="btn primary" type="submit">Frage beantworten ${icon("chevron","icon icon-sm")}</button></form><div class="help-suggestions">${suggestionButtons}</div>${answer}</section></div>`;
+    <section class="help-card"><div class="help-kicker">Fragen und Antworten</div><h2 class="card-title" style="margin:5px 0 6px">Was möchtest du machen?</h2><p class="muted" style="margin:0 0 14px;line-height:1.7">Formuliere deine Frage in normalem Deutsch. Die Antworten beruhen auf der integrierten Rechnio-Wissensbasis und beschreiben die vorhandenen Funktionen sowie deren bekannte Grenzen.</p><form id="helpAskForm" class="help-question-form"><label class="sr-only" for="helpQuestion">Deine Frage</label><textarea id="helpQuestion" class="textarea" placeholder="Wie erstelle ich eine Rechnung?" maxlength="500">${esc(question)}</textarea><button class="btn primary" type="submit">Frage beantworten ${icon("chevron","icon icon-sm")}</button></form><div class="help-suggestions"><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie erstelle ich eine Rechnung?">Wie erstelle ich eine Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Warum fehlen Firmendaten auf meiner Rechnung?">Warum fehlen Firmendaten auf meiner Rechnung?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wie lege ich einen Kunden an?">Wie lege ich einen Kunden an?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Wo werden meine Daten gespeichert und wie mache ich eine Sicherung?">Wo werden meine Daten gespeichert?</button><button type="button" class="help-chip" data-action="help-ask-suggestion" data-question="Welche Funktionen hat Rechnio?">Welche Funktionen hat Rechnio?</button></div>${answer}</section></div>`;
 }
 function submitHelpQuestion(question){
   const q=String(question||"").trim();
@@ -3227,11 +3137,6 @@ function submitHelpQuestion(question){
   renderPage();
 }
 function openHelpTarget(target){
-  if(isEmployeeAccount()&&["company","data","reports","team"].includes(target)){
-    toast("Nur für den Inhaber","Diese Unternehmenseinstellung wird vom Inhaber verwaltet.","info");
-    navigate("settings");
-    return;
-  }
   if(target==="company"){
     state.ui.settingsTab="company";
     saveState();
@@ -3509,10 +3414,6 @@ a.remove();
 setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function exportData(){
-  if(isEmployeeAccount()){
-    toast("Nur für den Inhaber","Die vollständige Unternehmenssicherung kann nur der Inhaber exportieren.","warning");
-    return;
-  }
   const payload={
     format:"rechnio-demo-export",exportedAt:new Date().toISOString(),version:VERSION,data:{
       company:state.company,customers:state.customers,invoices:state.invoices,expenses:state.expenses,activity:state.activity,preferences:state.preferences
@@ -3675,10 +3576,6 @@ function finishInvoiceExport(period,month,year){
   toast("Rechnungen exportiert",`${filtered.length} Rechnung(en) für ${label} wurden als CSV erstellt.`);
 }
 function importData(file){
-  if(isEmployeeAccount()){
-    toast("Nur für den Inhaber","Unternehmensdaten können nur vom Inhaber importiert werden.","warning");
-    return;
-  }
   if(!file)return;
   const reader=new FileReader();
   reader.onload=()=>{
@@ -3792,7 +3689,7 @@ function globalSearchMatches(value){
   if(has([state?.user]))add("profile","profile",state.user?.name||"Mein Konto",state.user?.email||"Kontoeinstellungen");
 
   // Weitere vorhandene Datensätze, die nicht zwingend ein eigenes Detailfenster besitzen.
-  if(!isEmployeeAccount())(Array.isArray(state?.expenses)?state.expenses:[]).forEach((item,index)=>{
+  (Array.isArray(state?.expenses)?state.expenses:[]).forEach((item,index)=>{
     if(has([item]))add("expense",item?.id??index,item?.name||item?.title||item?.description||item?.vendor||"Ausgabe",globalSearchFlatten(item).slice(0,5).join(" · "));
   });
   (Array.isArray(state?.activity)?state.activity:[]).forEach((item,index)=>{
@@ -3806,11 +3703,12 @@ function globalSearchMatches(value){
     ["customers","Kunden","Kontakte, Ansprechpartner, Adresse, E-Mail, Telefon, Notizen"],
     ["reports","Auswertungen","Statistik, Diagramm, Monatsumsatz, Beträge, Zahlungsstatus, Gewinn, Kosten, Ausgaben"],
     ["help","Hilfe & Anleitung","Anleitung, Fragen, Hilfe, Funktionen, Problem, Support"],
-    ["settings","Einstellungen",isEmployeeAccount()?"Persönliche Einstellungen, Darstellung, Modus, Hell, Dunkel, Profil":"Unternehmen, Firmendaten, Steuernummer, USt-IdNr., IBAN, Sicherung, Import, Export, Darstellung, Profil, Passwort"],
+    ["settings","Einstellungen","Unternehmen, Firmendaten, Steuernummer, USt-IdNr., IBAN, Sicherung, Import, Export, Darstellung, Profil, Passwort"],
     ["team","Mitarbeiter & Team","Mitarbeiterkonto, Team, Einladung, Mitglied, Zugriff, Rolle, Mitarbeiterverwaltung"]
   ];
   pageSearch.forEach(([id,title,keywords])=>{
-    if(!canAccessPage(id))return;
+    if(id==="settings"&&teamInfo?.role==="employee")return;
+    if(id==="team"&&teamInfo?.role==="employee")return;
     if(has([title,keywords]))add("page",id,title,keywords);
   });
   try{
@@ -3855,7 +3753,7 @@ function openGlobalSearchResult(type,id,key=""){
     state.ui.settingsTab="company";saveState();navigate("settings");return;
   }
   if(type==="profile"){
-    state.ui.settingsTab=isEmployeeAccount()?"preferences":"company";saveState();navigate("settings");return;
+    state.ui.settingsTab="company";saveState();navigate("settings");return;
   }
   if(type==="page"){
     if(id==="settings")state.ui.settingsTab="company";
@@ -3928,9 +3826,7 @@ switch(action){
   case "show-overdue":showOverdue();break;case "demo-info":showDemoInfo();break;case "logout":logout();break;case "save-profile-name":saveProfileName();break;
   case "export-data":exportData();break;case "export-customers":exportCustomers();break;case "export-invoices":exportInvoices();break;
   case "import-data":$("#importFile")?.click();break;case "dismiss-toast":button.closest(".toast")?.remove();break;
-  case "settings-tab":
-    if(isEmployeeAccount()&&!(["mode","preferences"].includes(button.dataset.tab))){toast("Nur für den Inhaber","Diese Einstellung wird vom Inhaber verwaltet.","warning");break;}
-    state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
+  case "settings-tab":state.ui.settingsTab=button.dataset.tab;saveState();renderPage();break;
   case "set-theme":applyTheme(button.dataset.theme);renderPage();toast("Modus geändert",currentTheme()==="dark"?"Rechnio verwendet jetzt den Dunkelmodus.":"Rechnio verwendet jetzt den Hellmodus.");break;
   case "team-remove-member":removeTeamMember(button.dataset.id);break;
   case "team-revoke-invitation":revokeTeamInvitation(button.dataset.id);break;
