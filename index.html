@@ -698,9 +698,6 @@ svg{
 .status.draft{
   color:#66758b; background:#edf1f6
 }
-.status.sent{
-  color:var(--brand); background:var(--brand-soft)
-}
 .table-actions{
   display:flex; align-items:center; justify-content:flex-end; gap:4px
 }
@@ -1750,9 +1747,7 @@ function normalizeSavedState(parsed, initial=createInitialState()){
       items = [{ description: String(invoice?.title || "Importierte Position"), quantity: 1, price: net, vat: rate }];
     }
     const rawStatus = String(invoice?.status || "open").toLowerCase();
-    const status = ["paid", "open", "overdue", "draft", "sent"].includes(rawStatus)
-      ? rawStatus
-      : (["unpaid", "pending", "ausstehend"].includes(rawStatus) ? "open" : "open");
+    const status = rawStatus === "paid" ? "paid" : rawStatus === "draft" ? "draft" : "open";
     return {
       ...invoice,
       id: String(invoice?.id || uid("inv")),
@@ -2087,15 +2082,15 @@ function statusOf(invoice){
   if(invoice.status==="paid")return"paid";
   if(invoice.status==="draft")return"draft";
   if(invoice.dueDate&&isPast(invoice.dueDate))return"overdue";
-  return invoice.status==="sent"?"sent":"open";
+  return"open";
 }
 function statusText(status){
   return({
-    paid:"Bezahlt",open:"Offen",overdue:"Überfällig",draft:"Entwurf",sent:"Offen"
+    paid:"Bezahlt",open:"Offen",overdue:"Überfällig",draft:"Entwurf"
   })[status]||"Offen";
 }
 function badge(status){
-  const safe=["paid","open","overdue","draft","sent"].includes(status)?status:"open";
+  const safe=["paid","open","overdue","draft"].includes(status)?status:"open";
   return `<span class="status ${safe}">${statusText(safe)}</span>`;
 }
 function addActivity(type,title,detail,amount=null){
@@ -3617,7 +3612,7 @@ function validateState(){
     serviceDate:String(i.serviceDate || "").slice(0,10),
     servicePeriod:String(i.servicePeriod || "").slice(0,100),
     dueDate:String(i.dueDate || i.issueDate || i.date || todayISO()).slice(0,10),
-    status:["paid","open","overdue","draft","sent"].includes(i.status) ? i.status : "open",
+    status:i.status==="paid"?"paid":i.status==="draft"?"draft":"open",
     customerId:state.customers.some(c => c.id === i.customerId) ? i.customerId : (state.customers[0]?.id || ""),
     items:Array.isArray(i.items) && i.items.length ? i.items.map(item => ({
       description:String(item.description || "Leistung"), quantity:Math.max(0,num(item.quantity,1)),
@@ -3625,7 +3620,7 @@ function validateState(){
     })) : [{ description:"Leistung", quantity:1, price:0, vat:Number(state.company.defaultVat)||19 }]
   }));
   if(!PAGE_META[state.currentPage]) state.currentPage = "dashboard";
-  if(!["all","paid","open","overdue","draft","sent"].includes(state.ui.invoiceStatus)) state.ui.invoiceStatus = "all";
+  if(!["all","paid","open","overdue","draft"].includes(state.ui.invoiceStatus)) state.ui.invoiceStatus = "all";
 }
 /* ================================================================
 GLOBAL SEARCH AND EVENT DELEGATION
